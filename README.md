@@ -10,7 +10,10 @@
 > git switch riangle
 > git pull upstream main
 > git push origin riangle
+> pnpm install
+> pnpm pods
 > ```
+> Run `pnpm install` and `pnpm pods` after every pull, before building. Upstream adds and removes native files, and a stale Pods project fails the build with "Build input file cannot be found". Both are quick when nothing changed.
 >
 > **Building it**
 > Build the Release app signed with your own team and bundle ID, so it installs next to the official Ardia and keeps its own data in `~/Library/Application Support/<bundle id>`:
