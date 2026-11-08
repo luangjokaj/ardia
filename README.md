@@ -3,11 +3,6 @@
 > The default branch, `riangle`, is the original `main` plus a few patches of mine. Everything else in this README is the original project's.
 >
 > **Patches on top of `main`** (details and commits in [CHANGELOG.md](CHANGELOG.md))
-> - Profile badges: the emoji or initial sits on the center of the circle ([#1019](https://github.com/mantrakp04/ardia/pull/1019)).
-> - Sidebar: a tab in Picture in Picture shows a PiP icon in its row, instead of a badge over the favicon.
-> - Sidebar: a tab's unread count sits at the right end of its row, vertically centered.
->
-> Add each new patch to [CHANGELOG.md](CHANGELOG.md) and to this list.
 >
 > **Staying up to date**
 > ```sh
