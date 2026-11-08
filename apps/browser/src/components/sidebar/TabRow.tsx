@@ -107,8 +107,8 @@ export const TabRow = memo(function TabRow({
             padLeft={TAB_ROW.contentLeft - border}
             padRight={TAB_ROW.trailing - border}
           >
-            {resettable ? (
-              <View {...backToPin.hoverProps}>
+            <View {...backToPin.hoverProps}>
+              {resettable ? (
                 <Pressable onPress={() => returnToPinnedUrl(tab.id)} tooltip={withShortcut("Back to Pinned URL", backToPinHint)}>
                   {resetting ? (
                     <View style={{ width: 16, height: 16, alignItems: "center", justifyContent: "center" }}>
@@ -121,13 +121,13 @@ export const TabRow = memo(function TabRow({
                     </View>
                   )}
                 </Pressable>
-              </View>
-            ) : (
-              <View>
-                <TabIcon tabId={tab.id} url={tab.url} favicon={tab.favicon} icon={tab.customIcon} profileId={tab.profileId} marks={flags & ICON_MARKS} />
-                <TabBadges tabId={tab.id} pip={false} unread={false} />
-              </View>
-            )}
+              ) : (
+                <View>
+                  <TabIcon tabId={tab.id} url={tab.url} favicon={tab.favicon} icon={tab.customIcon} profileId={tab.profileId} marks={flags & ICON_MARKS} />
+                  <TabBadges tabId={tab.id} pip={false} unread={false} />
+                </View>
+              )}
+            </View>
             {pip && (
               <Pressable onPress={togglePip} style={{ marginLeft: space.s }} tooltip="Exit Picture in Picture">
                 <Symbol name="pip" size={12} color={theme.textTab} style={{ width: 18, height: 16 }} />
