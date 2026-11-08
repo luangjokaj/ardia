@@ -1,3 +1,32 @@
+> [!NOTE]
+> **This is Riangle Ardia, a personal fork of [mantrakp04/ardia](https://github.com/mantrakp04/ardia).**
+> The default branch, `riangle`, is the original `main` plus a few patches of mine. Everything else in this README is the original project's.
+>
+> **Patches on top of `main`**
+> - Profile badges: the emoji or initial sits on the center of the circle ([#1019](https://github.com/mantrakp04/ardia/pull/1019)).
+> - Sidebar: a tab in Picture in Picture shows a PiP icon in its row, instead of a badge over the favicon.
+>
+> **Staying up to date**
+> ```sh
+> git remote add upstream https://github.com/mantrakp04/ardia.git   # once
+> git switch riangle
+> git pull upstream main
+> git push origin riangle
+> ```
+>
+> **Building it**
+> Build the Release app signed with your own team and bundle ID, so it installs next to the official Ardia and keeps its own data in `~/Library/Application Support/<bundle id>`:
+> ```sh
+> cd apps/browser
+> xcodebuild -workspace macos/Ardia.xcworkspace -scheme Ardia-macOS -derivedDataPath build-riangle \
+>   -destination 'platform=macOS,arch=arm64' -configuration Release -allowProvisioningUpdates \
+>   DEVELOPMENT_TEAM=<your team> PRODUCT_BUNDLE_IDENTIFIER=<your bundle id>
+> ditto build-riangle/Build/Products/Release/Ardia.app "/Applications/Riangle Ardia.app"
+> defaults write <your bundle id> SUEnableAutomaticChecks -bool NO
+> defaults write <your bundle id> SUAutomaticallyUpdate -bool NO
+> ```
+> The last two lines stop it from updating itself to the official release.
+
 <p align="center">
   <img src="apps/site/src/assets/app-icon.png" width="128" height="128" alt="Ardia's app icon">
 </p>
