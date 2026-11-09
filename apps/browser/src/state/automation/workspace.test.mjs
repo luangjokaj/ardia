@@ -438,3 +438,123 @@ test("R3b: a move the store didn't finish names what it touched", async () => {
     useBrowser.setState({ placeTabs: real });
   }
 });
+
+const { setOpeningGate } = await import("../tabs/openingGate.ts");
+
+test("R3a: group.create takes its parent and section from the anchor, and refuses contradictions before opening anything", async () => {
+  const { windowId, a, b, c } = await setup();
+  S().pinTabs([a], true, false);
+  S().pinTabs([b], true, true);
+  const count = () => Object.keys(S().tabs).length;
+  const groups = () => Object.keys(S().groups).length;
+  const [tabs, made] = [count(), groups()];
+  for (const op of [
+    { op: "group.create", urls: ["https://new.example/"], before: a },
+    { op: "group.create", urls: ["https://new.example/"], after: a },
+    { op: "group.create", urls: ["https://new.example/"], before: b, pinned: false },
+  ]) {
+    const r = await apply(op);
+    assert.equal(r.ok, false, JSON.stringify(op));
+    assert.equal(r.error.code, "bad_request", JSON.stringify(op));
+    assert.deepEqual([count(), groups()], [tabs, made], JSON.stringify(op));
+  }
+  const pinnedThere = await apply({ op: "group.create", urls: ["https://p.example/"], before: b });
+  assert.equal(pinnedThere.ok, true, JSON.stringify(pinnedThere.error));
+  const pg = S().groups[pinnedThere.results[0].group];
+  assert.equal(pg.pinned, true);
+  assert.ok(Math.max(...pg.tabIds.map((id) => order(windowId).indexOf(id))) < order(windowId).indexOf(b));
+  const outer = (await apply({ op: "group.create", tabs: [c], pinned: false, name: "P" })).results[0].group;
+  const nested = await apply({ op: "group.create", urls: ["https://n.example/"], before: c });
+  assert.equal(nested.ok, true, JSON.stringify(nested.error));
+  assert.equal(S().groups[nested.results[0].group].parentId, outer);
+  const wrong = await apply({ op: "group.create", urls: ["https://n.example/"], before: c, pinned: true });
+  assert.equal(wrong.error.code, "bad_request");
+});
+
+test("R3b: a split moved next to a tile is refused, since its panes can only pin as rows", async () => {
+  const { a, b, c } = await setup();
+  S().createSplit([b, c]);
+  S().pinTabs([a], true, false);
+  const r = await apply({ op: "tab.move", tabs: [b], before: a });
+  assert.equal(r.ok, false);
+  assert.equal(r.error.code, "bad_request");
+  assert.deepEqual([S().tabs[b].pin, S().tabs[c].pin], [null, null]);
+});
+
+test("R3c: a URL an opening rule cancels rolls back the tabs opened before it", async () => {
+  const { windowId } = await setup();
+  setOpeningGate((url) => (url.startsWith("https://blocked.example/") ? { cancel: true } : null));
+  try {
+    const count = Object.keys(S().tabs).length;
+    const groups = Object.keys(S().groups).length;
+    for (const op of [
+      { op: "open", urls: ["https://good.example/", "https://blocked.example/x"], window: windowId },
+      { op: "group.create", urls: ["https://good.example/", "https://blocked.example/x"], pinned: false },
+    ]) {
+      const r = await apply(op);
+      assert.equal(r.ok, false, op.op);
+      assert.equal(r.error.code, "refused", op.op);
+      assert.match(r.error.message, /blocked\.example/);
+      assert.equal(Object.keys(S().tabs).length, count, op.op);
+      assert.equal(Object.keys(S().groups).length, groups, op.op);
+    }
+  } finally {
+    setOpeningGate(null);
+  }
+});
+
+test("names: a group field takes a group's name, case-insensitively, in the op's window; ids win; ambiguity lists ids", async () => {
+  const { windowId, a, b, c } = await setup();
+  const made = await apply({ op: "group.create", tabs: [b], name: "Work", icon: "💼", pinned: false });
+  const work = made.results[0].group;
+  assert.deepEqual([made.results[0].label, made.results[0].icon], ["Work", "💼"]);
+  const moved = await apply({ op: "tab.move", tabs: [c], group: "work" });
+  assert.equal(moved.ok, true, JSON.stringify(moved.error));
+  assert.ok(S().groups[work].tabIds.includes(c));
+  const named = await apply({ op: "group.update", group: { name: "WORK" }, color: "blue" });
+  assert.equal(named.ok, true, JSON.stringify(named.error));
+  assert.equal(S().groups[work].color, "blue");
+  const decoy = (await apply({ op: "group.create", tabs: [a], name: work, pinned: false })).results[0].group;
+  const byId = await apply({ op: "group.update", group: work, name: "Work" });
+  assert.equal(byId.results[0].group, work);
+  await apply({ op: "group.update", group: decoy, name: "work " });
+  const twice = await apply({ op: "group.update", group: "Work", collapsed: true });
+  assert.equal(twice.ok, false);
+  assert.equal(twice.error.code, "bad_request");
+  assert.ok(twice.error.message.includes(work) && twice.error.message.includes(decoy), twice.error.message);
+  const none = await apply({ op: "group.update", group: "Nope", collapsed: true });
+  assert.equal(none.error.code, "no_window");
+  const other = S().createWindow({ url: "https://o.example/" });
+  const elsewhere = (await apply({ op: "group.create", tabs: [S().windows[other].tabIds[0]], name: "Elsewhere", pinned: false })).results[0].group;
+  const here = S().newTab(windowId, { url: "https://h.example/", background: true });
+  assert.equal((await apply({ op: "tab.move", tabs: [here], group: "Elsewhere" })).error.code, "no_window");
+  const there = await apply({ op: "tab.move", tabs: [here], group: "Elsewhere", window: other });
+  assert.equal(there.ok, true, JSON.stringify(there.error));
+  assert.ok(S().groups[elsewhere].tabIds.includes(here));
+  const gone = await apply({ op: "group.ungroup", group: decoy });
+  assert.equal(gone.results[0].label, "work");
+});
+
+test("order: groups made from one group's tabs keep creation order above it, and ungrouping it leaves the rest below", async () => {
+  for (const pinned of [false, true]) {
+    S().hydrate({});
+    await controlOn();
+    const w = S().createWindow({ url: "https://0.example/" });
+    const t = [1, 2, 3, 4, 5, 6].map((n) => S().newTab(w, { url: `https://${n}.example/`, background: true }));
+    const imported = (await apply({ op: "group.create", tabs: t, name: "Imported", pinned: false })).results[0].group;
+    const r = await apply(
+      { op: "group.create", tabs: [t[0], t[1]], name: "Work", pinned },
+      { op: "group.create", tabs: [t[2], t[3]], name: "Reading", pinned },
+      { op: "group.create", tabs: [t[4]], name: "Shopping", pinned },
+    );
+    assert.equal(r.ok, true, JSON.stringify(r.error));
+    const at = (id) => S().windows[w].tabIds.indexOf(id);
+    const [work, reading, shopping] = r.results.map((x) => S().groups[x.group]);
+    const last = (g) => Math.max(...g.tabIds.map(at));
+    const first = (g) => Math.min(...g.tabIds.map(at));
+    assert.ok(last(work) < first(reading) && last(reading) < first(shopping), `pinned ${pinned}: creation order`);
+    assert.ok(last(shopping) < at(t[5]), `pinned ${pinned}: the rest stays below`);
+    assert.equal((await apply({ op: "group.ungroup", group: imported })).ok, true);
+    assert.ok(last(shopping) < at(t[5]), `pinned ${pinned}: still below after ungroup`);
+  }
+});

@@ -231,7 +231,7 @@ class EveryOutputIsInert(Base):
         self.assertIn("Héllo 世界 مرحبا 👋🏽\tcol\nline2 ", out)
         _, raw, _ = render({"json": True}, result=result, name="get")
         self.assertEqual(json.loads(raw)["data"]["title"], PAGE)
-        self.assertIn("\x9b", raw)
+        self.assertNotIn("\x9b", raw)
         from ardia_cli.browse.errors import BrowseError
 
         _, _, err = render({"json": False}, error=BrowseError(f"bad {PAGE}"))
@@ -254,3 +254,66 @@ class EveryOutputIsInert(Base):
             status, out, err = self.run_cli("commands", "--json")
             self.assertIn("\x1b", out)
             self.assertNotIn("\x1b", err)
+
+
+C1_TITLE = "Clear \x9b2J then \x9d0;spoof\x9c and \x7f, café 世界 👋"
+
+
+class JsonStaysInert(Base):
+    def assert_no_c1(self, text):
+        for char in ("\x9b", "\x9d", "\x9c", "\x7f"):
+            self.assertNotIn(char, text)
+
+    def test_browse_json_escapes_c1_and_decodes_to_the_same_value(self):
+        from ardia_cli.browse.commands import Result
+        from ardia_cli.browse.daemon import render
+
+        _, out, _ = render({"json": True}, result=Result(data={"title": C1_TITLE}, text=C1_TITLE))
+        self.assert_no_c1(out)
+        self.assertIn("café 世界 👋", out)
+        self.assertEqual(json.loads(out)["data"]["title"], C1_TITLE)
+
+    def test_every_cli_json_output_escapes_c1(self):
+        server = self.serve()
+        windows = [{"id": "w-1", "kind": "normal", "focused": True, "profile": "default", "profileName": "P", "tabs": [{"id": "t", "url": "https://a.example/", "title": C1_TITLE, "active": True, "pinned": False, "group": None}]}]
+        server.replies["windows"] = lambda params: {"result": windows}
+        status, out, _ = self.run_cli("windows", "--json")
+        self.assertEqual(status, 0)
+        self.assert_no_c1(out)
+        self.assertEqual(json.loads(out), windows)
+        from ardia_cli import printable
+
+        text = json.dumps({"t": C1_TITLE}, ensure_ascii=False)
+        self.assertEqual(json.loads(printable.json_safe(text)), {"t": C1_TITLE})
+
+
+class NamedOutput(Base):
+    def test_groups_and_tabs_are_named_next_to_their_ids(self):
+        server = self.serve()
+        replies = {
+            "group.create": {"op": "group.create", "group": "g-1", "label": "Work", "icon": "💼", "tabs": ["tab-1", "tab-2", "tab-3", "tab-4"]},
+            "group.update": {"op": "group.update", "group": "g-1", "label": "Work", "icon": "symbol:briefcase"},
+            "group.move": {"op": "group.move", "group": "g-1", "label": "Work", "icon": None},
+            "group.ungroup": {"op": "group.ungroup", "group": "g-1", "label": "Old\x1b[2J", "icon": "💼", "tabs": ["tab-1"]},
+            "tab.move": {"op": "tab.move", "tabs": ["tab-1", "tab-9"]},
+        }
+        tabs = [{"type": "tab", "id": "tab-1", "title": "Inbox \x1b]52;c;x\x07", "url": "https://mail.example/"}]
+
+        def apply(params):
+            op = params["ops"][0]["op"]
+            return {"result": {"ok": True, "applied": 1, "results": [replies[op]], "tabs": tabs, "groups": [], "windows": []}}
+
+        server.replies["apply"] = apply
+        cases = [
+            (["groups", "create", "--name", "Work", "--icon", "💼"], "created group 💼 Work (g-1) with 4 tabs"),
+            (["groups", "update", "Work", "--collapse"], "updated group Work (g-1)"),
+            (["groups", "move", "Work", "--parent", "Projects"], "moved group Work (g-1)"),
+            (["groups", "ungroup", "Old"], "ungrouped 💼 Old\\u001b[2J (g-1)"),
+            (["tabs", "move", "tab-1", "tab-9", "--group", "Work"], "moved Inbox \\u001b]52;c;x\\u0007 (tab-1), tab-9"),
+        ]
+        for argv, line in cases:
+            status, out, err = self.run_cli(*argv)
+            self.assertEqual((status, out.strip()), (0, line), (argv, err))
+        sent = [p["ops"][0] for m, p in server.requests if m == "apply"]
+        self.assertEqual(sent[1]["group"], "Work")
+        self.assertEqual(sent[2]["parent"], "Projects")
