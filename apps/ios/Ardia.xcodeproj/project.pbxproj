@@ -445,7 +445,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.ardia.ios.share;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ARDIA_IOS_BUNDLE_ID).share";
 				PRODUCT_NAME = ArdiaShare;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -490,6 +490,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				ARDIA_IOS_BUNDLE_ID = com.ardia.ios;
 				DEVELOPMENT_TEAM = U5L5T3NGVV;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -537,7 +538,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.ardia.ios.share;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ARDIA_IOS_BUNDLE_ID).share";
 				PRODUCT_NAME = ArdiaShare;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -557,7 +558,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.ardia.ios.widgets;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ARDIA_IOS_BUNDLE_ID).widgets";
 				PRODUCT_NAME = ArdiaWidgets;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -591,7 +592,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.ardia.ios;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ARDIA_IOS_BUNDLE_ID)";
 				PRODUCT_NAME = Ardia;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -611,7 +612,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.ardia.ios.open;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ARDIA_IOS_BUNDLE_ID).open";
 				PRODUCT_NAME = ArdiaOpen;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -656,6 +657,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ARDIA_IOS_BUNDLE_ID = com.ardia.ios;
 				DEVELOPMENT_TEAM = U5L5T3NGVV;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -696,7 +698,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.ardia.ios.widgets;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ARDIA_IOS_BUNDLE_ID).widgets";
 				PRODUCT_NAME = ArdiaWidgets;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -730,7 +732,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.ardia.ios;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ARDIA_IOS_BUNDLE_ID)";
 				PRODUCT_NAME = Ardia;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -750,7 +752,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.ardia.ios.open;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ARDIA_IOS_BUNDLE_ID).open";
 				PRODUCT_NAME = ArdiaOpen;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;

@@ -9,6 +9,7 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     DEVELOPMENT_TEAM: U5L5T3NGVV
+    ARDIA_IOS_BUNDLE_ID: com.ardia.ios
     CODE_SIGN_STYLE: Automatic
     MARKETING_VERSION: "1.0"
     CURRENT_PROJECT_VERSION: "1"
@@ -41,7 +42,7 @@ targets:
       - target: ArdiaOpen
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ardia.ios
+        PRODUCT_BUNDLE_IDENTIFIER: $(ARDIA_IOS_BUNDLE_ID)
         PRODUCT_NAME: Ardia
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: Config/Ardia-Info.plist
@@ -80,7 +81,7 @@ targets:
       - sdk: SwiftUI.framework
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ardia.ios.widgets
+        PRODUCT_BUNDLE_IDENTIFIER: $(ARDIA_IOS_BUNDLE_ID).widgets
         PRODUCT_NAME: ArdiaWidgets
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: Config/Widgets-Info.plist
@@ -101,7 +102,7 @@ targets:
         product: ArdiaDesign
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ardia.ios.share
+        PRODUCT_BUNDLE_IDENTIFIER: $(ARDIA_IOS_BUNDLE_ID).share
         PRODUCT_NAME: ArdiaShare
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: Config/Share-Info.plist
@@ -120,7 +121,7 @@ targets:
         product: ArdiaDesign
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ardia.ios.open
+        PRODUCT_BUNDLE_IDENTIFIER: $(ARDIA_IOS_BUNDLE_ID).open
         PRODUCT_NAME: ArdiaOpen
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: Config/Open-Info.plist

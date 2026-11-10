@@ -27,6 +27,17 @@
 > defaults write <your bundle id> SUAutomaticallyUpdate -bool NO
 > ```
 > The last two lines stop it from updating itself to the official release.
+>
+> **Building the iPhone app**
+> The iPhone app (`apps/ios`) is plain Xcode: no `pnpm install`, no pods. Its bundle IDs and app group come from one build setting, `ARDIA_IOS_BUNDLE_ID` (a patch of this fork), so it signs with your own team. Connect the iPhone (iOS 27 or later, Developer Mode on), find its ID with `xcrun devicectl list devices`, then:
+> ```sh
+> cd apps/ios
+> xcodebuild -project Ardia.xcodeproj -scheme Ardia -configuration Debug -destination 'id=<device id>' \
+>   -derivedDataPath build-riangle -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
+>   DEVELOPMENT_TEAM=<your team> ARDIA_IOS_BUNDLE_ID=<your iOS bundle id> build
+> xcrun devicectl device install app --device <device id> build-riangle/Build/Products/Debug-iphoneos/Ardia.app
+> ```
+> Use the Debug configuration: Release asks for the default-browser entitlement, which Apple has to approve per team, so a Debug build can't be set as the default browser. To sync with the Mac, open Settings › Sync › Connect Another Device there, scan the code with the iPhone and pick the sync folder in iCloud Drive.
 
 <p align="center">
   <img src="apps/site/src/assets/app-icon.png" width="128" height="128" alt="Ardia's app icon">
