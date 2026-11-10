@@ -2,6 +2,16 @@
 
 What Riangle Ardia changes on top of [mantrakp04/ardia](https://github.com/mantrakp04/ardia)'s `main`, newest first. Changes pulled in from the original project are in its [release notes](https://ardia.dev/release-notes).
 
+## 2026-11-10
+
+### Changed
+
+- **iPhone app:** its bundle IDs and app group come from one build setting, `ARDIA_IOS_BUNDLE_ID`, so it builds signed with your own team and installs on your own iPhone. The default is the original `com.ardia.ios`. ([472a10b](https://github.com/luangjokaj/ardia/commit/472a10b57d4e40d771353a2ef301ab1c982093aa))
+
+### Docs
+
+- README: how to build the iPhone app and install it on an iPhone. ([472a10b](https://github.com/luangjokaj/ardia/commit/472a10b57d4e40d771353a2ef301ab1c982093aa))
+
 ## 2026-11-08
 
 ### Changed
