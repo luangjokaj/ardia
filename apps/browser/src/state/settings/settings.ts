@@ -21,6 +21,8 @@ import { isFields, isString, isStringList } from "../../lib/decode";
 import type { SavedObject } from "../../lib/savedDocument";
 import type { JsonSchema } from "../../lib/jsonSchema";
 import { PROVIDERS_SCHEMA } from "../omnibox/providerSchema";
+import { COMMAND_BAR_START_SCHEMA, isCommandBarStart, type CommandBarStart } from "../omnibox/commandBarStart";
+import { noteAutoHideTabsChosen } from "../telemetry/autoHideTabsChoices";
 
 export const DEFAULT_PROFILE_ID = "default";
 
@@ -90,8 +92,8 @@ export const SETTING_SPECS = {
   optShiftClickOpensInGroup: flag(true, SYNCED),
   dragToGroupInTopStrip: flag(false, SYNCED),
   peekModifier: oneOf(["alt", "shift", "off"], "shift", SYNCED),
-  peekLinksToOtherSites: flag(false, SYNCED),
-  newTabLinksOpenIn: oneOf(["tab", "peek", "littleArdia"], "tab", SYNCED),
+  peekLinksToOtherSites: flag(true, SYNCED),
+  newTabLinksOpenIn: oneOf(["tab", "peek", "littleArdia"], "peek", SYNCED),
   splitLinkModifier: oneOf(["altShift", "alt"], "altShift", SYNCED),
   autoGroupMeetingTabs: flag(true, SYNCED),
   cleanUpInactiveTabsAfterMinutes: shaped<number | null>(null, (v) => v === null || isWidth(v), { type: ["number", "null"], exclusiveMinimum: 0 }, SYNCED),
@@ -131,6 +133,7 @@ export const SETTING_SPECS = {
   compactToolbar: flag(false, SYNCED),
   pageFrame: shaped<number>(PAGE_FRAME.default, validPageFrame, { type: "integer", minimum: PAGE_FRAME.min, maximum: PAGE_FRAME.max }, SYNCED),
   commandBarPlacement: oneOf(["field", "centred"], "field", SYNCED),
+  commandBarStart: shaped<CommandBarStart>({}, isCommandBarStart, COMMAND_BAR_START_SCHEMA),
   spacesFollowAppearance: flag(true),
   adaptTextToColor: flag(true, SYNCED),
   defaultProfileId: text(DEFAULT_PROFILE_ID),
@@ -222,6 +225,7 @@ function validateCustomEngine(settings: Settings, input: EngineInput, ignoreId?:
 
 export function choose(s: Pick<BrowserState, "settings" | "settingsMeta">, patch: Partial<Settings>): Pick<BrowserState, "settings" | "settingsMeta"> {
   const { chosen, inferred } = s.settingsMeta;
+  if (patch.autoHideTabs !== undefined && patch.autoHideTabs !== s.settings.autoHideTabs) noteAutoHideTabsChosen();
   const added = Object.keys(patch).filter((k) => !chosen.includes(k));
   const left = inferred.filter((k) => !(k in patch));
   const settingsMeta = added.length || left.length !== inferred.length ? { chosen: added.length ? [...chosen, ...added] : chosen, inferred: left } : s.settingsMeta;

@@ -168,8 +168,8 @@ const shortcuts = [
   ["⌘→", cmd(F(0xf703), 124, "function"), { command: "forward" }, "⌘→", "not-field"],
   ["⇧⌘]", cmd("}", 30, "shift"), { command: "nextTab" }, "⇧⌘]"],
   ["⇧⌘[", cmd("{", 33, "shift"), { command: "previousTab" }, "⇧⌘["],
-  ["⌥⌘→", cmd(F(0xf703), 124, "option", "function"), { command: "nextTab" }, "(Chrome's)"],
-  ["⌥⌘←", cmd(F(0xf702), 123, "option", "function"), { command: "previousTab" }, "(Chrome's)"],
+  ["⌥⌘→", cmd(F(0xf703), 124, "option", "function"), { command: "nextProfile" }, "⌥⌘→"],
+  ["⌥⌘←", cmd(F(0xf702), 123, "option", "function"), { command: "previousProfile" }, "⌥⌘←"],
   ["⌃⇟", K(F(0xf72d), 121, "control", "function"), { command: "nextTab" }, "(Chrome's)"],
   ["⌃⇞", K(F(0xf72c), 116, "control", "function"), { command: "previousTab" }, "(Chrome's)"],
   ["⌥⌘↓", cmd(F(0xf701), 125, "option", "function"), { command: "nextTab" }, "⌥⌘↓ (alternate)"],
@@ -339,7 +339,7 @@ await real("⌘2 in the command bar", cmd("2", 19), { asKey: true }, "pin2");
 check("…and the command bar closes", !(await state()).panel, "");
 await real("⇧⌘] (Next Tab)", cmd("}", 30, "shift"), sidebar, "t1");
 await real("⇧⌘[ (Previous Tab)", cmd("{", 33, "shift"), sidebar, "pin2");
-await real("⌥⌘→ (Next Tab)", cmd(F(0xf703), 124, "option", "function"), sidebar, "t1");
+await real("⌥⌘↓ (Next Tab)", cmd(F(0xf701), 125, "option", "function"), sidebar, "t1");
 await real("⌃⇟ (Next Tab)", K(F(0xf72d), 121, "control", "function"), sidebar, "t2");
 await showPage("t3");
 await sleep(2000);
@@ -373,6 +373,12 @@ check("⌃2 switches the window to the second profile", (await state()).profile 
 await press(K("1", 18, "control"), sidebar);
 await sleep(600);
 check("⌃1 switches back", (await state()).profile === "default", (await state()).profile);
+await press(cmd(F(0xf703), 124, "option", "function"), sidebar);
+await sleep(600);
+check("⌥⌘→ switches the window to the next profile", (await state()).profile === "p-work", (await state()).profile);
+await press(cmd(F(0xf702), 123, "option", "function"), sidebar);
+await sleep(600);
+check("⌥⌘← switches back to the previous profile", (await state()).profile === "default", (await state()).profile);
 await showPage("t3");
 await press(cmd("l", 37), sidebar);
 await sleep(400);
@@ -410,7 +416,7 @@ const resetToPageField = async (value, selection) => {
   await pageField(`(f.value = ${JSON.stringify(value)}, f.focus(), f.setSelectionRange(${selection[0]}, ${selection[1]}), true)`);
   await sleep(100);
 };
-const sidebarOpen = () => ac(`return ac.store.getState().windows.w1.sidebarOpen;`);
+const sidebarOpen = () => ac(`return !ac.store.getState().settings.autoHideTabs;`);
 for (const [label, presses, toggles] of [
   ["one ⌘S in a page's text field stays with the page", [keyPress("s", 1)], 0],
   ["two quick ⌘S in a page's text field toggle the sidebar once", [keyPress("s", 1), keyPress("s", 1, 150)], 1],

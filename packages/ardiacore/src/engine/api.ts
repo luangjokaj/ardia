@@ -10,7 +10,7 @@ import type { HistoryChangedBatch, HistoryWireRow } from "../history";
 import type { FaviconImage } from "../favicons";
 import type { Download, DownloadSettings } from "../downloads";
 import type {
-  BatterySaverMode, BatterySaverState, CliControlStatus, CliTabTarget, EngineComponent, EngineInfo, EngineTask, MemorySaverRequest, MemorySaverState, SystemState,
+  BatterySaverMode, BatterySaverState, CliControlStatus, CliTabTarget, EngineComponent, EngineInfo, EngineTask, HoverLostEpisode, MemorySaverRequest, MemorySaverState, SystemState,
 } from "../engineDomain";
 import type { ExternalAppAllowance, PermissionRequest, PermissionResult } from "../permissions";
 import type { BrowsingDataType } from "../profiles";
@@ -127,6 +127,8 @@ export type EngineCalls = {
   "search.setEngineName": [{ name: string }, null];
 
   "media.displayMediaSources": [{}, DisplayMediaSource[]];
+  "media.screenRecordingAllowed": [{}, boolean];
+  "media.requestScreenRecording": [{}, boolean];
   "media.selectDevice": [{ id: number; index: number }, null];
   "media.cancelDeviceChooser": [{ id: number }, null];
   "media.refreshDeviceChooser": [{ id: number }, null];
@@ -193,6 +195,7 @@ export type EngineCalls = {
 export type EngineEvents = {
   "engine.systemState": SystemState;
   "engine.cliControl": CliControlStatus;
+  "engine.hoverLost": HoverLostEpisode;
   "tabs.strips": TabStripTransaction;
   "downloads.changed": Download;
   "permissions.requested": PermissionRequest;
