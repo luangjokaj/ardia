@@ -14,6 +14,7 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 
 #### Changed
 
+- **Sidebar:** Top Apps tiles and the top strip's pinned tabs show only the site's icon: no Picture in Picture badge, no speaker icon and no unread count. Tabs and pinned rows keep theirs. ([d80b211](https://github.com/luangjokaj/ardia/commit/d80b211d5469556ece2dba0a39042ae7c02ce869))
 - **iPhone app:** the default for `ARDIA_IOS_BUNDLE_ID` is now `com.ardia.browser.ios`, the bundle ID the original project moved to for its TestFlight release. ([c654823](https://github.com/luangjokaj/ardia/commit/c654823c50036038a42222290ecfd7e3b523b3c5))
 
 ### 2026-11-10
