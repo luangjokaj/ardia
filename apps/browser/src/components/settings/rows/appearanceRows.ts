@@ -32,7 +32,7 @@ export const appearanceRows = {
         glassTintWithTheme: {
           title: "Tint glass with the profile colour",
           description: "Off, the glass stays neutral grey whatever the profile's colour.",
-          keywords: ["liquid glass", "tint", "colour", "color", "profile colour", "theme"],
+          keywords: ["tint", "colour", "color", "profile colour", "theme"],
           shown: (s, env) => !!env.glass && s.interfaceStyle === "glass",
         },
         glassTintAmount: {
@@ -49,7 +49,7 @@ export const appearanceRows = {
         addressBar: { title: "Address Bar", description: "In the toolbar or in the sidebar.", keywords: ["url bar", "location bar", "toolbar"] },
         commandBarPlacement: {
           title: "⌘L opens the command bar",
-          description: "In the centre, ⌘L and a click on the address show it over the middle of the page, as in Arc.",
+          description: "In the centre, ⌘L shows it over the middle of the page, as in Arc. A click on the address always edits it where it is, and ⌘L opens in the centre whenever the address is out of sight.",
           keywords: ["cmd l", "command bar", "centred", "centered", "arc", "url bar", "location bar"],
         },
         compactToolbar: {

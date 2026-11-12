@@ -9,6 +9,11 @@ export const generalRows = {
       section: "General",
       rows: {
         defaultBrowser: { title: "Default browser", description: `Make ${APP} your default browser.`, keywords: ["default", "set as default", "links"] },
+        redoSetup: {
+          title: `Set up ${APP} again`,
+          description: "Walk through import, look and layout again, starting from your current settings.",
+          keywords: ["onboarding", "setup", "redo", "welcome", "start over", "walkthrough", "first run"],
+        },
         openAtLogin: { title: `Open ${APP} at login`, keywords: ["startup", "launch", "login items", "boot"] },
         warnBeforeQuitting: { advanced: true, title: "Warn before quitting", description: `Asks before ${APP} quits with ⌘Q.`, keywords: ["quit", "confirm", "cmd q"] },
         warnBeforeClosingWindow: {
@@ -17,11 +22,14 @@ export const generalRows = {
           description: "Asks before ⇧⌘W or the close button closes its tabs.",
           keywords: ["close window", "confirm"],
         },
-        openLinksFrom: { title: "Open links from other apps in", keywords: ["little ardia", "external links", "mini window", "discord", "slack", "mail"] },
+        openLinksInLittleArdia: {
+          title: "Open links from other apps in Little Ardia",
+          keywords: ["little ardia", "little arc", "arc", "little window", "small window", "mini window", "external links", "links from other apps", "open links", "discord", "slack", "mail", "messages"],
+        },
         littleArdiaOpensNewTabLinks: {
-          title: "Open new-tab links inside Little Ardia",
+          title: "Keep new-tab links inside a Little Ardia window",
           description: "For links clicked in a Little Ardia window: a link that would open a new tab loads right there instead of in a tab of the main window. ⌘-click still opens it behind. Links in the main window follow Settings › Tabs › Open new-tab links in.",
-          keywords: ["little ardia", "target blank", "new tab", "links", "mini window"],
+          keywords: ["little ardia", "target blank", "new tab", "links"],
         },
       },
     },
@@ -155,8 +163,8 @@ export const generalRows = {
         },
         showUnreadCounts: {
           title: "Show unread counts on tabs",
-          description: "The red count or dot a site like Gmail or Slack shows on its tab, pinned tile and Top App. To hide it for one site, right-click its tab and choose Hide Unread Count, or turn it off in Site Controls.",
-          keywords: ["unread", "badge", "count", "notification", "dot", "red", "gmail", "inbox", "messages", "arc"],
+          description: "A notification badge with the unread count or dot a site like Gmail or Slack puts in its title, on its tab, pinned tile and Top App. Off by default. Once on, hide it for one site: right-click its tab and choose Hide Unread Count, or use Site Controls.",
+          keywords: ["unread", "badge", "badges", "bubble", "bubbles", "count", "notification", "notifications", "notis", "dot", "red", "gmail", "inbox", "messages", "arc"],
         },
         fadeUnloadedTabs: {
           advanced: true,
@@ -224,8 +232,8 @@ export const generalRows = {
         },
         newTabLinksOpenIn: {
           title: "Open new-tab links in",
-          description: "Where a link that would open a new tab goes when you click it in a tab. ⌘-click still opens a tab behind, and sign-in pop-ups stay windows.",
-          keywords: ["peek", "little ardia", "new tab", "target blank", "links", "preview", "arc", "mini window", "open links"],
+          description: "Where a link that would open a new tab goes when you click it in a tab. ⌘-click still opens a tab behind, and sign-in pop-ups stay windows. Links from other apps follow Settings › General › Open links from other apps in Little Ardia.",
+          keywords: ["peek", "new tab", "target blank", "links", "preview", "open links"],
         },
         peekModifier: {
           advanced: true,
