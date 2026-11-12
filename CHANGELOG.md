@@ -10,6 +10,7 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 
 #### Changed
 
+- **Pages:** while a page loads, a small pill at the top center of the page shows a bar that sweeps across in a loop, then fills, shrinks and fades when the page is done. It shows in every pane, so the loading state stays visible when the sidebar holding the address bar is hidden. It replaces the thin line under the toolbar and in the sidebar's address field; Little Ardia keeps its line. ([8d2c705](https://github.com/luangjokaj/ardia/commit/8d2c705c17d7ab2943e0021b1f8d7ce4b742b814))
 - **iPhone app:** the default for `ARDIA_IOS_BUNDLE_ID` is now `com.ardia.browser.ios`, the bundle ID the original project moved to for its TestFlight release. ([c654823](https://github.com/luangjokaj/ardia/commit/c654823c50036038a42222290ecfd7e3b523b3c5))
 
 ### 2026-11-10
