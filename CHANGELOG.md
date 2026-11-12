@@ -8,13 +8,8 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 
 ### 2026-11-12
 
-#### Fixed
-
-- **Sidebar:** the selected tab's glow is no longer cut off along the top when it is the first tab in a group that was folded and opened again. ([e053b46](https://github.com/luangjokaj/ardia/commit/e053b4653947afdc8afd09f370c8973b1ccedfbf))
-
 #### Changed
 
-- **Sidebar:** Top Apps tiles and the top strip's pinned tabs show only the site's icon by default. A new setting, Settings › Tabs › Show tab status on Top Apps, brings back the speaker, the Picture in Picture mark and the unread count, redrawn small in the tile's corners so they no longer cover the icon. Tabs and pinned rows keep theirs. ([d80b211](https://github.com/luangjokaj/ardia/commit/d80b211d5469556ece2dba0a39042ae7c02ce869), [#1340](https://github.com/ardia-browser/ardia/pull/1340))
 - **iPhone app:** the default for `ARDIA_IOS_BUNDLE_ID` is now `com.ardia.browser.ios`, the bundle ID the original project moved to for its TestFlight release. ([c654823](https://github.com/luangjokaj/ardia/commit/c654823c50036038a42222290ecfd7e3b523b3c5))
 
 ### 2026-11-10
@@ -34,6 +29,16 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 - README: a note that this fork's default branch is `riangle`, how to keep it up to date and how to build it. ([afd790a](https://github.com/luangjokaj/ardia/commit/afd790a7f27dea7a9d712e2dc11d1e6bb83709ff))
 
 ## Merged into the original project
+
+### 2026-11-12
+
+#### Fixed
+
+- **Sidebar:** the selected tab's glow is no longer cut off along the top when it is the first tab in a group that was folded and opened again. ([e053b46](https://github.com/luangjokaj/ardia/commit/e053b4653947afdc8afd09f370c8973b1ccedfbf), [#1238](https://github.com/ardia-browser/ardia/pull/1238))
+
+#### Changed
+
+- **Sidebar:** Top Apps tiles and the top strip's pinned tabs show only the site's icon by default. A new setting, Settings › Tabs › Show tab status on Top Apps, brings back the speaker, the Picture in Picture mark and the unread count, redrawn small in the tile's corners so they no longer cover the icon. Tabs and pinned rows keep theirs. ([d80b211](https://github.com/luangjokaj/ardia/commit/d80b211d5469556ece2dba0a39042ae7c02ce869), [747027b](https://github.com/luangjokaj/ardia/commit/747027b9160e49f450e171f47022a611e3b7c2bc), [#1340](https://github.com/ardia-browser/ardia/pull/1340))
 
 ### 2026-11-08
 
