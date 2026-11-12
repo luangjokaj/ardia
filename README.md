@@ -1,12 +1,12 @@
 > [!NOTE]
-> **This is Riangle Ardia, a personal fork of [mantrakp04/ardia](https://github.com/mantrakp04/ardia).**
+> **This is Riangle Ardia, a personal fork of [ardia-browser/ardia](https://github.com/ardia-browser/ardia).**
 > The default branch, `riangle`, is the original `main` plus a few patches of mine. Everything else in this README is the original project's.
 >
 > **Patches on top of `main`** (details and commits in [CHANGELOG.md](CHANGELOG.md))
 >
 > **Staying up to date**
 > ```sh
-> git remote add upstream https://github.com/mantrakp04/ardia.git   # once
+> git remote add upstream https://github.com/ardia-browser/ardia.git   # once
 > git switch riangle
 > git pull upstream main
 > git push origin riangle
