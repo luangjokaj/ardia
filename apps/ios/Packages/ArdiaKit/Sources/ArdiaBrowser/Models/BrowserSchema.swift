@@ -123,7 +123,7 @@ public enum BrowserStoreLocation: Sendable {
 }
 
 public enum BrowserStore {
-  public static let appGroupIdentifier = Bundle.main.object(forInfoDictionaryKey: "ArdiaAppGroup") as? String ?? "group.com.ardia.ios"
+  public static let appGroupIdentifier = Bundle.main.object(forInfoDictionaryKey: "ArdiaAppGroup") as? String ?? "group.com.ardia.browser.ios"
 
   public static func makeContainer(_ location: BrowserStoreLocation) throws -> ModelContainer {
     let schema = Schema(versionedSchema: BrowserSchemaV1.self)
