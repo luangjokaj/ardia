@@ -165,10 +165,7 @@ export const noteTabSwitcherOpened = (closedLeftOut: number, unseenLast: number)
 
 export const noteApprovalNoticeDeferred = () => counts.approvalNoticesDeferred++;
 
-export function noteDockReopen(pastFloating: boolean) {
-  counts.dockReopens++;
-  if (pastFloating) counts.dockReopensPastFloating++;
-}
+export const noteDockReopen = (pastFloating: boolean) => void (counts.dockReopens++, pastFloating && counts.dockReopensPastFloating++);
 
 export function noteReopenedPage(canGoBack: boolean) {
   counts.reopenedPages++;
