@@ -11,7 +11,7 @@ settings:
     DEVELOPMENT_TEAM: U5L5T3NGVV
     ARDIA_IOS_BUNDLE_ID: com.ardia.browser.ios
     CODE_SIGN_STYLE: Automatic
-    MARKETING_VERSION: "0.1.0"
+    MARKETING_VERSION: "1.0"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_APPROACHABLE_CONCURRENCY: YES
     SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
@@ -46,8 +46,10 @@ targets:
         PRODUCT_NAME: Ardia
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: Config/Ardia-Info.plist
-        CODE_SIGN_ENTITLEMENTS: Config/Ardia.entitlements
-        ARDIA_RELEASE_ENTITLEMENTS: Config/Ardia-Release.entitlements
+        CODE_SIGN_ENTITLEMENTS: $(ARDIA_ENTITLEMENTS_$(ARDIA_DEFAULT_BROWSER))
+        ARDIA_DEFAULT_BROWSER: NO
+        ARDIA_ENTITLEMENTS_NO: Config/Ardia.entitlements
+        ARDIA_ENTITLEMENTS_YES: Config/Ardia-DefaultBrowser.entitlements
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
@@ -64,9 +66,6 @@ targets:
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
         INFOPLIST_KEY_UIFileSharingEnabled: YES
         INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
-      configs:
-        Release:
-          CODE_SIGN_ENTITLEMENTS: $(ARDIA_RELEASE_ENTITLEMENTS)
   ArdiaWidgets:
     type: app-extension
     platform: iOS

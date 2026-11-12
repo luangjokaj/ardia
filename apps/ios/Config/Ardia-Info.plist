@@ -4,10 +4,14 @@
 <dict>
 	<key>ArdiaAppGroup</key>
 	<string>group.$(ARDIA_IOS_BUNDLE_ID)</string>
+	<key>ArdiaDefaultBrowser</key>
+	<string>$(ARDIA_DEFAULT_BROWSER)</string>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>com.ardia.browser.ios.sync</string>
 	</array>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -36,7 +40,7 @@
 		<true/>
 	</dict>
 	<key>ITSAppUsesNonExemptEncryption</key>
-	<true/>
+	<false/>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>NSUserActivityTypeBrowsingWeb</string>
