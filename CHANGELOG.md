@@ -6,6 +6,13 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 
 ## Only in this fork
 
+### 2026-11-13
+
+#### Fixed
+
+- **Pages:** the loading pill no longer flashes on changes inside a page, like a `#` link or a route change in a single-page app (React Router and the like). It now waits 150 ms before it shows, so a load that ends sooner never shows it. ([7d4024d](https://github.com/luangjokaj/ardia/commit/7d4024d813ad46b0c10b1955c252d7f348695686))
+- **Building:** `scripts/lib/export-developer-id.sh` signs the app for a team whose ID starts with a digit. It wrote the team ID unquoted into the code signing requirement, which `codesign` rejects for such an ID, so a Developer ID build of this fork couldn't be made. ([2106670](https://github.com/luangjokaj/ardia/commit/21066703683cf3c31a0d5305180db82b5cea52fa))
+
 ### 2026-11-12
 
 #### Changed
