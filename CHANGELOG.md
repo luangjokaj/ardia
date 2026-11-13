@@ -8,6 +8,10 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 
 ### 2026-11-13
 
+#### Changed
+
+- **Toolbar:** with the address bar in the toolbar, the address field itself shows a page loading, the way Dia does, and the loading pill no longer appears there. A soft glow in the accent color, with a thin line along the bottom of the field, fills from the left as far as the page has loaded, then sweeps to the right end and fades when the page is done. On a site that colors the toolbar close to the accent color, the fill uses the toolbar's text color so it stays visible. The pill still shows where that field isn't visible: with the address bar in the sidebar, in full screen, in a peek, and while the toolbar is hidden as you scroll. ([a27a373](https://github.com/luangjokaj/ardia/commit/a27a373652b7533d5a96b53fda0136204625a1d9))
+
 #### Fixed
 
 - **Pages:** the loading pill no longer flashes on changes inside a page, like a `#` link or a route change in a single-page app (React Router and the like). It now waits 150 ms before it shows, so a load that ends sooner never shows it. ([7d4024d](https://github.com/luangjokaj/ardia/commit/7d4024d813ad46b0c10b1955c252d7f348695686))
