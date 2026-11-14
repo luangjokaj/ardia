@@ -2319,6 +2319,7 @@ function globalProviderRows(sections                            , shown         
 __define("packages/core/src/pageText.ts", function (exports, __require) {
   __export(exports, "displayUrl", () => displayUrl);
   __export(exports, "pageKey", () => pageKey);
+  __export(exports, "withRootSlash", () => withRootSlash);
   __export(exports, "pageTexts", () => pageTexts);
   __export(exports, "logVisits", () => logVisits);
   __export(exports, "shownWordsOf", () => shownWordsOf);
@@ -2334,6 +2335,8 @@ function displayUrl(url        )         {
 }
 
 const pageKey = (url        ) => url.replace(/#.*$/, "").replace(/\/$/, "");
+
+const withRootSlash = (url        ) => url.replace(/^(https?:\/\/[^/?#]*)(?=[?#]|$)/i, "$1/");
 
                         
               
@@ -2687,13 +2690,13 @@ __define("packages/core/src/suggest.ts", function (exports, __require) {
   __export(exports, "suggestionKey", () => __require("packages/core/src/suggestionRows.ts")["suggestionKey"]);
 const { findBang } = __require("packages/core/src/bangs.ts");
 const { calculate } = __require("packages/core/src/calculator.ts");
-const { NO_BOOKMARKS, poolFor, tabsOver } = __require("packages/core/src/candidatePool.ts");
+const { NO_BOOKMARKS, poolFor, savedBookmark, savedVisit, tabsOver } = __require("packages/core/src/candidatePool.ts");
 const { extensionSuggestions } = __require("packages/core/src/extensionRows.ts");
 const { BUILT_IN_ENGINES, searchUrl } = __require("packages/core/src/engines.ts");
 const { matchActions } = __require("packages/core/src/fuzzy.ts");
 const { fixupUrl, hostOf, searchUrlFor } = __require("packages/core/src/omnibox.ts");
 const { matchScore, matchScoreWord, narrowing, parseQuery, remember, TopList } = __require("packages/core/src/pageMatch.ts");
-const { hostLowerOfPage, hostOfPage, hostPart, originOfPage, pageKey } = __require("packages/core/src/pageText.ts");
+const { hostLowerOfPage, hostOfPage, hostPart, originOfPage, pageKey, withRootSlash } = __require("packages/core/src/pageText.ts");
 const { globalProviderRows, providerUrl, safeProviderRows } = __require("packages/core/src/providerRows.ts");
 const { matchQuickCreate } = __require("packages/core/src/quickCreate.ts");
 const { scopedSearchUrl } = __require("packages/core/src/siteSearch.ts");
@@ -2734,7 +2737,14 @@ function buildSuggestions(raw        , source                  , options        
   const known = (url        ) => {
     const key = pageKey(url);
     const c = pool.byKey.get(key) ?? extra.find((x) => x.text.key === key);
-    return c && pageSuggestion(c, null);
+    if (!c) return undefined;
+    const opened = withRootSlash(url);
+    if (withRootSlash(c.url) === opened) return pageSuggestion(c, null);
+    const visit = savedVisit(source.history, opened);
+    const bookmark = savedBookmark(source.bookmarks ?? NO_BOOKMARKS, opened);
+    const lent = visit ?? bookmark ?? c;
+    const row          = { url: visit?.url ?? opened, title: lent.title, favicon: lent.favicon, visits: visit?.visits ?? 0, bookmarked: bookmark !== undefined };
+    return pageSuggestion(row, null);
   };
 
   const websiteFirst = preference === "website";
@@ -2890,8 +2900,10 @@ __define("packages/core/src/candidatePool.ts", function (exports, __require) {
   __export(exports, "NO_BOOKMARKS", () => NO_BOOKMARKS);
   __export(exports, "poolFor", () => poolFor);
   __export(exports, "prepareSuggestions", () => prepareSuggestions);
+  __export(exports, "savedVisit", () => savedVisit);
+  __export(exports, "savedBookmark", () => savedBookmark);
   __export(exports, "tabsOver", () => tabsOver);
-const { logVisits, pageText, pageTexts } = __require("packages/core/src/pageText.ts");
+const { logVisits, pageText, pageTexts, withRootSlash } = __require("packages/core/src/pageText.ts");
                                                         
 
                                                       
@@ -3011,6 +3023,24 @@ function prepareSuggestions(source                  , deadline        )         
   return advance(b, bookmarks, deadline);
 }
 
+const exactIndexes = new WeakMap                                                          ();
+
+function exactRows                             (rows                )                   {
+  let index = exactIndexes.get(rows)                                ;
+  if (!index) {
+    index = new Map();
+    for (const row of rows) {
+      const key = withRootSlash(row.url);
+      if (!index.has(key)) index.set(key, row);
+    }
+    exactIndexes.set(rows, index);
+  }
+  return index;
+}
+
+const savedVisit = (history                       , url        )                         => exactRows(history).get(withRootSlash(url));
+const savedBookmark = (bookmarks                        , url        )                          => exactRows(bookmarks).get(withRootSlash(url));
+
                                                                                                                                   
 const tabsOverCache = new WeakMap                             ();
 
@@ -3044,10 +3074,12 @@ __define("packages/core/src/suggestionRows.ts", function (exports, __require) {
   __export(exports, "actionRow", () => actionRow);
   __export(exports, "dedupeSuggestions", () => dedupeSuggestions);
                                                     
-const { pageKey } = __require("packages/core/src/pageText.ts");
+const { pageKey, withRootSlash } = __require("packages/core/src/pageText.ts");
                                                                  
 
-const pageSuggestion = (c           , tabId                            = c.tabId)             => ({
+                                                                                                       
+
+const pageSuggestion = (c         , tabId                            = c.tabId)             => ({
   kind: "page",
   url: c.url,
   title: c.title,
@@ -3060,7 +3092,7 @@ const pageSuggestion = (c           , tabId                            = c.tabId
 function suggestionKey(s            )         {
   switch (s.kind) {
     case "page":
-      return `${s.tabId ? "tab" : "page"}:${pageKey(s.url)}`;
+      return s.tabId ? `tab:${pageKey(s.url)}` : `page:${withRootSlash(s.url)}`;
     case "search":
       return `search:${s.url}`;
     case "calc":
