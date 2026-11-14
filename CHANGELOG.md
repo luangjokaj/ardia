@@ -10,7 +10,7 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 
 #### Changed
 
-- **Split View:** the focused pane has an accent ring around it, the way Dia does: a 2 pt stroke in the profile's accent color, 1 pt outside the page, in the gap between the panes. It follows focus as you click between panes and shows with the address bar in the sidebar too, where nothing marked the focused pane before (ardia-browser/ardia#1343).
+- **Split View:** the focused pane has an accent ring around it, the way Dia does: a 2 pt stroke in the profile's accent color, 1 pt outside the page, in the gap between the panes. It follows focus as you click between panes and shows with the address bar in the sidebar too, where nothing marked the focused pane before (ardia-browser/ardia#1343). ([da55f41](https://github.com/luangjokaj/ardia/commit/da55f414e5cf7186508822eb147035802677ddb4))
 
 ### 2026-11-13
 
