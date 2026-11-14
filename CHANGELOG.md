@@ -2,15 +2,9 @@
 
 What Riangle Ardia changes on top of [ardia-browser/ardia](https://github.com/ardia-browser/ardia)'s `main`, newest first. Changes pulled in from the original project are in its [release notes](https://ardia.dev/release-notes).
 
-The changelog has two parts. **Only in this fork** lists what the original project's `main` doesn't have yet; new changes land there. **Merged into the original project** lists what has since been merged into its `main`, so those changes now arrive from the original and are no longer patches of this fork. Last checked against the original's `main` on 2026-11-12.
+The changelog has two parts. **Only in this fork** lists what the original project's `main` doesn't have yet; new changes land there. **Merged into the original project** lists what has since been merged into its `main`, so those changes now arrive from the original and are no longer patches of this fork. Last checked against the original's `main` on 2026-11-14.
 
 ## Only in this fork
-
-### 2026-11-14
-
-#### Changed
-
-- **Split View:** the focused pane has a ring around it in the profile's color, the way Dia does: a 2 pt stroke, 1 pt outside the page, in the gap between the panes. With the page frame at 0, where the panes reach the window's edges, it sits just inside the pane instead, and follows the window's rounded corners where the pane meets them, using the radius macOS actually draws for that window. It follows focus as you click between panes and shows with the address bar in the sidebar too, where nothing marked the focused pane before (ardia-browser/ardia#1343). ([da55f41](https://github.com/luangjokaj/ardia/commit/da55f414e5cf7186508822eb147035802677ddb4))
 
 ### 2026-11-13
 
@@ -47,6 +41,12 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 - README: a note that this fork's default branch is `riangle`, how to keep it up to date and how to build it. ([afd790a](https://github.com/luangjokaj/ardia/commit/afd790a7f27dea7a9d712e2dc11d1e6bb83709ff))
 
 ## Merged into the original project
+
+### 2026-11-14
+
+#### Changed
+
+- **Split View:** the focused pane has a ring around it in the profile's color, the way Dia does: a 2 pt stroke, 1 pt outside the page, in the gap between the panes. With the page frame at 0, where the panes reach the window's edges, it sits just inside the pane instead, and follows the window's rounded corners where the pane meets them, using the radius macOS actually draws for that window. It follows focus as you click between panes and shows with the address bar in the sidebar too, where nothing marked the focused pane before (ardia-browser/ardia#1343). ([da55f41](https://github.com/luangjokaj/ardia/commit/da55f414e5cf7186508822eb147035802677ddb4), [#1695](https://github.com/ardia-browser/ardia/pull/1695))
 
 ### 2026-11-12
 
