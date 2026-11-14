@@ -136,6 +136,7 @@ const focus: Modules["ArdiaFocus"] = {
 const menus: Modules["ArdiaMenus"] = {
   addListener: shellEvents.addListener,
   showMenu: () => Promise.resolve(null),
+  updateMenu: () => Promise.resolve(),
   setMenuState: () => Promise.resolve(),
   setMenuBookmarks: () => Promise.resolve(),
   menuShortcuts: () => Promise.resolve([]),
@@ -290,6 +291,7 @@ const fileDrop: Modules["ArdiaFileDrop"] = {
 const cliEvents = nativeEvents();
 const cli: Modules["ArdiaCli"] = {
   installedVersion: () => null,
+  canInstallUnattended: () => false,
   install: () => Promise.resolve({ ok: false, appVersion: appInfo.appVersion ?? "", error: "no installs in tests", lines: [] }),
   addListener: cliEvents.addListener,
 };
