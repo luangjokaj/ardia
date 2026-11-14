@@ -6,6 +6,22 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 
 ## Only in this fork
 
+### 2026-11-14
+
+#### Changed
+
+- **Little Ardia:** the address field takes the bar's full width, up to the Copy Link button, instead of stopping at 520 pt, and shows a page loading with the same glow as the toolbar's address field instead of a thin line. A windowed peek, which shares that bar, gets the same glow. ([14ecfe1](https://github.com/luangjokaj/ardia/commit/14ecfe1ef665707da0eccf8435e7c0afe7f51458))
+- **Sidebar:** with the address bar in the sidebar, its address field shows a page loading with the same glow. While the sidebar is pinned open, that's all you see; the loading pill shows only while the sidebar is hidden, and the field keeps its glow for when the sidebar slides in. In Split View, panes the sidebar's field doesn't show keep their pill. ([7087d20](https://github.com/luangjokaj/ardia/commit/7087d2075fc2bbbfbe8226d3b7487a89190d0dbb), [3aff53a](https://github.com/luangjokaj/ardia/commit/3aff53a61cd7b522048182dccf427ffd03da4fdd))
+- **Toolbar:** with Hide toolbar while scrolling on, the collapsed toolbar no longer draws a progress line along its strip while a page loads; the loading pill shows the load there instead, so one indicator replaces two, and the line no longer flashes on a `#` link or a route change in a single-page app. ([d2caa37](https://github.com/luangjokaj/ardia/commit/d2caa370965499f58b07d1561d500a07e1cfbda3))
+
+#### Fixed
+
+- **Building:** the native API version is 63, so a Debug build made before the address field's load glow asks for a rebuild instead of loading code that needs it. ([370c430](https://github.com/luangjokaj/ardia/commit/370c430010659c77105624af0d58a275d1b9820e))
+
+#### Removed
+
+- The perf ratchet's ceilings for the deleted `ProgressBar` and `TabProgressBar`. ([1e09727](https://github.com/luangjokaj/ardia/commit/1e09727e44f8e81312ed31e2095c49976a4d5feb))
+
 ### 2026-11-13
 
 #### Changed
