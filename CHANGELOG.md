@@ -11,7 +11,7 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 #### Fixed
 
 - **Sidebar:** switching to a tab that is out of view no longer flashes the selected-tab pill while the list scrolls to it; the pill waits for the scroll to end.
-- **Top Apps:** a folder tile centres its icons, so a folder of one or two sits in the middle of the tile instead of in the top row.
+- **Top Apps:** a folder tile shows its icons straight on the tile, with no inner square, spread evenly: one row for one or two, two rows of two for three or four.
 - **Tests:** the session settings test counts the two new settings, `showFullUrlInTabHoverMenu` and `topAppFolders`; it failed in CI on the hover menu setting.
 - **Sidebar:** clicking the selected-tab pill, or switching to a tab that is out of view, scrolls the list there smoothly over 0.3 s instead of jumping. React Native's macOS scroll view asked AppKit to animate `scrollPoint:`, which it can't, so every animated scroll in the app jumped; it now animates the clip view's bounds origin (`patches/react-native-macos@0.81.9.patch`).
 - **Sidebar:** while the sidebar's media player grows or shrinks on hover, the list's bottom line and the selected-tab pill move with the list's edge, instead of staying behind and crossing the player.

@@ -48,7 +48,7 @@ export function DragGhost({ ghost }: { ghost: Ghost }) {
         }}
       >
         {liveIcon ? <TabIcon url={liveIcon.site} icon={liveIcon.icon} /> : null}
-        {folderTile ? <FolderMosaic tabIds={item.tabIds} /> : null}
+        {folderTile ? <FolderMosaic tabIds={item.tabIds} width={width - TAB_ROW.trailing} /> : null}
         {drawn ? <TabIcon url={tab?.url ?? ""} favicon={tab?.favicon} icon={drawn.icon} profileId={tab?.profileId} /> : null}
         {!tile ? <FadeLabel text={label} fontSize={SIDEBAR_TYPE.title} weight={item.kind === "group" || item.kind === "live" ? "medium" : "regular"} color={theme.textPrimary} style={{ flex: 1, height: TAB_ROW.titleHeight, marginLeft: textOnly ? TAB_ROW.titleGap : space.m }} /> : null}
       </Panel>
