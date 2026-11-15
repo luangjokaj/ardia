@@ -31,6 +31,7 @@ export type FadeLabelProps = ViewProps & {
   fontFamily?: string;
   color?: string;
   fadeWidth?: number;
+  strikethrough?: boolean;
 };
 
 export const FadeLabel = requireNativeViewManager<FadeLabelProps>("ArdiaFadeLabel");
@@ -167,6 +168,7 @@ export type DockSelectionProps = ViewProps & {
   dark: boolean;
   glass?: boolean;
   colorRing?: boolean;
+  outline?: boolean;
 };
 
 export const DockSelection = requireNativeViewManager<DockSelectionProps>("ArdiaDockSelection");

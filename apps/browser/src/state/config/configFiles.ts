@@ -2,8 +2,10 @@ import { configDirectory } from "../../platform/launchConfig";
 import { onConfigChange, readConfigFile, watchConfigFiles, writeConfigSchemas, type ConfigFileRead } from "../../platform/configFolder";
 import { afterFirstWindow } from "../../lib/afterFirstWindow";
 import { mergedPalettes, parseThemeFile, type RolePalettes, type ThemeRoles } from "../../lib/themeFile";
-import { DEFAULT_LOOK, resolveLook, type LookBlocks } from "../../lib/themeLook";
+import { DEFAULT_LOOK, resolveLook, withSidebarText, type LookBlocks, type SidebarTextSize } from "../../lib/themeLook";
 import { setActiveLook } from "../../lib/activeLook";
+import { withoutOutlines } from "./elementOutlines";
+import { withTabCorners } from "../../lib/tabCorners";
 import { minimalismLookOf } from "../../lib/minimalismLook";
 import { useBrowser } from "../browser/store";
 import { hideKeyedToast, showToast, useToasts } from "../app/toasts";
@@ -32,7 +34,11 @@ const NO_THEME: ThemeParts = { roles: null, look: null };
 
 let defaults: RolePalettes | null = null;
 let theme: Theme = { name: null, ...NO_THEME };
+let appliedSidebarText: SidebarTextSize = "default";
+let stopWatchingSidebarText: (() => void) | null = null;
 let revision = 0;
+let outlines = true;
+let tabCorners: number | null = null;
 let minimalism = false;
 let stopWatchingMinimalism: (() => void) | undefined;
 let windowsUp = false;
@@ -72,19 +78,28 @@ function applySidebarWidth(before: number | null, after: number | null) {
   if (useBrowser.getState().settings.sidebarWidth !== width) useBrowser.getState().updateSettings({ sidebarWidth: width });
 }
 
+const sidebarTextSize = () => useBrowser.getState().settings.sidebarTextSize;
+
 function applyTheme(next: Theme) {
   if (!defaults) return;
+  const size = sidebarTextSize();
   const minimal = useBrowser.getState().settings.minimalismMode;
-  if (next.name === theme.name && minimal === minimalism && JSON.stringify([next.roles, next.look]) === JSON.stringify([theme.roles, theme.look])) return;
+  const outlined = useBrowser.getState().settings.elementOutlines;
+  const corners = useBrowser.getState().settings.tabCornerRadius;
+  if (next.name === theme.name && size === appliedSidebarText && minimal === minimalism && outlined === outlines && corners === tabCorners && JSON.stringify([next.roles, next.look]) === JSON.stringify([theme.roles, theme.look])) return;
   const before = useBasePalette.getState().look;
   const resolved = resolveLook(next.look);
-  const look = minimal ? minimalismLookOf(resolved) : resolved;
+  const look = withTabCorners(withSidebarText(minimal ? minimalismLookOf(resolved) : resolved, size), corners);
   theme = next;
+  appliedSidebarText = size;
   minimalism = minimal;
+  outlines = outlined;
+  tabCorners = corners;
   revision += 1;
   setActiveLook(look);
-  const themed = next.roles || look !== DEFAULT_LOOK;
-  useBasePalette.setState({ palette: themed ? mergedPalettes(defaults, next.roles, revision) : null, theme: next.name, look, blocks: next.look });
+  const roles = outlined ? next.roles : withoutOutlines(next.roles);
+  const themed = roles || look !== DEFAULT_LOOK;
+  useBasePalette.setState({ palette: themed ? mergedPalettes(defaults, roles, revision) : null, theme: next.name, look, blocks: next.look });
   applySidebarWidth(before.sidebarWidth, look.sidebarWidth);
 }
 
@@ -177,7 +192,7 @@ function watchNames() {
   watchConfigFiles(["config.json", "hooks.json", ...(theme.name ? [themeFile(theme.name)] : [])]).then(changed, (error: unknown) => console.warn("[config] couldn't watch the config folder", error));
 }
 
-export function reconcileConfig() {
+export function reconcileConfig(launch = true) {
   const problems: string[] = [];
   const read = readConfigFile(CONFIG_FILE);
   let name = theme.name;
@@ -186,11 +201,12 @@ export function reconcileConfig() {
   else {
     const config = readConfig(read.text, useBrowser.getState().settings);
     problems.push(...config.problems);
-    if (Object.keys(config.patch).length) useBrowser.getState().updateSettings(config.patch);
+    if (launch && Object.keys(config.patch).length) useBrowser.getState().updateSettings(config.patch);
     if (config.theme !== undefined) name = config.theme;
   }
   applyTheme({ name, ...readTheme(name, problems) });
-  report(problems);
+  if (launch) report(problems);
+  else reported = new Set(problems);
   if (watching !== undefined) watchNames();
 }
 
@@ -215,10 +231,15 @@ export function configRestoreSession(): boolean | undefined {
   return read.status === "ok" ? launchRestoreSession(read.text, useBrowser.getState().settings) : undefined;
 }
 
-export function startConfigFiles(roles: RolePalettes) {
+export function startConfigFiles(roles: RolePalettes, launch = true) {
   if (defaults) return;
   defaults = roles;
-  reconcileConfig();
+  reconcileConfig(launch);
+  stopWatchingSidebarText = useBrowser.subscribe((s, prev) => {
+    if (s.settings.sidebarTextSize !== prev.settings.sidebarTextSize) applyTheme(theme);
+  });
+  unsubscribers.push(useBrowser.subscribe((s, prev) => s.settings.elementOutlines !== prev.settings.elementOutlines && applyTheme(theme)));
+  unsubscribers.push(useBrowser.subscribe((s, prev) => s.settings.tabCornerRadius !== prev.settings.tabCornerRadius && applyTheme(theme)));
   stopWatchingMinimalism = useBrowser.subscribe((s, prev) => {
     if (s.settings.minimalismMode !== prev.settings.minimalismMode) applyTheme(theme);
   });
@@ -237,9 +258,14 @@ export function resetConfigFilesForTests() {
   stopWatchingMinimalism?.();
   stopWatchingMinimalism = undefined;
   minimalism = false;
+  outlines = true;
+  tabCorners = null;
   timer = undefined;
   defaults = null;
   theme = { name: null, ...NO_THEME };
+  appliedSidebarText = "default";
+  stopWatchingSidebarText?.();
+  stopWatchingSidebarText = null;
   windowsUp = false;
   reported = new Set();
   pendingProblems = false;

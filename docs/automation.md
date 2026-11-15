@@ -215,7 +215,7 @@ profile goes where the store puts moved tabs.
   `bookmarks`, `downloads` or `newtab`. Never `javascript:`, `data:`, `blob:`, `view-source:`, `chrome:`, other
   `ardia://` pages (settings, flags, extensions…) or schemes that open other apps.
 - **Icons** are what the icon picker offers: an emoji from its list (`lib/emojiData.ts`), `symbol:<name>` (an SF
-  Symbol name, lowercase with dots), `"none"` (groups: No Icon) or null. Names are trimmed text of at most 200
+  Symbol name, lowercase with dots), `"none"` (No Icon: groups, and pinned rows, which then show their title alone) or null. Names are trimmed text of at most 200
   characters without control characters.
 - **Telemetry:** `usage_counts` carries `cli_tab_edits`, `cli_group_edits` (operations applied),
   `cli_edit_failures` (batches refused or stopped) and `cli_pill_shows` (times the control pill appeared: `run` and
@@ -592,6 +592,11 @@ The runner fires them and passes a `schedule.fired` event (it never comes from A
   `hooks.log.1`; stdout and stderr are drained as they come and a single line longer than 64 KB is cut. `hooks run`
   writes the log itself (`--log PATH`, `-` for the terminal), so the plist's `StandardOutPath` and
   `StandardErrorPath` are `/dev/null`: launchd would hold its own descriptor to the file and defeat the rotation.
+- On Linux, `hooks install` writes the systemd user service `dev.ardia.hooks.service` in
+  `${XDG_CONFIG_HOME:-~/.config}/systemd/user` instead (the same command line and environment, `Restart=on-failure`,
+  `RestartSec=10`, `StartLimitIntervalSec=0`, output to `/dev/null` for the same reason), then runs
+  `systemctl --user daemon-reload`, `enable` and `restart`. `uninstall` disables and stops it and removes the unit,
+  and `hooks list` reads `systemctl --user show`. The log is `${XDG_STATE_HOME:-~/.local/state}/ardia/hooks.log`.
 
 ## Tests
 
