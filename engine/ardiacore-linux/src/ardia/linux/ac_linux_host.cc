@@ -380,19 +380,6 @@ class ShellTransparency : public content::WebContentsObserver {
   }
 };
 
-class ShellFirstPaint : public content::WebContentsObserver {
- public:
-  ShellFirstPaint(content::WebContents* shell, base::OnceClosure painted)
-      : content::WebContentsObserver(shell), painted_(std::move(painted)) {}
-
-  void DidFirstVisuallyNonEmptyPaint() override {
-    if (painted_) std::move(painted_).Run();
-  }
-
- private:
-  base::OnceClosure painted_;
-};
-
 constexpr base::TimeDelta kShellCurtainSettle = base::Milliseconds(100);
 constexpr base::TimeDelta kShellCurtainLimit = base::Seconds(4);
 
@@ -1694,7 +1681,6 @@ class ShellHostView : public views::View,
   std::vector<gfx::Rect> shell_pass_;
   std::unique_ptr<ShellTransparency> shell_transparency_;
   raw_ptr<views::View> curtain_ = nullptr;
-  std::unique_ptr<ShellFirstPaint> shell_first_paint_;
   base::OneShotTimer curtain_timer_;
   raw_ptr<HostMessageHandler> handler_ = nullptr;
   uint64_t renderer_generation_ = 0;
@@ -2653,8 +2639,6 @@ void ShellHostView::Initialize() {
   }
   shell_->LoadInitialURL(GURL("chrome://ardia/"));
   shell_transparency_ = std::make_unique<ShellTransparency>(shell());
-  shell_first_paint_ = std::make_unique<ShellFirstPaint>(
-      shell(), base::BindOnce(&ShellHostView::ShellPainted, base::Unretained(this)));
   curtain_timer_.Start(FROM_HERE, kShellCurtainLimit,
                        base::BindOnce(&ShellHostView::LiftCurtain, base::Unretained(this)));
   ApplyShellInput();
@@ -3253,7 +3237,6 @@ void ShellHostView::ShellPainted() {
 
 void ShellHostView::LiftCurtain() {
   curtain_timer_.Stop();
-  shell_first_paint_.reset();
   if (!curtain_) return;
   views::View* curtain = curtain_;
   curtain_ = nullptr;
@@ -7084,7 +7067,7 @@ void ShellHostView::Invoke(
       method == "ArdiaShell.toggleMaximizeWindow" ||
       method == ardia::linux_commands::kToggleFullScreenCall ||
       method == "ArdiaShell.focusWindow" || method == "ArdiaShell.utilityReady" ||
-      method == "ArdiaShell.setWindowTitle") {
+      method == "ArdiaShell.shellPainted" || method == "ArdiaShell.setWindowTitle") {
     ShellHostView* target = nullptr;
     for (const auto& [id, host] : Hosts()) {
       if (host->window_id() == ArgumentString(values, 0) &&
@@ -7102,6 +7085,11 @@ void ShellHostView::Invoke(
             FROM_HERE, base::BindOnce(&ShellHostView::RequestUtilityClose, GetWeakPtr()));
       }
       return std::move(done).Run(true, base::Value(utility_.Clone()));
+    }
+    if (method == "ArdiaShell.shellPainted") {
+      if (target != this) return std::move(done).Run(false, base::Value("Only a window's own shell lifts its curtain"));
+      ShellPainted();
+      return std::move(done).Run(true, base::Value());
     }
     if (method == "ArdiaShell.windowFrame") {
       return std::move(done).Run(true, base::Value(SharedFrameValue(target->browser()->GetWindow()->GetBounds())));

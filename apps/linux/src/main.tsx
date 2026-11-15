@@ -63,6 +63,7 @@ import { startLinuxShortcuts } from "./shortcutsRuntime";
 import { linuxWindowMenu, TrafficLights } from "./TrafficLights";
 import { createUtilitySessionSnapshot, initialLinuxSession, isLinuxUtility, setSessionDeparture, setSessionFlush } from "./session";
 import { startUtility } from "./utility";
+import { announceShellPainted } from "./shellPainted";
 import { watchActiveProfile } from "./hostWindowProfiles";
 import { announceCommandsReady, announceTypeaheadReady, windowExpectsField } from "./typeahead";
 import { linuxSyncHooks, startLinuxSync } from "./syncEngine";
@@ -79,6 +80,7 @@ setWindowCloseDecider(decideLinuxWindowClose);
 function FirstWindowCommitted({ typeahead }: { typeahead: boolean }) {
   useEffect(() => {
     firstWindowCommitted();
+    if (ardiaHost) void announceShellPainted(ardiaHost);
     if (typeahead && ardiaHost) {
       announceCommandsReady(ardiaHost);
       announceTypeaheadReady(ardiaHost, { expectsField: () => windowExpectsField(useBrowser.getState(), ardiaHost!.bootstrap.windowId, useOnboarding.getState().windowId) });
