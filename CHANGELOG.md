@@ -10,6 +10,7 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 
 #### Fixed
 
+- **Sidebar:** clicking the selected-tab pill, or switching to a tab that is out of view, scrolls the list there smoothly over 0.3 s instead of jumping. React Native's macOS scroll view asked AppKit to animate `scrollPoint:`, which it can't, so every animated scroll in the app jumped; it now animates the clip view's bounds origin (`patches/react-native-macos@0.81.9.patch`).
 - **Sidebar:** while the sidebar's media player grows or shrinks on hover, the list's bottom line and the selected-tab pill move with the list's edge, instead of staying behind and crossing the player.
 - **Sidebar:** with the address bar in the toolbar and no Top Apps, the line under the sidebar's header sits level with the line under the toolbar, so the two read as one edge, with the regular or compact toolbar and any page frame. It was 3 pt lower (9 pt with the compact toolbar); the tabs don't move.
 - **Sidebar:** with the address bar in the sidebar, switching the sidebar to the other side and then clicking its address field opens the address dropdown over the sidebar, instead of on the side where the sidebar used to be. The field measured its place in the window only when it moved inside the sidebar, so the sidebar moving across the window left the dropdown behind. It now measures again after a switch and each time the dropdown opens, which also covers a window resized with the sidebar on the right.
