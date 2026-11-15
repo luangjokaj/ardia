@@ -1,3 +1,4 @@
+import { Easing } from "react-native";
 import { useTheme } from "../ui/theme";
 import { duration } from "../ui/motion";
 import { font, ink, radius, shadow, sidebarFont, sidebarIconSize, sidebarPoints, space, withAlpha, type ShadowLevel } from "../ui/tokens";
@@ -22,6 +23,8 @@ const DARK = {
   folderMosaic: "rgba(255,255,255,0.1)",
   liveDotRing: "rgba(0,0,0,0.3)",
   engineMarkPlate: "#2C2C2E",
+  selectedRowPillFill: "#141617",
+  selectedRowPillStroke: "rgba(255,255,255,0.1)",
   incognitoBadge: "rgba(255,255,255,0.08)",
   tileGlow: "#FFFFFF",
   fieldButtonPlate: "rgba(255,255,255,0.08)",
@@ -53,6 +56,8 @@ const LIGHT: typeof DARK = {
   folderMosaic: "rgba(0,0,0,0.06)",
   liveDotRing: "rgba(0,0,0,0.1)",
   engineMarkPlate: "#FFFFFF",
+  selectedRowPillFill: "#FFFFFF",
+  selectedRowPillStroke: "rgba(0,0,0,0.1)",
   incognitoBadge: "rgba(0,0,0,0.06)",
   tileGlow: "#000000",
   fieldButtonPlate: "rgba(255,255,255,0.75)",
@@ -194,4 +199,18 @@ export function groupSurface(color: GroupColor | null | undefined, tokens: Sideb
 export const SIDEBAR_MIN_WIDTH = 160;
 export const SIDEBAR_MAX_WIDTH = 400;
 export const SIDEBAR_RESIZE_HANDLE = { top: 46, width: 8 } as const;
-export const SELECTED_ROW_PILL = { height: 28, gap: 6, icon: 16, padLeft: 10, padRight: 9, iconGap: 6, arrow: 10, enterScale: 0.5 } as const;
+export const SELECTED_ROW_PILL = {
+  height: 28,
+  gap: 6,
+  icon: 16,
+  padLeft: 10,
+  padRight: 9,
+  iconGap: 6,
+  arrow: 10,
+  enter: { scale: 0.3, rise: 18 },
+  exit: { scale: 0.8, drop: 4 },
+} as const;
+export const SELECTED_ROW_PILL_MOTION = {
+  enter: { duration: 140, easing: Easing.out(Easing.quad) },
+  exit: { duration: 60, easing: Easing.linear },
+} as const;
