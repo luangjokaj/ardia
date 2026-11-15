@@ -10,6 +10,7 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 
 #### Fixed
 
+- **Sidebar:** with the address bar in the sidebar, switching the sidebar to the other side and then clicking its address field opens the address dropdown over the sidebar, instead of on the side where the sidebar used to be. The field measured its place in the window only when it moved inside the sidebar, so the sidebar moving across the window left the dropdown behind. It now measures again after a switch and each time the dropdown opens, which also covers a window resized with the sidebar on the right.
 - **Sidebar:** a tab whose title has line breaks, like a post on X, shows it on one line that fades out at the right edge, as Dia does, in the tab row, the tab hover menu and every other title that fades. Each line was drawn cut through the middle, two half-lines stacked in the row's height.
 
 #### Changed
