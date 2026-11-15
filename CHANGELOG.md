@@ -15,6 +15,7 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 
 #### Changed
 
+- **Sidebar:** when the selected tab is scrolled out of view, a small pill with its icon and an arrow floats at the list's edge, pointing down when the tab is below and up when it is above, as Dia does. Clicking it scrolls back to the tab, and the pill fades out once the tab is in view.
 - **Sidebar:** while more tabs are hidden below the list, a thin line marks the list's bottom edge above New Tab, the same line that marks its top edge once you scroll, as Dia does. It fades out at the end of the list, or when you close enough tabs for the list to fit.
 - **Tab hover menu:** the address line shows only the site's domain, like `x.com`, instead of the whole address. A new setting, Settings › Tabs › Show full address in tab hover menu, off by default, brings back the full address.
 

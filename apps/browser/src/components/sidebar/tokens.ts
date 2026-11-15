@@ -194,3 +194,4 @@ export function groupSurface(color: GroupColor | null | undefined, tokens: Sideb
 export const SIDEBAR_MIN_WIDTH = 160;
 export const SIDEBAR_MAX_WIDTH = 400;
 export const SIDEBAR_RESIZE_HANDLE = { top: 46, width: 8 } as const;
+export const SELECTED_ROW_PILL = { height: 28, gap: 6, icon: 16, padLeft: 10, padRight: 9, iconGap: 6, arrow: 10, enterScale: 0.5 } as const;
