@@ -1,3 +1,5 @@
+import { platformCopy } from "./platformCopy";
+
 export const SHARING_COPY = {
   toggle: "Share anonymous crash reports and usage stats",
   summary: "Crashes, errors, rough feature counts and speed. Never the sites you visit, anything you type or search, or what's in your tabs.",
@@ -88,6 +90,7 @@ export const WHATS_SENT: { title: string; items: string[] }[] = [
       "How many page loads showed in the address field or as the loading pill, how many times the pill stayed over 10 seconds, and how many loads ended before either showed, summed up once an hour. Never which page",
       "How many times the New Tab bar opened on its own over an empty window at launch, summed up once an hour",
       "How many times ⌘T kept a New Tab bar that had opened on its own (in a new window or after closing the last tab) instead of closing it, summed up once an hour",
+      "How many addresses and searches you opened from the address bar, the New Tab page or the New Tab bar, and how many of those pages took the keyboard right away, so a keyboard-navigation extension's keys work without a click first, summed up once an hour. Never which pages",
       "How many times switching from a New Tab to a page kept the New Tab up behind it while the page drew, and how many switches went to a page on WebKit, which shows at once without it, summed up once an hour. Never which page",
       "With address bar speed: how many search suggestion requests your search engine answered, refused as unusual traffic, or failed, summed up once an hour. Never what you typed or which engine",
       "How many times you switched the update channel, and whether the check that follows offered an update, found you up to date or failed, summed up once an hour. Never which version",
@@ -107,6 +110,7 @@ export const WHATS_SENT: { title: string; items: string[] }[] = [
       "How many Peek cards and Little Ardia windows you opened or closed with a trackpad pinch, how many Little Ardia windows you closed by swiping back or started to and let go, summed up once an hour",
       "How many Little Ardia windows you closed with Escape, and whether the page had the keyboard, nothing in the window did, or the window was still blank, summed up once an hour",
       "How many Little Ardia windows closed on their own because their page opened another app, and how many times closing a Little Ardia window brought back the app you came from, summed up once an hour. Never which app or page",
+      "How many times a Peek came back because you returned to the tab it was opened from, summed up once an hour. Never which tab or page",
       "How many links from other apps opened as a tab or in Little Ardia, each with whether Settings › General › Open links from other apps in Little Ardia was on, summed up once an hour. Never which links or which app",
       "How many links from other apps an Air Traffic Control rule routed, and how many went by its Everything Else choice, summed up once an hour. Never which links, rules, apps or profiles",
       "How many tab and group changes the ardia command made (counts only, never which tabs or groups), how many of its batches were refused or stopped, how many times its control pill appeared and how many of those were shrunk to an icon and Stop, and how many times Ardia installed or upgraded the ardia command (on its own the first time, after an update, or from Settings) and whether that worked, and whether it turned on control after installing it on its own",
@@ -221,6 +225,29 @@ export const LOCAL_COPY = {
     "Resetting your anonymous ID deletes it",
   ],
 } as const;
+
+const ADDED_ITEMS = {
+  Usage: [
+    "How many times the first-launch intro was shown, how many of those started with its music muted, how many were skipped and how many played to the end, and on Windows how many showed the moving meadow, the still picture, or the still picture after the meadow failed, and the time the meadow took to draw its first frame, rounded to a tenth of a second, summed up once an hour",
+    "On Windows, how many animations ran and how many of their frames came late, summed up once an hour",
+    "On Windows, how many links Ardia opened that it was started with while it wasn't running, summed up once an hour. Never which links or which app",
+    "How many times you asked to make Ardia your default browser (on Windows, how many times that opened Windows Settings), and whether Ardia was your default browser when it started, summed up once an hour",
+    "How many times the command bar completed an address inline as you typed, summed up once an hour. Never what you typed or which address",
+    "How many launches after an update didn't open the release notes because setting up Ardia for the first time was still under way, summed up once an hour",
+    "How many times the downloads panel opened from its button or from Downloads in a menu or shortcut, and how many times it closed with Escape, its button or the command, summed up once an hour. Never which files",
+    "When a page asked to open another app (mail, a meeting app and so on), how many times you clicked Open, Open with Always allow or Cancel. On Windows also how many links did open, how many Ardia refused to open after you allowed them (the page had gone or the link's app had changed) and how many opened on their own for a site you always allow. Summed up once an hour, never which page, link or app",
+    "On Windows, how many pages were opened while a dialog such as a confirm or a file picker was open, and how many of those hadn't loaded 10 seconds later, summed up once an hour. Never which page or dialog",
+    "How many times the find bar opened and how many times it stepped to the next or previous match, summed up once an hour. Never what you searched for or on which page",
+    "How many times bookmarks were exported to an HTML file, passwords were exported to a CSV file, and an extension was installed from a folder, and how many of those exports failed, summed up once an hour. Never which bookmarks, passwords, extensions or files",
+    "How many times Ardia freed engine memory after tabs closed, how many of those the engine refused, and how many times it gave up because you kept typing or moving the pointer, summed up once an hour",
+    "How many imports from another browser finished, how many kinds of data (bookmarks, history, passwords and so on) came over or failed, and how many times some passwords or cookies were left behind because they couldn't be decrypted, summed up once an hour. Never which browser, pages, names or passwords",
+    "How many deleted profiles had their browsing data removed from this Mac and how many removals had to wait or failed, summed up once an hour. Never which profile",
+    "On Windows, how many sync files waited because they were online-only or still being written, and how many online-only sync files Ardia downloaded, summed up once an hour. Never which files or what's in them",
+    "On Windows, how many times a tab you switched to had no page yet, so Ardia held on to giving that page the keyboard, and how many of those it then gave and how many it let go (you moved on, clicked another page or typed in a field), summed up once an hour. Never which tab or page",
+  ],
+};
+
+platformCopy({ SHARING_COPY, WHATS_SENT, IDENTITY_COPY, LOCAL_COPY }, ADDED_ITEMS);
 
 export const WATCH_COPY = {
   rowTitle: "Sharing to confirm a fix",

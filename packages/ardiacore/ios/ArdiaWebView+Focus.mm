@@ -104,7 +104,11 @@ static BOOL InTabPage(NSView *view) {
 }
 
 - (void)focusAfterLoad {
-  if (_visible && _tab) [self focusPage];
+  if (!_tab) return;
+  if (_visible) return [self focusPage];
+  _focus.page = ArdiaPageFocus::Page;
+  _focus.devTools = nil;
+  [self requestFocusRestore];
 }
 
 - (void)focusPage {

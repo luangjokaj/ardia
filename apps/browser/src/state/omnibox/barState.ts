@@ -1,6 +1,7 @@
 import type { SearchScope } from "@ardia/core";
 import { useBrowser } from "../browser/store";
 import { activeTabId } from "../browser/model";
+import { shownPeek } from "../peek/peek";
 import { expectFocus, heroBarFocus } from "../focus/focusClaims";
 import { webviews } from "../../platform/webviews";
 import { clickBarPlacement } from "./barPlacement";
@@ -58,7 +59,7 @@ export function cancelPanel(windowId: string) {
   setTimeout(() => {
     const now = useBrowser.getState();
     const active = activeTabId(now, windowId);
-    if (!active || !now.tabs[active]?.url || now.windowUi[windowId]?.panel.open || now.peeks[windowId]) return;
+    if (!active || !now.tabs[active]?.url || now.windowUi[windowId]?.panel.open || shownPeek(now, windowId)) return;
     void webviews.get(active)?.focusIfUnfocused().then((focused) => {
       if (focused) notePageFocusReturnAfterBar();
     });
