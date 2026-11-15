@@ -10,6 +10,9 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 
 #### Fixed
 
+- **Sidebar:** switching to a tab that is out of view no longer flashes the selected-tab pill while the list scrolls to it; the pill waits for the scroll to end.
+- **Top Apps:** a folder tile centres its icons, so a folder of one or two sits in the middle of the tile instead of in the top row.
+- **Tests:** the session settings test counts the two new settings, `showFullUrlInTabHoverMenu` and `topAppFolders`; it failed in CI on the hover menu setting.
 - **Sidebar:** clicking the selected-tab pill, or switching to a tab that is out of view, scrolls the list there smoothly over 0.3 s instead of jumping. React Native's macOS scroll view asked AppKit to animate `scrollPoint:`, which it can't, so every animated scroll in the app jumped; it now animates the clip view's bounds origin (`patches/react-native-macos@0.81.9.patch`).
 - **Sidebar:** while the sidebar's media player grows or shrinks on hover, the list's bottom line and the selected-tab pill move with the list's edge, instead of staying behind and crossing the player.
 - **Sidebar:** with the address bar in the toolbar and no Top Apps, the line under the sidebar's header sits level with the line under the toolbar, so the two read as one edge, with the regular or compact toolbar and any page frame. It was 3 pt lower (9 pt with the compact toolbar); the tabs don't move.
@@ -18,6 +21,7 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 
 #### Changed
 
+- **Top Apps:** a new setting, Settings › Tabs › Make folders in Top Apps, off by default as in Dia: holding a tile over another, or New Folder… in its menu, no longer makes a folder. Folders you already have keep working.
 - **Sidebar:** when the selected tab is scrolled out of view, a small pill with its icon and an arrow floats at the list's edge, pointing down when the tab is below and up when it is above, as Dia does. Clicking it scrolls back to the tab, and the pill fades out once the tab is in view.
 - **Sidebar:** the New Tab row docked at the bottom of the sidebar has the same 6 pt above its hover highlight, under the list's edge line, as below it.
 - **Sidebar:** while more tabs are hidden below the list, a thin line marks the list's bottom edge above New Tab, the same line that marks its top edge once you scroll, as Dia does. It fades out at the end of the list, or when you close enough tabs for the list to fit.
