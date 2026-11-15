@@ -12,6 +12,10 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 
 - **Sidebar:** a tab whose title has line breaks, like a post on X, shows it on one line that fades out at the right edge, as Dia does, in the tab row, the tab hover menu and every other title that fades. Each line was drawn cut through the middle, two half-lines stacked in the row's height.
 
+#### Changed
+
+- **Tab hover menu:** the address line shows only the site's domain, like `x.com`, instead of the whole address. A new setting, Settings › Tabs › Show full address in tab hover menu, off by default, brings back the full address.
+
 ### 2026-11-13
 
 #### Fixed
