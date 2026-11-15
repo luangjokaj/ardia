@@ -15,6 +15,7 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 
 #### Changed
 
+- **Sidebar:** while more tabs are hidden below the list, a thin line marks the list's bottom edge above New Tab, the same line that marks its top edge once you scroll, as Dia does. It fades out at the end of the list, or when you close enough tabs for the list to fit.
 - **Tab hover menu:** the address line shows only the site's domain, like `x.com`, instead of the whole address. A new setting, Settings › Tabs › Show full address in tab hover menu, off by default, brings back the full address.
 
 ### 2026-11-13
