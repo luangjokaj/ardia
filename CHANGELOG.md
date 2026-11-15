@@ -6,6 +6,12 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 
 ## Only in this fork
 
+### 2026-11-15
+
+#### Fixed
+
+- **Sidebar:** a tab whose title has line breaks, like a post on X, shows it on one line that fades out at the right edge, as Dia does, in the tab row, the tab hover menu and every other title that fades. Each line was drawn cut through the middle, two half-lines stacked in the row's height.
+
 ### 2026-11-13
 
 #### Fixed
