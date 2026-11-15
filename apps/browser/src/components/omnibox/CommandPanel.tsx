@@ -3,7 +3,6 @@ import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from
 import { Animated, StyleSheet, View, type LayoutChangeEvent } from "react-native";
 import { hex, useTheme } from "../ui/theme";
 import { useSidebarSide, useWindowId, useWindowUi } from "../../state/browser/hooks";
-import { closePanel } from "../../state/windows/actions";
 import { useActiveTabIdWhile, useTabHasUrlWhile } from "../../state/omnibox/hooks";
 import { isCentred } from "../../state/omnibox/barPlacement";
 import { usePage } from "../../state/tabs/pageState";
@@ -15,7 +14,7 @@ import { closeNewTabBar } from "../../state/omnibox/newTabBar";
 import type { NewTabTarget } from "../../state/browser/types";
 import { Omnibox } from "./Omnibox";
 import { BAR, PANEL_TEXT_LEFT, GROW } from "./tokens";
-import { closePanelToHeroBar, type BarDismissal } from "../../state/omnibox/barState";
+import { cancelPanel, closePanelToHeroBar, type BarDismissal } from "../../state/omnibox/barState";
 import { closeBlankLittleArdiaOnEscape } from "../../state/littleArdia/actions";
 import { insecureLevel, urlTextLeft } from "../toolbar/Toolbar";
 import { useToolbarRow } from "../toolbar/useToolbarRow";
@@ -56,7 +55,7 @@ export function CommandPanel({ windowWidth }: { windowWidth: number }) {
   if (panel.newTab) return card ? <CentredBar windowId={windowId} tabId={activeId} target={panel.newTab} card={card} /> : null;
 
   const room = (left: number, fallback: number) => (windowWidth > 0 ? windowWidth - left - WINDOW_MARGIN : fallback);
-  const onCancel = () => closePanel(windowId);
+  const onCancel = () => cancelPanel(windowId);
   const onDone = (reason?: BarDismissal) => {
     if (reason !== "escape" || !closeBlankLittleArdiaOnEscape(windowId)) closePanelToHeroBar(windowId, activeId, reason);
   };
@@ -127,7 +126,7 @@ function centredFrame(card: Box) {
 
 function CentredBar({ windowId, tabId, target, card }: { windowId: string; tabId: string; target: NewTabTarget; card: Box }) {
   const theme = useTheme();
-  const onCancel = () => closePanel(windowId);
+  const onCancel = () => cancelPanel(windowId);
   const onDone = () => closeNewTabBar(windowId);
   return (
     <Grow

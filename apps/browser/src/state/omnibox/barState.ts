@@ -4,6 +4,7 @@ import { activeTabId } from "../browser/model";
 import { expectFocus, heroBarFocus } from "../focus/focusClaims";
 import { webviews } from "../../platform/webviews";
 import { clickBarPlacement } from "./barPlacement";
+import { notePageFocusReturnAfterBar } from "../telemetry/pageFocusReturns";
 
 export type BarSnapshot = {
   typed: string;
@@ -51,6 +52,18 @@ export function openEmptySidebarField(windowId: string) {
 }
 
 export type BarDismissal = "escape" | "closeKey";
+
+export function cancelPanel(windowId: string) {
+  useBrowser.getState().closePanel(windowId);
+  setTimeout(() => {
+    const now = useBrowser.getState();
+    const active = activeTabId(now, windowId);
+    if (!active || !now.tabs[active]?.url || now.windowUi[windowId]?.panel.open || now.peeks[windowId]) return;
+    void webviews.get(active)?.focusIfUnfocused().then((focused) => {
+      if (focused) notePageFocusReturnAfterBar();
+    });
+  }, 0);
+}
 
 export function closePanelToHeroBar(windowId: string, tabId: string, reason?: BarDismissal) {
   useBrowser.getState().closePanel(windowId);

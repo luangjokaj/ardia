@@ -49,6 +49,7 @@ static BOOL InTabPage(NSView *view) {
 - (void)storePageFocusFrom:(NSResponder *)responder {
   _focus.onActivate = NO;
   _focus.devTools = nil;
+  _focus.elsewhere = nil;
   NSWindow *window = self.window;
   if (!window || !_tab) return;
   NSView *view = [responder isKindOfClass:NSView.class] ? (NSView *)responder : nil;
@@ -61,6 +62,7 @@ static BOOL InTabPage(NSView *view) {
     _focus.page = ArdiaPageFocus::Unknown;
   } else {
     _focus.page = ArdiaPageFocus::Elsewhere;
+    _focus.elsewhere = view;
   }
 }
 
@@ -96,7 +98,7 @@ static BOOL InTabPage(NSView *view) {
   NSView *devTools = _focus.devTools;
   if (_focus.page == ArdiaPageFocus::DevTools && devTools.window == window && _devtoolsView && [devTools isDescendantOf:_devtoolsView]) {
     [window makeFirstResponder:devTools];
-  } else if (_focus.page != ArdiaPageFocus::Elsewhere) {
+  } else if (_focus.page != ArdiaPageFocus::Elsewhere || _focus.elsewhere.window != window) {
     [self focusPage];
   }
 }
