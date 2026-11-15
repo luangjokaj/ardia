@@ -1078,7 +1078,7 @@ index b85ee3dd203f88bf2daaa47e912031ea200ff910..fdd49042170be0c7850fea3ea8550c32
  }
    
 diff --git a/React/Base/macOS/RCTUIKit.m b/React/Base/macOS/RCTUIKit.m
-index a37a1c106a04752c1baeb6dd2170402ce5f34f71..9ed0d96bd18e20dbc77c627a460ab32da300a529 100644
+index a37a1c106a04752c1baeb6dd2170402ce5f34f71..830c8c246a756860c2bf41a0eaf9ee2cd9cda53f 100644
 --- a/React/Base/macOS/RCTUIKit.m
 +++ b/React/Base/macOS/RCTUIKit.m
 @@ -15,6 +15,7 @@
@@ -1089,15 +1089,6 @@ index a37a1c106a04752c1baeb6dd2170402ce5f34f71..9ed0d96bd18e20dbc77c627a460ab32d
  
  #import <CoreImage/CIFilter.h>
  #import <CoreImage/CIVector.h>
-@@ -62,7 +63,7 @@ CGFloat UIImageGetScale(NSImage *image)
- {
-   if (image == nil) {
-     return 0.0;
--  }
-+  } // [Ardia]
-   
-   RCTAssert(image.representations.count == 1, @"The scale can only be derived if the image has one representation.");
- 
 @@ -214,6 +215,44 @@ - (instancetype)initWithCoder:(NSCoder *)coder
    return RCTUIViewCommonInit([super initWithCoder:coder]);
  }
@@ -1143,7 +1134,7 @@ index a37a1c106a04752c1baeb6dd2170402ce5f34f71..9ed0d96bd18e20dbc77c627a460ab32d
  - (BOOL)acceptsFirstMouse:(NSEvent *)event
  {
    if (self.acceptsFirstMouse || [super acceptsFirstMouse:event]) {
-@@ -284,20 +323,53 @@ - (CATransform3D)transform3D
+@@ -284,21 +323,54 @@ - (CATransform3D)transform3D
    return _transform3D;
  }
  
@@ -1184,8 +1175,8 @@ index a37a1c106a04752c1baeb6dd2170402ce5f34f71..9ed0d96bd18e20dbc77c627a460ab32d
    _hasCustomTransform3D = !CATransform3DEqualToTransform(transform3D, CATransform3DIdentity);
 -  self.layer.transform = transform3D;
 +  self.layer.transform = RCTUIViewLayerTransform(self);
-+}
-+
+ }
+ 
 +- (void)setFrameOrigin:(NSPoint)newOrigin
 +{
 +  [super setFrameOrigin:newOrigin];
@@ -1200,11 +1191,12 @@ index a37a1c106a04752c1baeb6dd2170402ce5f34f71..9ed0d96bd18e20dbc77c627a460ab32d
 +  if (_hasCustomTransform3D) {
 +    RCTUIViewApplyTransform3D(self);
 +  }
- }
++}
 +// Ardia]
- 
++
  - (NSView *)hitTest:(NSPoint)point
  {
+   // NSView's hitTest: receives a point in superview coordinates. Convert to local
 @@ -308,7 +380,11 @@ - (NSView *)hitTest:(NSPoint)point
    if (self.layer.superlayer) {
      localPoint = [self.layer convertPoint:point fromLayer:self.layer.superlayer];
@@ -1244,7 +1236,7 @@ index a37a1c106a04752c1baeb6dd2170402ce5f34f71..9ed0d96bd18e20dbc77c627a460ab32d
 +  if (!animated) { // [Ardia]
 +    [self.documentView scrollPoint:contentOffset]; // [Ardia]
 +    return; // [Ardia]
-+  }
++  } // [Ardia]
 +  NSClipView *clipView = self.contentView; // [Ardia]
 +  NSRect target = [clipView constrainBoundsRect:NSMakeRect(contentOffset.x, contentOffset.y, NSWidth(clipView.bounds), NSHeight(clipView.bounds))]; // [Ardia]
 +  [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) { // [Ardia]
