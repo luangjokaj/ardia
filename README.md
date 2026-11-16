@@ -1,3 +1,47 @@
+> [!NOTE]
+> **This is Riangle Ardia, a personal fork of [ardia-browser/ardia](https://github.com/ardia-browser/ardia).**
+> The default branch, `riangle`, is the original `main` plus a few patches of mine. Everything else in this README is the original project's.
+>
+> **Patches on top of `main`** (details and commits in [CHANGELOG.md](CHANGELOG.md))
+> - My open pull requests, merged into `riangle` until the original project merges them: [#2310](https://github.com/ardia-browser/ardia/pull/2310) the selected-tab pill, [#2311](https://github.com/ardia-browser/ardia/pull/2311) the tab hover menu's domain, [#2312](https://github.com/ardia-browser/ardia/pull/2312) the Top Apps folders setting.
+> - The iPhone app's bundle IDs and app group come from one build setting, `ARDIA_IOS_BUNDLE_ID`.
+> - `scripts/lib/export-developer-id.sh` signs for a team ID that starts with a digit.
+>
+> **Staying up to date**
+> ```sh
+> git remote add upstream https://github.com/ardia-browser/ardia.git   # once
+> git switch riangle
+> git pull upstream main
+> git push origin riangle
+> pnpm install
+> pnpm pods
+> ```
+> Run `pnpm install` and `pnpm pods` after every pull, before building. Upstream adds and removes native files, and a stale Pods project fails the build with "Build input file cannot be found". Both are quick when nothing changed.
+>
+> **Building it**
+> Build the Release app signed with your own team and bundle ID, so it installs next to the official Ardia and keeps its own data in `~/Library/Application Support/<bundle id>`:
+> ```sh
+> cd apps/browser
+> xcodebuild -workspace macos/Ardia.xcworkspace -scheme Ardia-macOS -derivedDataPath build-riangle \
+>   -destination 'platform=macOS,arch=arm64' -configuration Release -allowProvisioningUpdates \
+>   DEVELOPMENT_TEAM=<your team> PRODUCT_BUNDLE_IDENTIFIER=<your bundle id>
+> ditto build-riangle/Build/Products/Release/Ardia.app "/Applications/Riangle Ardia.app"
+> defaults write <your bundle id> SUEnableAutomaticChecks -bool NO
+> defaults write <your bundle id> SUAutomaticallyUpdate -bool NO
+> ```
+> The last two lines stop it from updating itself to the official release.
+>
+> **Building the iPhone app**
+> The iPhone app (`apps/ios`) is plain Xcode: no `pnpm install`, no pods. Its bundle IDs and app group come from one build setting, `ARDIA_IOS_BUNDLE_ID` (a patch of this fork), so it signs with your own team. Connect the iPhone (iOS 27 or later, Developer Mode on), find its ID with `xcrun devicectl list devices`, then:
+> ```sh
+> cd apps/ios
+> xcodebuild -project Ardia.xcodeproj -scheme Ardia -configuration Debug -destination 'id=<device id>' \
+>   -derivedDataPath build-riangle -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
+>   DEVELOPMENT_TEAM=<your team> ARDIA_IOS_BUNDLE_ID=<your iOS bundle id> build
+> xcrun devicectl device install app --device <device id> build-riangle/Build/Products/Debug-iphoneos/Ardia.app
+> ```
+> Use the Debug configuration: Release asks for the default-browser entitlement, which Apple has to approve per team, so a Debug build can't be set as the default browser. To sync with the Mac, open Settings › Sync › Connect Another Device there, scan the code with the iPhone and pick the sync folder in iCloud Drive.
+
 <p align="center">
   <img src="apps/site/src/assets/app-icon.png" width="128" height="128" alt="Ardia's app icon">
 </p>
