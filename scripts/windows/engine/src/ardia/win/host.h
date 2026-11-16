@@ -63,6 +63,10 @@ class Host : public TabStripModelObserver,
   void ParentDestroying(HWND parent);
   void ParentMoved(HWND parent);
   void ParentActivated(HWND parent);
+  bool HandOverWindowCommand(HWND window, WPARAM command, LPARAM point);
+  void HoldPagePlace(HWND window, WINDOWPOS& change);
+  void PageMoved(HWND window, const WINDOWPOS& change);
+  void PageDestroyed(HWND window);
   bool OpenAsOffer(BrowserWindowInterface* browser,
                    WindowOpenDisposition disposition,
                    const blink::mojom::WindowFeatures& features);
@@ -146,6 +150,9 @@ class Host : public TabStripModelObserver,
                   int index,
                   bool foreground);
   std::string NameOf(Profile* profile) const;
+  HWND ShownParentOf(HWND window);
+  void PutBack(HWND window);
+  void FullscreenLeft(HWND window);
 
   std::map<Browser*, Hosted> hosted_;
   std::set<Browser*> popup_browsers_;
@@ -166,6 +173,10 @@ class Host : public TabStripModelObserver,
   std::map<Profile*, std::string> profile_names_;
   std::set<HWND> parents_;
   std::map<HWND, std::string> keyboard_wanted_;
+  std::set<HWND> fullscreen_pages_;
+  std::set<HWND> leaving_fullscreen_;
+  std::set<HWND> put_back_pending_;
+  bool placing_ = false;
   bool creating_browser_ = false;
   bool creating_tab_ = false;
   bool moving_tab_ = false;

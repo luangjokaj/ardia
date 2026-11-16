@@ -401,7 +401,11 @@ is plain Chromium.
   or shortcuts of its own (the `chromium-win-hosted-*` patches), and each shows one page: its active tab. Each is
   a borderless top-level window owned by the app's window, placed over the page's view: it stays above its owner, hides
   and minimizes with it, and follows it when it moves. It cannot be a child window: with the Windows App SDK in a
-  window, no mouse message for a child of it reaches the UI thread (`ARDIA_INPUT_TRACE=<file>` logs what does). A window
+  window, no mouse message for a child of it reaches the UI thread (`ARDIA_INPUT_TRACE=<file>` logs what does). Being
+  top-level, it is what a window tool finds under the pointer (AltSnap's Alt+drag, a script posting SC_MOVE), so while a page
+  is shown and not fullscreen its window holds its place: the host's own placement is the only move or resize it takes,
+  a change that skipped WM_WINDOWPOSCHANGING (SWP_NOSENDCHANGING) is put back, and a system move or size started on it
+  goes to the app window (#2051, `Test-PageHoldsPlace` in `launch-smoke.ps1`). A window
   Chromium opens by itself (a link opened in a new window) stays off screen until the app adopts its tabs.
 - The verbs: `tab.create` (a key, a profile, a URL or a tab to adopt; the same key again moves the tab to the window
   that asks), `tab.show` (visible, and where in the window, in the UI's points; a corner radius and holes),

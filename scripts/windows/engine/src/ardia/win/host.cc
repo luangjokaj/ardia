@@ -75,6 +75,7 @@ constexpr base::TimeDelta kOpenRequestWait = base::Milliseconds(25);
 constexpr base::TimeDelta kOfferDeadline = base::Seconds(30);
 constexpr base::TimeDelta kTestOfferDeadline = base::Seconds(4);
 constexpr UINT_PTR kParentSubclass = 0xA2D1A;
+constexpr UINT_PTR kPageSubclass = 0xA2D1B;
 
 base::DictValue Ok() {
   base::DictValue result;
@@ -142,6 +143,35 @@ LRESULT CALLBACK ParentProcedure(HWND window,
   }
   if (message == WM_NCDESTROY) {
     ::RemoveWindowSubclass(window, &ParentProcedure, id);
+  }
+  return ::DefSubclassProc(window, message, w_param, l_param);
+}
+
+bool NeitherMovesNorSizes(const WINDOWPOS& change) {
+  return (change.flags & SWP_NOMOVE) && (change.flags & SWP_NOSIZE);
+}
+
+LRESULT CALLBACK PageProcedure(HWND window,
+                               UINT message,
+                               WPARAM w_param,
+                               LPARAM l_param,
+                               UINT_PTR id,
+                               DWORD_PTR data) {
+  if (message == WM_SYSCOMMAND &&
+      Host::Get()->HandOverWindowCommand(window, w_param, l_param)) {
+    return 0;
+  }
+  if (message == WM_WINDOWPOSCHANGING && l_param) {
+    Host::Get()->HoldPagePlace(window,
+                               *reinterpret_cast<WINDOWPOS*>(l_param));
+  }
+  if (message == WM_WINDOWPOSCHANGED && l_param) {
+    Host::Get()->PageMoved(window,
+                           *reinterpret_cast<const WINDOWPOS*>(l_param));
+  }
+  if (message == WM_NCDESTROY) {
+    Host::Get()->PageDestroyed(window);
+    ::RemoveWindowSubclass(window, &PageProcedure, id);
   }
   return ::DefSubclassProc(window, message, w_param, l_param);
 }
@@ -1023,6 +1053,7 @@ void Host::Park(Browser* browser) {
     return;
   }
   MakeBare(window);
+  ::SetWindowSubclass(window, &PageProcedure, kPageSubclass, 0);
   if (ui::BaseWindow* base_window = browser->GetWindow()) {
     if (gfx::NativeWindow native = base_window->GetNativeWindow()) {
       native->AddPreTargetHandler(this);
@@ -1136,6 +1167,7 @@ void Host::Place(HWND window, const Hosted& hosted) {
   }
   POINT origin = {hosted.place.x(), hosted.place.y()};
   ::ClientToScreen(hosted.parent, &origin);
+  base::AutoReset<bool> placing(&placing_, true);
   ::SetWindowPos(window, nullptr, origin.x, origin.y, hosted.place.width(),
                  hosted.place.height(),
                  SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOOWNERZORDER);
@@ -1150,6 +1182,118 @@ void Host::ParentMoved(HWND parent) {
     if (HWND window = WindowOf(entry.first)) {
       Place(window, hosted);
     }
+  }
+}
+
+HWND Host::ShownParentOf(HWND window) {
+  for (const auto& [browser, hosted] : hosted_) {
+    if (WindowOf(browser) != window) {
+      continue;
+    }
+    ui::BaseWindow* base_window = browser->GetWindow();
+    if (base_window && base_window->IsFullscreen()) {
+      fullscreen_pages_.insert(window);
+      return nullptr;
+    }
+    if (hosted.shown.empty() || !hosted.parent ||
+        !::IsWindow(hosted.parent)) {
+      fullscreen_pages_.erase(window);
+      return nullptr;
+    }
+    return hosted.parent;
+  }
+  return nullptr;
+}
+
+bool Host::HandOverWindowCommand(HWND window, WPARAM command, LPARAM point) {
+  const WPARAM kind = command & 0xFFF0;
+  if (kind != SC_MOVE && kind != SC_SIZE) {
+    return false;
+  }
+  HWND parent = ShownParentOf(window);
+  if (!parent) {
+    return false;
+  }
+  ::ReleaseCapture();
+  ::SendMessageW(parent, WM_SYSCOMMAND, command, point);
+  return true;
+}
+
+void Host::HoldPagePlace(HWND window, WINDOWPOS& change) {
+  if (placing_ || NeitherMovesNorSizes(change)) {
+    return;
+  }
+  if (!ShownParentOf(window) || leaving_fullscreen_.contains(window)) {
+    return;
+  }
+  if (fullscreen_pages_.erase(window)) {
+    leaving_fullscreen_.insert(window);
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&Host::FullscreenLeft,
+                                  weak_factory_.GetWeakPtr(), window));
+    return;
+  }
+  RECT now;
+  if (!::GetWindowRect(window, &now)) {
+    return;
+  }
+  RECT wanted = now;
+  if (!(change.flags & SWP_NOMOVE)) {
+    ::OffsetRect(&wanted, change.x - now.left, change.y - now.top);
+  }
+  if (!(change.flags & SWP_NOSIZE)) {
+    wanted.right = wanted.left + change.cx;
+    wanted.bottom = wanted.top + change.cy;
+  }
+  if (!::EqualRect(&wanted, &now)) {
+    change.flags |= SWP_NOMOVE | SWP_NOSIZE;
+  }
+}
+
+void Host::PageMoved(HWND window, const WINDOWPOS& change) {
+  if (placing_ || NeitherMovesNorSizes(change) ||
+      !put_back_pending_.insert(window).second) {
+    return;
+  }
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&Host::PutBack, weak_factory_.GetWeakPtr(), window));
+}
+
+void Host::PageDestroyed(HWND window) {
+  fullscreen_pages_.erase(window);
+  leaving_fullscreen_.erase(window);
+  put_back_pending_.erase(window);
+}
+
+void Host::FullscreenLeft(HWND window) {
+  if (!leaving_fullscreen_.erase(window) ||
+      !put_back_pending_.insert(window).second) {
+    return;
+  }
+  PutBack(window);
+}
+
+void Host::PutBack(HWND window) {
+  if (!put_back_pending_.erase(window) || !ShownParentOf(window)) {
+    return;
+  }
+  for (const auto& [browser, hosted] : hosted_) {
+    if (hosted.shown.empty() || WindowOf(browser) != window) {
+      continue;
+    }
+    POINT origin = {hosted.place.x(), hosted.place.y()};
+    RECT now;
+    if (!::ClientToScreen(hosted.parent, &origin) ||
+        !::GetWindowRect(window, &now)) {
+      return;
+    }
+    if (now.left != origin.x || now.top != origin.y ||
+        now.right - now.left != hosted.place.width() ||
+        now.bottom - now.top != hosted.place.height()) {
+      Place(window, hosted);
+    }
+    return;
   }
 }
 
