@@ -8,6 +8,7 @@ import { click, evaluate, firstWindow, hide, keptBy, LEFT, listed, loaded, RIGHT
 const OPENS_LIVE_PAGE = 100;
 const UNSAVED_AFTER_USE = 101;
 const HOLDS_WEB_LOCK = 102;
+const HOLDS_BLOCKING_INDEXEDDB_LOCK = 103;
 const LIVE_CONNECTION = 104;
 const INSPECTED_BY_ANOTHER_CLIENT = 105;
 const SIGNAL_MS = 5000;
@@ -73,6 +74,26 @@ const keptChecks: Check[] = [
         await evaluate(page!, `navigator.locks.request("ardia-sleep-check", () => new Promise(() => {})); post("result", "null");`);
         await hide(page!, windowId);
         await keptWithin(page!, HOLDS_WEB_LOCK, `kept while it holds a Web Lock (${HOLDS_WEB_LOCK})`);
+      }),
+  },
+  {
+    name: "engine sleep: a hidden page whose open IndexedDB connection blocks another page's upgrade is kept",
+    run: () =>
+      withPages(["idb-holder", "idb-waiter"], async ([holder, waiter], windowId) => {
+        await show(holder!, windowId, LEFT);
+        await show(waiter!, windowId, RIGHT);
+        const opened = await evaluate(
+          holder!,
+          `const open = indexedDB.open("ardia-sleep-check", 1); open.onupgradeneeded = () => open.result.createObjectStore("kept"); open.onsuccess = () => { window.ardiaDatabase = open.result; post("result", JSON.stringify("open")); }; open.onerror = () => post("result", JSON.stringify("error"));`,
+        );
+        expectEqual(opened, "open", "the holder's IndexedDB connection");
+        const upgrade = await evaluate(
+          waiter!,
+          `const open = indexedDB.open("ardia-sleep-check", 2); window.ardiaUpgrade = open; open.onblocked = () => post("result", JSON.stringify("blocked")); open.onsuccess = () => post("result", JSON.stringify("opened")); open.onerror = () => post("result", JSON.stringify("error"));`,
+        );
+        expectEqual(upgrade, "blocked", "the other page's upgrade waits on the holder's connection");
+        await hide(holder!, windowId);
+        await keptWithin(holder!, HOLDS_BLOCKING_INDEXEDDB_LOCK, `kept while its connection blocks another page (${HOLDS_BLOCKING_INDEXEDDB_LOCK})`);
       }),
   },
   {

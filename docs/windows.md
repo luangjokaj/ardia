@@ -179,6 +179,20 @@ what differs; the Mac's list is `docs/dia-feature-parity.md`. Rows marked "hidde
   into its whole frame, and the UI draws minimize, maximize and close itself (`components/window/WindowControls.tsx`),
   as the Mac's lights live inside the UI there. So no band is kept free at the top: the page card starts at the page
   frame, and Settings and Import have no title bar above them.
+  - A browser window comes back where it was left, maximized if it was maximized. Its `frame` event carries the
+    window's real bounds and, while it is maximized, minimized or full screen, the bounds it restores to as
+    `restored`; the store keeps those as `restoredFrame` and the `maximized` flag, saves both with the session and
+    with a closed window, and opens the window at `restoredFrame` with `maximized` (`state/windows/windowPlacement.ts`).
+    A browser window opened without a frame copies the size of the browser window in front, 28 points down and
+    right, maximized if that one is; with none open, it takes the last browser window's placement, which the shell
+    keeps in `window-placement.txt` in the data folder (`WindowPlacement.h`), as the Mac keeps `ArdiaLastWindowFrame`.
+    So closing the last window, which quits, and opening the app again keeps the window's size and place even when
+    the closed window had nothing to reopen. A window that opens maximized shows maximized at once; one that opens
+    behind another takes the foreground for that moment and hands it straight back to the window that had it, as
+    Chrome's session restore does, and a background test instance opens it restored. A maximized window moved to
+    another display (Win+Shift+Arrow) takes its restored bounds along, at the same place in that display's work area. The launch log says
+    `placed <id> like the window in front`, `placed <id> where the last browser window was` and
+    `opened <id> maximized`; `launch-smoke.ps1` maximizes a window, quits, relaunches twice and checks both.
   - Where the buttons sit comes from `windowControlsPlace` in `state/windows/layout.ts`: in the card's toolbar row, in
     a right sidebar's header, at the end of the top tab strip, in Little Ardia's bar. With the address bar in a left
     sidebar they sit at the sidebar's leading end, in their own row above the header (one button and a 3 point gap
@@ -570,6 +584,9 @@ is plain Chromium.
   New Tab (or closes a tab a link opened) instead of leaving a blank page on the download's address, which the
   session then saved and downloaded again at every launch. A tab asked for `about:blank` by address keeps it, and a
   tab the engine opened itself keeps its blank page until a download.
+  The engine reports these itself (`TabState::CommittedPageURL`): a download from a tab asked for `about:blank`
+  names `about:blank` as its committed page, and one from a tab opened with no address names none. The `engine blank:`
+  self-checks (`selfCheck/engineBlank.ts`, #2127) hold both against the engine as it ships.
 - The engine's download list (`ac_downloads_list`) includes Chromium's history of earlier launches under their own
   ids, while the app restores its own list from `downloads.json`. Announcing the whole list at launch made each
   earlier download a new one: the panel opened by itself and listed it twice. The launch replay
@@ -818,7 +835,9 @@ Answered on Windows since the engine took Windows paths (`windows-engine-2026111
 
 Deleting a profile's data: native (`ArdiaEngineHost.removeProfileFolder`) works out Chromium's data folder itself, as
 the engine does (`<ARDIA_DATA_DIR>\Chromium` in an instance with its own data folder, `%LOCALAPPDATA%\Ardia\User Data`
-otherwise), and acts only where that folder holds `Local State` and agrees with `host.info`'s `userDataDir`. A profile
+otherwise), and acts only where that folder holds the `Default` profile folder or `Local State` and agrees with `host.info`'s
+`userDataDir`. The folder counts first: Chromium saves `Local State` with `ReplaceFile`, and while it does a reader can
+find the file missing, which made a removal answer "refused" and leave a deleted profile's data on disk (#2120). A profile
 is deleted by its folder only when its id is one Ardia makes: lowercase `a-z`, `0-9` and `-`, at most 238 characters,
 so that `Ardia <id> (removing)` fits one 255-character NTFS name. Its folder is then exactly `Ardia <id>`. Any other id
 (hand-edited state, a sync from something else, a bug) could share its folder with another profile, so on purpose
