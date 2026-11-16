@@ -57,6 +57,7 @@ class Host : public TabStripModelObserver,
   int CloseBrowsersOf(Profile* profile);
   void ForgetProfile(Profile* profile);
   bool Shows(const std::string& key) const;
+  bool OpensLivePage(const content::WebContents* contents) const;
   HWND VisibleParent() const;
   void TabDestroyed(TabState* state);
   void DeleteClosedTab(content::WebContents* contents);
@@ -109,6 +110,8 @@ class Host : public TabStripModelObserver,
                                          const base::DictValue& args);
   base::DictValue DiscardOffered(const base::DictValue& args);
   base::DictValue HitTest(const base::DictValue& args);
+  base::DictValue MoveWindowForTest(content::WebContents* contents,
+                                    const base::DictValue& args);
   base::DictValue Info();
   base::DictValue ListTabs();
 

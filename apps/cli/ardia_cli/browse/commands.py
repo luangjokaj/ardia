@@ -1151,7 +1151,7 @@ async def cmd_eval(ctx: Ctx, argv):
 
 
 SELECTOR_CALL = re.compile(r"""\b(querySelectorAll|querySelector|closest|matches)\(\s*(['"])((?:\\.|(?!\2).)*)\2""")
-UNQUOTED_VALUE = re.compile(r"""\[\s*([^\s~|^$*!=\]"']+)\s*([~|^$*]?=)\s*([^"'\]\s][^\]]*?)(\s+[iIsS])?\s*\]""")
+UNQUOTED_VALUE = re.compile(r"""\[\s*([^\s~|^$*!=\]"']+)\s*([~|^$*]?=)\s*([^"'\\\]\s][^\]]*?)(\s+[iIsS])?\s*\]""")
 PLAIN_VALUE = re.compile(r"-?[A-Za-z_][\w-]*")
 
 

@@ -401,6 +401,22 @@ class BrowseEndToEnd(unittest.TestCase):
         self.assertTrue(moved["background"])
         self.assertEqual(self.browse("get", "url", session="attach-src").stdout, self.url("login.html#attach") + "\n")
 
+    def test_a_background_tab_tells_its_first_script_the_window_it_belongs_to(self):
+        self.browse("open", self.url("geometry.html"), "--show", session="geometry-shown")
+        shown = json.loads(json.loads(self.browse("eval", "JSON.stringify([outerWidth, outerHeight, screenX, screenY])", session="geometry-shown").stdout))
+        for attempt in range(3):
+            session = f"geometry-{attempt}"
+            self.browse("open", self.url("geometry.html"), session=session)
+            seen = json.loads(self.browse("eval", "JSON.stringify(window.geometryAtHead)", session=session).stdout)
+            outer_width, outer_height, inner_width, inner_height, left, top, screen_width, screen_height = json.loads(seen)
+            self.assertGreater(inner_width, 0, seen)
+            self.assertGreater(inner_height, 0, seen)
+            self.assertGreaterEqual(outer_width, inner_width, seen)
+            self.assertGreater(outer_height, inner_height, seen)
+            self.assertEqual([outer_width, outer_height, left, top], shown, seen)
+            self.browse("close", session=session)
+        self.browse("close", session="geometry-shown")
+
     def test_site_notes_show_in_snapshots(self):
         session = "notes"
         site = f"127.0.0.1:{self.http_port}"
@@ -869,6 +885,25 @@ class BrowseEndToEnd(unittest.TestCase):
         moved = self.browse("click", "@" + again, session=session, check=False)
         self.assertNotEqual(moved.returncode, 0)
         self.assertIn("Stale ref", moved.stderr)
+
+    def test_a_scroll_that_lands_in_a_frame_counts_as_delivered(self):
+        session = "scrollframe"
+        self.browse("open", self.url("scrollframe.html"), "--show", session=session)
+        done = self.browse("scroll", "down", "600", session=session, check=False)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertNotIn("received none of its wheel events", done.stderr)
+
+    def test_click_goes_to_the_visible_content_of_a_target_with_no_box(self):
+        session = "contents"
+        self.browse("open", self.url("contents.html"), "--show", session=session)
+        self.browse("click", "#wrap", session=session)
+        self.assertEqual(self.browse("get", "title", session=session).stdout.strip(), "closed")
+        said = self.browse("click", "#zero", session=session)
+        self.assertIn("has no box of its own", said.stdout + said.stderr)
+        self.assertEqual(self.browse("get", "title", session=session).stdout.strip(), "page 2")
+        gone = self.browse("click", "#gone", session=session, check=False)
+        self.assertNotEqual(gone.returncode, 0)
+        self.assertIn("no visible box", gone.stderr)
 
     def test_read_marks_blocks_that_are_not_the_main_content(self):
         out = self.browse("read", self.url("product.html"), session="product").stdout

@@ -47,10 +47,12 @@
 #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/navigation_entry.h"
+#include "components/performance_manager/public/decorators/page_live_state_decorator.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/version_info/version_info.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_tree_host.h"
@@ -174,6 +176,15 @@ LRESULT CALLBACK PageProcedure(HWND window,
     ::RemoveWindowSubclass(window, &PageProcedure, id);
   }
   return ::DefSubclassProc(window, message, w_param, l_param);
+}
+
+base::ListValue RectList(const RECT& rect) {
+  base::ListValue list;
+  list.Append(static_cast<int>(rect.left));
+  list.Append(static_cast<int>(rect.top));
+  list.Append(static_cast<int>(rect.right));
+  list.Append(static_cast<int>(rect.bottom));
+  return list;
 }
 
 std::string_view HitName(LRESULT hit) {
@@ -674,6 +685,7 @@ base::DictValue Host::ShowTab(const base::DictValue& args, HWND parent) {
     Place(window, hosted);
   }
   hosted.shown = key;
+  performance_manager::PageLiveStateDecorator::SetIsActiveTab(contents, true);
   ardiacore::NoteTabInShownSlot(contents);
   ardiacore::NoteTabShownByHost(contents, true);
   return Ok();
@@ -766,6 +778,42 @@ base::DictValue Host::HitTest(const base::DictValue& args) {
   return result;
 }
 
+base::DictValue Host::MoveWindowForTest(content::WebContents* contents,
+                                        const base::DictValue& args) {
+  if (!ardiacore::TestInstance()) {
+    return Error("moveWindowForTest is for test instances");
+  }
+  Browser* browser = BrowserOf(contents);
+  HWND window = browser ? WindowOf(browser) : nullptr;
+  RECT before;
+  if (!window || !::GetWindowRect(window, &before)) {
+    return Error("the tab has no page window");
+  }
+  const int dx = args.FindInt("dx").value_or(0);
+  const int dy = args.FindInt("dy").value_or(0);
+  const int dw = args.FindInt("dw").value_or(0);
+  const int dh = args.FindInt("dh").value_or(0);
+  if (dx || dy || dw || dh) {
+    const UINT notice =
+        args.FindBool("noNotice").value_or(false) ? SWP_NOSENDCHANGING : 0;
+    ::SetWindowPos(window, nullptr, before.left + dx, before.top + dy,
+                   before.right - before.left + dw,
+                   before.bottom - before.top + dh,
+                   SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER | notice);
+  }
+  RECT after = before;
+  ::GetWindowRect(window, &after);
+  DWORD_PTR subclass_data = 0;
+  base::DictValue result = Ok();
+  result.Set("subclassed", ::GetWindowSubclass(window, &PageProcedure,
+                                               kPageSubclass,
+                                               &subclass_data) != FALSE);
+  result.Set("holds", ShownParentOf(window) != nullptr);
+  result.Set("before", RectList(before));
+  result.Set("after", RectList(after));
+  return result;
+}
+
 base::DictValue Host::DiscardOffered(const base::DictValue& args) {
   content::WebContents* contents = FindOffered(Text(args, "adopt"));
   if (!contents) {
@@ -783,6 +831,9 @@ std::optional<base::DictValue> Host::CallTab(content::WebContents* contents,
                                              const base::DictValue& args) {
   std::string method = Text(args, "method");
   content::NavigationController& controller = contents->GetController();
+  if (method == "moveWindowForTest") {
+    return MoveWindowForTest(contents, args);
+  }
   if (method == "loadUrl") {
     bool user_initiated = args.FindBool("userInitiated").value_or(false);
     content::NavigationController::LoadURLParams params(
@@ -864,6 +915,9 @@ base::DictValue Host::ListTabs() {
     tab.Set("url", contents->GetVisibleURL().spec());
     tab.Set("title", base::UTF16ToUTF8(contents->GetTitle()));
     tab.Set("loading", contents->IsLoading());
+    tab.Set("discarded", contents->WasDiscarded());
+    tab.Set("visible",
+            contents->GetVisibility() == content::Visibility::VISIBLE);
     tab.Set("session",
             PrivateSessions::Get()->SessionNumber(Profile::FromBrowserContext(
                 contents->GetBrowserContext())));
@@ -1080,6 +1134,7 @@ void Host::Hide(Browser* browser, Hosted& hosted) {
   }
   if (content::WebContents* shown = Find(hosted.shown)) {
     ardiacore::NoteTabShownByHost(shown, false);
+    performance_manager::PageLiveStateDecorator::SetIsActiveTab(shown, false);
     if (ExclusiveAccessManager* manager =
             ExclusiveAccessManager::From(browser)) {
       manager->OnTabDeactivated(shown);
@@ -1329,6 +1384,27 @@ HWND Host::VisibleParent() const {
     }
   }
   return nullptr;
+}
+
+bool Host::OpensLivePage(const content::WebContents* contents) const {
+  for (const auto& entry : tabs_) {
+    content::WebContents* other = entry.second;
+    if (!other || other == contents) {
+      continue;
+    }
+    content::RenderFrameHost* opener = other->GetOpener();
+    if (opener && content::WebContents::FromRenderFrameHost(opener) == contents) {
+      return true;
+    }
+  }
+  for (const auto& [id, offer] : offers_) {
+    content::WebContents* offered = offer.contents.get();
+    content::RenderFrameHost* opener = offered ? offered->GetOpener() : nullptr;
+    if (opener && content::WebContents::FromRenderFrameHost(opener) == contents) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool Host::Shows(const std::string& key) const {
