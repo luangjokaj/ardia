@@ -15,6 +15,7 @@ NS_ASSUME_NONNULL_BEGIN
                                   appWindow:(nullable NSString *)appWindow;
 
 + (void)floatForWindowManagers:(NSWindow *)window;
++ (void)floatOverActiveSpace:(NSWindow *)window;
 
 + (void)recordLaunchLayout;
 + (void)forgetLaunchPictures;

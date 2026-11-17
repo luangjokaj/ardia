@@ -20,7 +20,8 @@ export type AppEvent =
   | { type: "appLinkOpened"; windowId: string | null }
   | { type: "littleArdiaReturnedToApp" }
   | { type: "windowTitleRead" }
-  | { type: "keyHoldReplay"; tag: number; count: number };
+  | { type: "keyHoldReplay"; tag: number; count: number }
+  | { type: "littleArdiaGlobalShortcut" };
 
 export type AppearanceMode = "auto" | "light" | "dark";
 

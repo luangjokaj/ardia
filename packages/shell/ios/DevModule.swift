@@ -17,6 +17,11 @@ public class DevModule: Module {
       return IntroMusic.render(cues: cues, to: path)
     }
 
+    AsyncFunction("devLittleArdiaHotKey") { (press: Bool) -> [String: Any] in
+      if press { LittleArdiaHotKey.shared.press() }
+      return LittleArdiaHotKey.shared.state()
+    }.runOnQueue(.main)
+
     AsyncFunction("devMenuCommand") { (command: String, arg: String?) in
       MenuTarget.shared.dispatch(command, arg, windowId: WindowManager.shared.keyWindowId)
     }.runOnQueue(.main)

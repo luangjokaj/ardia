@@ -49,3 +49,21 @@ test("an hour where a window switcher only read window titles still sends usage_
   const saved = JSON.parse(stub.docs.get("telemetry-queue.json") ?? '{"events":[]}');
   assert.equal(saved.events.filter((e) => e.event === "usage_counts").at(-1).properties.window_titles_read, 2);
 });
+
+test("window titles read and Option resizes from while sharing was off are never sent, and later ones are", async () => {
+  client.loadChoice();
+  client.setSharing(false, "settings");
+  stub.emitAppEvent({ type: "windowTitleRead" });
+  stub.emitAppEvent({ type: "windowTitleRead" });
+  stub.emitAppEvent({ type: "centeredResize" });
+  client.setSharing(true, "settings");
+  usage.sessionEnding();
+  await client.saveQueueNow();
+  const sent = () => JSON.parse(stub.docs.get("telemetry-queue.json") ?? '{"events":[]}').events.filter((e) => e.event === "usage_counts");
+  assert.ok(sent().every((e) => !e.properties.window_titles_read && !e.properties.window_centered_resizes));
+  stub.emitAppEvent({ type: "windowTitleRead" });
+  stub.emitAppEvent({ type: "centeredResize" });
+  usage.sessionEnding();
+  await client.saveQueueNow();
+  assert.deepEqual([sent().at(-1).properties.window_titles_read, sent().at(-1).properties.window_centered_resizes], [1, 1]);
+});

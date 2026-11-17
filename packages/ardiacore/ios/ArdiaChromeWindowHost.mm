@@ -1,6 +1,7 @@
 #import "ArdiaChromeWindowInternal.h"
 #import "ArdiaEarlyWindow.h"
 #import "ArdiaInterfaceScale.h"
+#import "ArdiaPictureInPictureInternal.h"
 #import "ArdiaRuntime.h"
 #import "ArdiaWebViewInternal.h"
 
@@ -177,6 +178,11 @@ NSView *ArdiaWindowRootView(NSWindow *window) {
   if (!window) return;
   objc_setAssociatedObject(window, kFloatsForWindowManagersKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
   AnswerFloatingSubrole(window.class);
+}
+
++ (void)floatOverActiveSpace:(NSWindow *)window {
+  if (!window) return;
+  ardia_pip::FloatOverActiveSpace(window);
 }
 
 + (void)recordLaunchLayout {
