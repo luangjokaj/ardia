@@ -14,6 +14,7 @@ import type { BookmarkNode, HistoryEntry } from "../browser/types";
 import { isWebPageUrl } from "../../lib/url";
 import { BOOKMARK, DEVICE, DEVICE_TABS, HISTORY, RECEIVES_TABS, SHARE, bookmarkValue, historyValue, passwordValue, recordId, type BookmarkValue, type DeviceRecord, type DeviceTabs, type HistoryValue, type PasswordValue, type ShareRecord } from "./records";
 import { isAsleep } from "../tabs/pageSession";
+import { withSyncWorkCounts } from "../telemetry/workCounts";
 
 const store = () => useBrowser.getState();
 
@@ -60,7 +61,7 @@ export function deviceAdapter(deviceId: string, name: () => string, retired = fa
 
 export function bookmarksAdapter(profileId: string): Adapter {
   const ready = () => !!store().bookmarksReady[engineProfile(store(), profileId)];
-  return {
+  return withSyncWorkCounts("bookmark", {
     prefix: BOOKMARK,
     extract: (base) => {
       if (!ready()) return null;
@@ -130,7 +131,11 @@ export function bookmarksAdapter(profileId: string): Adapter {
         }
       }
       const children = new Map<string, string[]>([[roots.bar, []], [roots.other, []]]);
-      for (const id of values.keys()) children.set(parentOf.get(id)!, [...(children.get(parentOf.get(id)!) ?? []), id]);
+      for (const id of values.keys()) {
+        const siblings = children.get(parentOf.get(id)!);
+        if (siblings) siblings.push(id);
+        else children.set(parentOf.get(id)!, [id]);
+      }
       const byPosition = (a: string, z: string) => {
         const pa = values.get(a)!.pos;
         const pz = values.get(z)!.pos;
@@ -161,13 +166,14 @@ export function bookmarksAdapter(profileId: string): Adapter {
       }
       useBrowser.setState({ bookmarks: { ...b, nodes } });
     },
-  };
+  });
 }
 
 const HISTORY_WINDOW_MS = 90 * 86_400_000;
 
 const lastVisitOf = (v: HistoryValue) => Math.max(0, ...v.vt);
 const SAME_VISIT_MS = 1;
+const sameVisits = (a: number[], b: number[]) => a.length === b.length && a.every((t, i) => Math.abs(b[i]! - t) <= SAME_VISIT_MS);
 
 export function historyExpired(key: string, value: unknown, now: number) {
   const v = key.startsWith(HISTORY) ? historyValue(value) : null;
@@ -176,7 +182,7 @@ export function historyExpired(key: string, value: unknown, now: number) {
 
 export function historyAdapter(profileId: string): Adapter {
   const ready = () => !!historyViewOf(store(), profileId)?.ready;
-  return {
+  return withSyncWorkCounts("history", {
     prefix: HISTORY,
     extract: (base) => {
       if (!ready()) return null;
@@ -193,7 +199,7 @@ export function historyAdapter(profileId: string): Adapter {
         }
         const local: HistoryValue = { t: e.title, n: e.visits, vt: e.visitTimes?.length ? e.visitTimes : [e.lastVisit] };
         const known = historyValue(base(key));
-        const edited = !known || local.vt.some((t) => !known.vt.some((k) => Math.abs(k - t) <= SAME_VISIT_MS));
+        const edited = !known || (!sameVisits(local.vt, known.vt) && local.vt.some((t) => !known.vt.some((k) => Math.abs(k - t) <= SAME_VISIT_MS)));
         values.set(key, edited ? local : known);
       }
       const ignore = (key: string) => {
@@ -257,7 +263,7 @@ export function historyAdapter(profileId: string): Adapter {
         return withHistoryList(s, engine, list);
       });
     },
-  };
+  });
 }
 
 const MAX_DEVICE_TABS = 30;

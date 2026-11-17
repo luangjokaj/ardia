@@ -9,6 +9,7 @@ import { refreshExtensionsAfterChange } from "./actions";
 import { refreshActionStates } from "./actionStates";
 import { focusedWindowOf } from "../windows/ui";
 import { onProfilesUnloaded } from "../profiles/profileLoading";
+import { noteExtensionActionTabChangeSkipped } from "../telemetry/workCounts";
 
 const ACTION_EVENT_COALESCE_MS = 150;
 
@@ -68,7 +69,14 @@ export function startActionStates() {
   useBrowser.subscribe((s, prev) => {
     if (s.windows !== prev.windows || focusedWindowOf(s) !== focusedWindowOf(prev)) return void refreshActionStates();
     if (s.tabs === prev.tabs) return;
-    if (s.windowOrder.some((id) => { const active = activeTabId(s, id); return !!active && s.tabs[active] !== prev.tabs[active]; })) void refreshActionStates();
+    const navigated = s.windowOrder.filter((id) => {
+      const active = activeTabId(s, id);
+      const now = active ? s.tabs[active] : undefined;
+      const before = active ? prev.tabs[active] : undefined;
+      return !!now && (active !== activeTabId(prev, id) || now.url !== before?.url || now.page !== before?.page);
+    });
+    if (navigated.length) void refreshActionStates(navigated.map((id) => extensionProfile(s, id)));
+    else noteExtensionActionTabChangeSkipped();
   });
   useExtensions.subscribe((e, prev) => {
     if (e.lists !== prev.lists || e.popup !== prev.popup) void refreshActionStates();

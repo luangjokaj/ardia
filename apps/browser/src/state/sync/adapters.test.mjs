@@ -2199,3 +2199,42 @@ test("profiles that share data: records applied through the owner land once in t
   assert.deepEqual([...history.values.keys()].sort(), ["h:https://in.example/", "h:https://out.example/"]);
   assert.deepEqual([...bookmarks.values.values()].map((v) => v.u).sort(), ["https://in.example/", "https://out.example/"]);
 });
+
+test("bookmarks: a folder of 5,000 remote bookmarks is applied in linear steps, in position order", () => {
+  useBrowser.setState({ bookmarks: { nodes: {} } });
+  S().hydrate({});
+  const a = S().createProfile({ name: "A" });
+  useBrowser.setState((s) => ({ bookmarksReady: { ...s.bookmarksReady, [a]: true } }));
+  const n = 5000;
+  const marks = new Map(Array.from({ length: n }, (_, i) => [`bm:k${i}`, { k: "u", p: "bar", t: "T", u: `https://x.example/${i}`, a: 1, pos: `a${String(n - i).padStart(5, "0")}` }]));
+  const arrayIterator = Object.getPrototypeOf([][Symbol.iterator]());
+  const next = arrayIterator.next;
+  let steps = 0;
+  arrayIterator.next = function () {
+    steps++;
+    return next.call(this);
+  };
+  try {
+    adapters.bookmarksAdapter(a).apply(marks, new Set(marks.keys()), () => undefined, { known: () => true, now: Date.now(), horizon: 0, joined: true });
+  } finally {
+    arrayIterator.next = next;
+  }
+  const bar = S().bookmarks.nodes[bookmarkRoots(S(), a).bar].children.map((id) => S().bookmarks.nodes[id].url);
+  assert.equal(bar.length, n);
+  assert.equal(bar[0], `https://x.example/${n - 1}`);
+  assert.equal(bar.at(-1), "https://x.example/0");
+  assert.ok(steps < 40 * n, `${steps} array steps for ${n} bookmarks`);
+});
+
+test("history: an unchanged page's visits are matched in one pass, not each against all", (t) => {
+  useBrowser.getState().hydrate({});
+  const start = Date.now() - 3_600_000;
+  const visitTimes = Array.from({ length: 50 }, (_, i) => start + i * 10);
+  const url = "https://same.example/";
+  useBrowser.setState({ history: { "": { list: [{ url, title: "Same", favicon: null, visits: 50, lastVisit: visitTimes.at(-1), visitTimes }], floor: -Infinity, ready: true } } });
+  const known = { t: "Same", n: 50, vt: [...visitTimes] };
+  const abs = t.mock.method(Math, "abs");
+  const { values } = adapters.historyAdapter("default").extract((key) => (key === `h:${url}` ? known : undefined), () => false, Date.now(), () => true);
+  assert.equal(values.get(`h:${url}`), known);
+  assert.ok(abs.mock.callCount() <= visitTimes.length, `${abs.mock.callCount()} comparisons`);
+});
