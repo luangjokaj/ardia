@@ -10,9 +10,15 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 
 Each is merged into `riangle` from its branch here. When the original project merges one, it moves to **Merged into the original project**.
 
-None right now.
+| Pull request | Branch | Status |
+| --- | --- | --- |
+| [#2446](https://github.com/ardia-browser/ardia/pull/2446) Tabs: a tab that hasn't painted yet keeps the New Tab background | [`cold-tab-first-paint`](https://github.com/luangjokaj/ardia/tree/cold-tab-first-paint) | Open |
 
 ### 2026-11-17
+
+#### Removed
+
+- **iPhone app:** the `ARDIA_IOS_BUNDLE_ID` patch and the README's iPhone build steps are gone. The original project replaced the SwiftUI iPhone app in `apps/ios` with its Expo app in `apps/phone`, which this patch never covered, so the iPhone app now builds with the original's own bundle IDs.
 
 #### Fixed
 
