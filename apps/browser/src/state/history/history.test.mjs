@@ -6,7 +6,7 @@ globalThis.__DEV__ = false;
 const { applyHistoryChanges } = await import("./engineSync.ts");
 const { MAX_HISTORY, MAX_VISIT_TIMES, SUGGESTION_HISTORY, suggestionHistory } = await import("./history.ts");
 
-const applyHistoryChange = (list, change) => applyHistoryChanges(list, [change]);
+const applyHistoryChange = (list, change, note) => applyHistoryChanges(list, [change], note);
 
 const shown = (url) => /^(https?|file):/i.test(url);
 
@@ -138,9 +138,59 @@ test("the real functions match the straightforward ones on random changes", () =
   for (let step = 0; step < 600; step++) {
     const change = randomChange(rand, real, step, clock);
     real = applyHistoryChange(real, change);
+    const counted = applyHistoryChange(spec, change, () => {});
     spec = reference(spec, change);
+    assert.deepEqual(counted, spec, `step ${step}: counting changes nothing`);
     assert.deepEqual(real, spec, `step ${step}: ${JSON.stringify(change)}`);
   }
+});
+
+test("a title change for a web page the list doesn't hold is counted as unknown, and nothing else is", () => {
+  const list = view(6);
+  const seen = [];
+  const note = (gap, count) => seen.push([gap, count]);
+  const modified = (...rows) => ({ kind: "modified", profile: "", rows });
+  applyHistoryChange(list, modified({ url: list[2].url, title: "Renamed", visits: 9 }), note);
+  assert.deepEqual(seen, [], "a page the list holds");
+  applyHistoryChange(list, modified({ url: "chrome://settings/", title: "Settings", visits: 1 }), note);
+  assert.deepEqual(seen, [], "a page the list never shows");
+  const same = applyHistoryChange(list, modified({ url: "https://absent.test/a", title: "A", visits: 1 }, { url: "https://absent.test/b", title: "B", visits: 1 }, { url: list[0].url, title: "Again", visits: 1 }), note);
+  assert.deepEqual(seen, [["modified-unknown", undefined], ["modified-unknown", undefined]], "one per absent web page");
+  assert.equal(same[0].title, "Again", "the known row is still applied");
+  assert.equal(same.length, list.length, "and the absent ones add nothing");
+});
+
+test("a visit stored with no title is counted, unless the page already has one", () => {
+  const list = view(4);
+  const seen = [];
+  const note = (gap) => seen.push(gap);
+  applyHistoryChange(list, { kind: "visit", profile: "", url: "https://untitled.test/", title: "", visits: 1, at: 2_000_000 }, note);
+  assert.deepEqual(seen, ["visit-untitled"]);
+  applyHistoryChange(list, { kind: "visit", profile: "", url: list[1].url, title: "", visits: 2, at: 2_000_001 }, note);
+  applyHistoryChange(list, { kind: "visit", profile: "", url: "https://titled.test/", title: "Titled", visits: 1, at: 2_000_002 }, note);
+  applyHistoryChange(list, { kind: "visit", profile: "", url: "chrome://settings/", title: "", visits: 1, at: 2_000_003 }, note);
+  applyHistoryChange(list, { kind: "visit", profile: "", url: list[2].url, title: "", visits: 1, at: list[2].visitTimes[0] }, note);
+  assert.deepEqual(seen, ["visit-untitled"], "a kept title, a given title, a hidden page and a repeat are not counted");
+});
+
+test("a batch counts what each change in it misses, seeing the changes before it", () => {
+  const list = view(4);
+  const seen = [];
+  const note = (gap) => seen.push(gap);
+  const url = "https://later.test/";
+  applyHistoryChanges(
+    list,
+    [
+      { kind: "modified", profile: "", rows: [{ url, title: "Early", visits: 1 }] },
+      { kind: "visit", profile: "", url, title: "", visits: 1, at: 2_000_000 },
+      { kind: "modified", profile: "", rows: [{ url, title: "Later", visits: 1 }] },
+      { kind: "visit", profile: "", url: "https://untitled.test/", title: "", visits: 1, at: 2_000_001 },
+      { kind: "deleted", profile: "", all: false, urls: [url] },
+      { kind: "modified", profile: "", rows: [{ url, title: "Gone", visits: 1 }] },
+    ],
+    note,
+  );
+  assert.deepEqual(seen, ["modified-unknown", "visit-untitled", "visit-untitled", "modified-unknown"]);
 });
 
 test("a batch of changes lands the same as the changes one at a time", () => {
