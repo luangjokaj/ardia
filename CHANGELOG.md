@@ -2,13 +2,23 @@
 
 What Riangle Ardia changes on top of [ardia-browser/ardia](https://github.com/ardia-browser/ardia)'s `main`, newest first. Changes pulled in from the original project are in its [release notes](https://ardia.dev/release-notes).
 
-The changelog has two parts. **Only in this fork** lists what the original project's `main` doesn't have yet; new changes land there. **Merged into the original project** lists what has since been merged into its `main`, so those changes now arrive from the original and are no longer patches of this fork. Last checked against the original's `main` on 2026-11-17, after it merged #2310, #2311 and #2312.
+The changelog has two parts. **Only in this fork** lists what the original project's `main` doesn't have yet; new changes land there. **Merged into the original project** lists what has since been merged into its `main`, so those changes now arrive from the original and are no longer patches of this fork. Last checked against the original's `main` on 2026-11-17.
 
 ## Only in this fork
 
 ### Open pull requests
 
-None right now. While a pull request from this fork is open, its branch is merged into `riangle`; once the original project merges it, it moves to **Merged into the original project**.
+Each is merged into `riangle` from its branch here. When the original project merges one, it moves to **Merged into the original project**.
+
+| Pull request | Branch | Status |
+| --- | --- | --- |
+| [#2330](https://github.com/ardia-browser/ardia/pull/2330) Sidebar: a mouse wheel scrolls the auto-hidden sidebar again, a regression from 573d939 | [`sidebar-peek-wheel`](https://github.com/luangjokaj/ardia/pull/16) | Open |
+
+### 2026-11-17
+
+#### Fixed
+
+- **Sidebar:** with auto-hide tabs on, a mouse wheel scrolls the sidebar that slides in from the window's edge again. Since [573d939](https://github.com/ardia-browser/ardia/commit/573d9396404db57cf3fc2aa0845d23bf56f59f7f) the list barely moved: wheel routing skipped the peeking sidebar's outer view, which sat off the window's edge while an inner layer slid it back. ([#2330](https://github.com/ardia-browser/ardia/pull/2330))
 
 ### 2026-11-13
 
