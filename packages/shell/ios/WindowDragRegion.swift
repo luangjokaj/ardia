@@ -66,7 +66,7 @@ final class WindowDragRegion: ExpoView {
           !event.modifierFlags.contains(.control),
           let frame = window.contentView?.superview, let hit = frame.hitTest(event.locationInWindow)
     else { return nil }
-    if hit === frame { return Self.onTitlebarTopEdge(window, frame, event.locationInWindow) ? .titlebarEdge : nil }
+    if hit === frame { return event.clickCount >= 2 && Self.onTitlebarTopEdge(window, frame, event.locationInWindow) ? .titlebarEdge : nil }
     guard bounds.contains(convert(event.locationInWindow, from: nil)) else { return nil }
     if hit === self || (clickable && hit.isDescendant(of: self)) { return .region }
     let background = hit is NSClipView || (hit.superview as? NSClipView)?.documentView === hit
