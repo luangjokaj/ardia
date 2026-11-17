@@ -2,11 +2,12 @@ import { useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useBrowser, type BrowserState } from "../browser/store";
 import { activeTabId, engineProfile } from "../browser/model";
-import type { SplitView, Tab } from "../browser/types";
+import type { AdoptKind, SplitView, Tab } from "../browser/types";
 import { tabEngine, type PageEngine } from "../engines/engines";
 import { holderOf } from "../pins/pinShare";
 import { splitOf } from "../splits/splits";
 import { adoptOf, frozenOn, needsPage, wokenPage } from "../tabs/pageSession";
+import { adoptKind } from "../tabs/adoptIds";
 import { pageOf, patchPage } from "../tabs/pageState";
 import { wantsPage } from "../tabs/tabPages";
 import { removeTabs } from "../tabs/tabs";
@@ -155,12 +156,14 @@ export function newTabLingeringOver(windowId: string, from: string | undefined, 
     notePageOverlay("newTabLeftForWebKit");
     return undefined;
   }
-  if (PLATFORM_FEATURES.holdsColdPagesUntilPainted && !webviews.has(to)) return undefined;
+  if (PLATFORM_FEATURES.holdsColdPagesUntilPainted && !webviews.has(to) && heldUntilPainted(adoptKind(adoptOf(next))?.kind)) return undefined;
   notePageOverlay("newTabLingered");
   return from;
 }
 
 const holdsForFirstFrame = (engine: PageEngine) => engine === "chromium";
+
+const heldUntilPainted = (adopted: AdoptKind | undefined) => !adopted || adopted === "restore" || adopted === "clone";
 
 export function activateFocusedPane(tabId: string) {
   const s = useBrowser.getState();

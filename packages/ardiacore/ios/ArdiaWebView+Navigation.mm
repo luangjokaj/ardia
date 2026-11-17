@@ -135,7 +135,7 @@ NSString *PNGDataURL(NSImage *image) {
 }
 
 - (void)tabDidChangeLoading:(ArdiaCoreTab *)tab {
-  if (!tab.loading && !_firstPaint.scripted && tab.url.length && ![tab.url hasPrefix:@"about:"]) [self showHeldPageOnNextFrame];
+  if (!tab.loading && tab.url.length && ![tab.url hasPrefix:@"about:"]) [self showHeldPageAfterLoad];
   if (tab.loading) [self resetBlocked:YES];
   if (tab.loading) ArdiaFieldMarkNow(_transferKey, @"start");
   [self queueNavigation];

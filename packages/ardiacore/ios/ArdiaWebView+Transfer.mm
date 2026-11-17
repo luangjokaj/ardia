@@ -307,6 +307,7 @@ static ArdiaCoreTab *StartParkedPage(NSString *url, NSString *profileName, NSStr
 }
 
 - (ArdiaTransfer)takeTransferredTab {
+  _firstPaint.created = NO;
   if (!_transferKey.length) return ArdiaTransferNone;
   if ([ArdiaTabParking launchWasClosed:_transferKey]) {
     if (!_life.launchCloseSent) {

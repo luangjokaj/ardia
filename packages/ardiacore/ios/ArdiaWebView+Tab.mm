@@ -109,6 +109,7 @@ const CFTimeInterval kHiddenNewTabLinkSeconds = 1;
   [self applyPainting];
   const BOOL created = _firstPaint.created;
   _firstPaint.created = NO;
+  if (created) _firstPaint.settled = NO;
   if (!shownEarly && (created || _life.creatingURL.length || tab.loading)) [self holdPageUntilPainted:created];
   if (_muted) tab.muted = YES;
   if (_pageBackgroundColor) tab.pageBackgroundColor = _pageBackgroundColor;

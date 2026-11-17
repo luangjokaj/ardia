@@ -8,6 +8,7 @@ namespace {
 
 constexpr CFTimeInterval kHeldPageSeconds = 4;
 constexpr CFTimeInterval kLoadedFrameWaitSeconds = 0.5;
+constexpr CFTimeInterval kScriptedLoadWaitSeconds = 1;
 constexpr CFTimeInterval kFrameCheckSeconds = 1.0 / 120;
 
 struct FirstPaintHolds {
@@ -26,6 +27,7 @@ struct FirstPaintHolds {
       case ArdiaHeldPageEnd::TimedOut: timedOut++; break;
       case ArdiaHeldPageEnd::Detached: return;
     }
+    held++;
     heldMs += seconds * 1000;
   }
 
@@ -42,12 +44,11 @@ FirstPaintHolds gFirstPaintHolds;
 - (void)holdPageUntilPainted:(BOOL)created {
   NSView *page = _tab.view;
   const BOOL little = [self.window.identifier isEqualToString:@"ardia.window.small"];
-  const BOOL coldTab = created && !little && !_temporary && !_standalone && !_extensionHost.length;
+  const BOOL coldTab = created && !little && !_temporary && !_standalone && !_extensionHost.length && (_visible || _reveal.active);
   if (_firstPaint.held || _firstPaint.settled || !page || page.superview != self || !(little || coldTab)) return;
   _firstPaint.held = YES;
   _firstPaint.coldTab = coldTab;
   _firstPaint.heldAt = CACurrentMediaTime();
-  if (coldTab) gFirstPaintHolds.held++;
   page.wantsLayer = YES;
   _firstPaint.opacity = page.layer.opacity;
   [CATransaction begin];
@@ -90,6 +91,17 @@ FirstPaintHolds gFirstPaintHolds;
   NSView *widget = RenderWidgetIn(_tab.view);
   if (!widget) return [self showHeldPage:ArdiaHeldPageEnd::Loaded];
   [self showHeldPageWhenFrameLeaves:FrameMarkOf(widget) generation:_firstPaint.generation until:CACurrentMediaTime() + kLoadedFrameWaitSeconds];
+}
+
+- (void)showHeldPageAfterLoad {
+  if (!_firstPaint.held) return;
+  if (!_firstPaint.scripted) return [self showHeldPageOnNextFrame];
+  const NSUInteger generation = _firstPaint.generation;
+  __weak ArdiaWebView *weakSelf = self;
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(kScriptedLoadWaitSeconds * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    ArdiaWebView *view = weakSelf;
+    if (view && view->_firstPaint.held && view->_firstPaint.generation == generation) [view showHeldPage:ArdiaHeldPageEnd::Loaded];
+  });
 }
 
 - (void)showHeldPageWhenFrameLeaves:(NSArray *)mark generation:(NSUInteger)generation until:(CFTimeInterval)deadline {
