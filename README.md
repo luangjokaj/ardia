@@ -3,7 +3,6 @@
 > The default branch, `riangle`, is the original `main` plus a few patches of mine. Everything else in this README is the original project's.
 >
 > **Patches on top of `main`** (details and commits in [CHANGELOG.md](CHANGELOG.md))
-> - My open pull requests, merged into `riangle` until the original project merges them: [#2310](https://github.com/ardia-browser/ardia/pull/2310) the selected-tab pill, [#2311](https://github.com/ardia-browser/ardia/pull/2311) the tab hover menu's domain, [#2312](https://github.com/ardia-browser/ardia/pull/2312) the Top Apps folders setting.
 > - The iPhone app's bundle IDs and app group come from one build setting, `ARDIA_IOS_BUNDLE_ID`.
 > - `scripts/lib/export-developer-id.sh` signs for a team ID that starts with a digit.
 >

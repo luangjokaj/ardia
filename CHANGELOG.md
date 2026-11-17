@@ -2,27 +2,13 @@
 
 What Riangle Ardia changes on top of [ardia-browser/ardia](https://github.com/ardia-browser/ardia)'s `main`, newest first. Changes pulled in from the original project are in its [release notes](https://ardia.dev/release-notes).
 
-The changelog has two parts. **Only in this fork** lists what the original project's `main` doesn't have yet; new changes land there. **Merged into the original project** lists what has since been merged into its `main`, so those changes now arrive from the original and are no longer patches of this fork. Last checked against the original's `main` on 2026-11-17.
+The changelog has two parts. **Only in this fork** lists what the original project's `main` doesn't have yet; new changes land there. **Merged into the original project** lists what has since been merged into its `main`, so those changes now arrive from the original and are no longer patches of this fork. Last checked against the original's `main` on 2026-11-17, after it merged #2310, #2311 and #2312.
 
 ## Only in this fork
 
 ### Open pull requests
 
-Each is merged into `riangle` from its branch here. When the original project merges one, it moves to **Merged into the original project**.
-
-| Pull request | Branch | Status |
-| --- | --- | --- |
-| [#2310](https://github.com/ardia-browser/ardia/pull/2310) Sidebar: a pill points to the selected tab when it's scrolled out of view | [`selected-tab-pill`](https://github.com/luangjokaj/ardia/pull/12) | Open |
-| [#2311](https://github.com/ardia-browser/ardia/pull/2311) Tab hover menu: show the domain instead of the full URL by default | [`tab-hover-domain`](https://github.com/luangjokaj/ardia/pull/13) | Open |
-| [#2312](https://github.com/ardia-browser/ardia/pull/2312) Top Apps: making folders is a setting, off by default | [`top-app-folders-setting`](https://github.com/luangjokaj/ardia/pull/14) | Open |
-
-### 2026-11-17
-
-#### Changed
-
-- **Sidebar:** when the selected tab is scrolled out of view, a small pill with its icon and an arrow floats at the list's edge, pointing down when the tab is below and up when it is above, as Dia does. Clicking it glides the list back to the tab, and switching to a tab out of view glides there too instead of jumping. A thin line marks the list's bottom edge while tabs are hidden below, the top line meets the toolbar's, and the docked New Tab row has the same room above and below. ([#2310](https://github.com/ardia-browser/ardia/pull/2310))
-- **Tab hover menu:** the address line shows only the site's domain, like `google.com`, instead of the whole address over two lines. Settings › Tabs › Show full address in tab hover menu, off by default, brings it back. ([#2311](https://github.com/ardia-browser/ardia/pull/2311))
-- **Top Apps:** a new setting, Settings › Tabs › Make folders in Top Apps, off by default as in Dia: holding a tile over another, or New Folder… in its menu, no longer makes a folder, and folders you already have keep working. A folder tile shows its icons straight on the tile, spread evenly, and its folder mark matches the tile's other marks. ([#2312](https://github.com/ardia-browser/ardia/pull/2312))
+None right now. While a pull request from this fork is open, its branch is merged into `riangle`; once the original project merges it, it moves to **Merged into the original project**.
 
 ### 2026-11-13
 
@@ -53,6 +39,16 @@ Each is merged into `riangle` from its branch here. When the original project me
 - README: a note that this fork's default branch is `riangle`, how to keep it up to date and how to build it. ([afd790a](https://github.com/luangjokaj/ardia/commit/afd790a7f27dea7a9d712e2dc11d1e6bb83709ff))
 
 ## Merged into the original project
+
+### 2026-11-17
+
+#### Changed
+
+All three were merged by the original project on 2026-11-17.
+
+- **Sidebar:** when the selected tab is scrolled out of view, a small pill with its icon and an arrow floats at the list's edge, pointing down when the tab is below and up when it is above, as Dia does. Clicking it glides the list back to the tab, and switching to a tab out of view glides there too instead of jumping. A thin line marks the list's bottom edge while tabs are hidden below, the top line meets the toolbar's, and the docked New Tab row has the same room above and below. ([#2310](https://github.com/ardia-browser/ardia/pull/2310))
+- **Tab hover menu:** the address line shows only the site's domain, like `google.com`, instead of the whole address over two lines. Settings › Tabs › Show full address in tab hover menu, off by default, brings it back. ([#2311](https://github.com/ardia-browser/ardia/pull/2311))
+- **Top Apps:** a new setting, Settings › Tabs › Make folders in Top Apps, off by default as in Dia: holding a tile over another, or New Folder… in its menu, no longer makes a folder, and folders you already have keep working. A folder tile shows its icons straight on the tile, spread evenly, and its folder mark matches the tile's other marks. ([#2312](https://github.com/ardia-browser/ardia/pull/2312))
 
 ### 2026-11-15
 
