@@ -130,12 +130,15 @@ NS_ASSUME_NONNULL_BEGIN
     NS_SWIFT_NAME(setVideoUpscalingTestConditions(_:));
 + (NSDictionary<NSString *, id> *)videoUpscalingState;
 + (NSDictionary<NSString *, NSNumber *> *)takeContentDrift;
-+ (NSDictionary<NSString *, NSNumber *> *)takeFirstPaintHolds;
 - (BOOL)takeControlPressAt:(double)clickMs control:(NSInteger)target NS_SWIFT_NAME(takeControlPress(clickAt:control:));
 - (void)requestPictureInPictureForClickAt:(double)clickMs
                                   control:(NSInteger)target
                                completion:(void (^)(BOOL ok))completion NS_SWIFT_NAME(requestPictureInPicture(clickAt:control:_:));
 - (void)exitPictureInPicture;
+@end
+
+@interface ArdiaWebView (FirstPaint)
++ (NSDictionary<NSString *, NSNumber *> *)takeFirstPaintHolds;
 @end
 
 @interface ArdiaWebView (PictureInPictureDev)
