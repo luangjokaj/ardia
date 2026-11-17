@@ -20,6 +20,8 @@ source_set("win") {
     "host_visibility.cc",
     "kept_pages.cc",
     "kept_pages.h",
+    "launch_guard.cc",
+    "launch_guard.h",
     "main.cc",
     "main.h",
     "page_links.cc",

@@ -182,7 +182,10 @@ owner's Mac ──▶ ardia.dev/_ch/ (read-only ClickHouse user)   ardia.dev/_re
     `chrome://` URL, like `settings/cookies` or `history`, never a query or hash; null on any web page, and on a
     sample saved by an older version), `ctx_hermes_heap_mb` (Hermes's JS heap in whole MB at that sample, from the
     same reader as `state/tabs/memoryTrim.ts`, `lib/hermesHeap.ts`; null when the engine reports none and on a
-    sample saved by an older version), `ctx_session_min` and `ctx_age_min` (how old the context was at the crash). The context is the latest one
+    sample saved by an older version), `ctx_webui_pages` (the last 3 different built-in pages the session was on, newest
+    first, each as `page:minutes` with the page in the same shape as `ctx_webui_page` and the minutes counted back from
+    the crash, like `flags:8,downloads:17,settings/cookies:22`; null when none, and on a sample saved by an older
+    version), `ctx_session_min` and `ctx_age_min` (how old the context was at the crash). The context is the latest one
     sampled at or before the crash (the report's `captureTime`; the file's date only decides which reports are new)
     in the session that crashed, else none. Native exception reasons are never sent, only the exception's type, name
     and stack (older builds sent a scrubbed reason in `$exception_values`). The error that stopped the app's own JS is sent
@@ -227,6 +230,18 @@ owner's Mac ──▶ ardia.dev/_ch/ (read-only ClickHouse user)   ardia.dev/_re
     data only, to find which built-in page a crash happens on (#1244: adding a third-party cookie exception on
     `ardia://settings/cookies`). The crash property cleaner lets a `webui_page` value through only in the shape
     `host` or `host/segment` (letters, digits, dashes); anything else is scrubbed like any string.
+  - The saved context also holds the last 3 different built-in pages with the time each was left or last seen
+    (`webui_pages`, `page@epoch-ms` joined by commas, newest first), so a crash after leaving
+    `ardia://settings/cookies` still shows it. A page seen again moves to the front; going to a web page keeps them.
+    Reading it back drops any entry that isn't a `host` or `host/segment` page and a time, and keeps at most 3.
+    `ctx_webui_pages` is worked out at the crash from the same saved context. The crash property cleaner lets it
+    through only as 1 to 3 `page:minutes` entries. Added with #1244, data only. Turning sharing on or off and
+    deleting a profile clear the pages (and the page the watcher last saw); a sample whose native reads were still
+    pending then is dropped before it notes a page, so no page from while sharing was off, or from a deleted
+    profile, comes back.
+  - Chromium Framework frames are named from the engine's own symbols, which the engine release publishes with
+    their UUIDs (#1054: `publish-engine.sh` uploads the build's dSYMs, `scripts/symbolicate-crash.sh` resolves a
+    crash event's frames by the `crash_images` UUID). Nothing is sent from the app for this.
   - `crash_js_fatal` is data only, to find why the app's JS stops the app. Two crashes name no reason without it.
     A Hermes abort (0.2.45–0.2.46 `SIGABRT`s from `hermes + 0x19bea4`, #1980) is a Hades GC out-of-memory: resolved
     against React Native 0.81.6's `hermes-ios-release` tarball (the shipped hermes has the same UUID, 2CA494AE), the

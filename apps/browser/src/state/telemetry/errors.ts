@@ -1,6 +1,6 @@
 import { crashReports } from "../../platform/app";
 import { advanceCrashCursor, capture, crashCursor, loadChoice, saveQueueNow } from "./client";
-import { contextAt, contextProperties, sessionStart } from "./diagnostics";
+import { contextAt, contextProperties, recentWebuiPages, sessionStart } from "./diagnostics";
 import type { SavedContext } from "./savedContext";
 import { recordLog } from "./logs";
 import { errorCode, errorMessage, errorType, jsFatalKind, nativeCrashExceptions, nativeCrashTermination, parseStack, type ExceptionFrame } from "./sanitize";
@@ -159,6 +159,7 @@ export async function reportNativeCrashes(contexts: (SavedContext | null)[] = []
         crash_vm_writable_mb: whole(report.vmWritableMB),
         crash_js_fatal: browser ? jsFatalKind(report.jsFatalSource, report.jsFatal) : null,
         ...contextProperties(context, "ctx_", report.time),
+        ctx_webui_pages: recentWebuiPages(context, report.time),
       },
       {
         urgent: true,

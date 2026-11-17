@@ -160,7 +160,9 @@ what differs; the Mac's list is `docs/dia-feature-parity.md`. Rows marked "hidde
     Pending telemetry and documents are written while stopping (`ShutDown` in `Ardia.cpp`), while their worker
     threads still run. Nothing in the library may wait on another thread from an exit handler or a static destructor:
     those run during `ExitProcess`, after Windows has ended every other thread, so such a wait only ends on its
-    timeout and the process outlives the quit (#1706: 30 s, which made the installer give up with exit 5).
+    timeout and the process outlives the quit (#1706: 30 s, which made the installer give up with exit 5). The
+    engine now ends the browser process as soon as Chromium's shutdown returns (`AfterChromeMain`, as Chrome does for
+    its utility processes), so no exit handler or static destructor runs in it at all.
   - `ArdiaEngineHost` (`EngineHostModule.h`) is the bridge: `available()`, `hostCall`, `engineCall`, and the engine's
     events as `ArdiaEngineHost:event`. Other native code reaches the engine through `Host::Engine()`.
   - What belongs to the app comes from the library (`AppImage.h`: the bundle folder, dialogs, window classes, the
@@ -382,8 +384,11 @@ what differs; the Mac's list is `docs/dia-feature-parity.md`. Rows marked "hidde
 - The Windows native API has its own version: `WINDOWS_NATIVE_API_VERSION` in `platform/nativeApi.ts` and
   `windowsApiVersion` in `AppModule.h`. Bump both when the Windows native surface changes. A Mac bump doesn't
   touch it.
-- `--log-file=<path>` makes the app write its launch log, React Native's log and JavaScript errors to a file. Each
-  line is `<level> <ms since process start> <message>`.
+- The app writes its launch log, React Native's log and JavaScript errors to `Logs\launch.log` in the data folder
+  (`%LOCALAPPDATA%\Ardia\Logs`), or to `--log-file=<path>` when given. Each line is `<level> <ms since process start>
+  <message>`; the engine's lines are `engine 0 <message>`, and a crash's stack lands there too. Each start moves the
+  last run's log to `launch.previous.log`, and a run stops writing at 16 MB. A problem report from someone whose Ardia
+  won't open starts with those two files.
 - A background instance (`ARDIA_BACKGROUND=1`) shows its windows without taking focus and answers dialogs and menus
   without showing them, as on the Mac.
 
@@ -477,6 +482,34 @@ is plain Chromium.
   and stall pages while a menu is open (#1687). The self-check holds a real confirm on both threads and checks that a
   page loads only in the first case; `dialog_pages_asked` and `dialog_pages_stalled` count pages asked while a dialog
   was open and how many hadn't loaded 10 s later.
+- A launch while the previous Ardia on the same profile is still closing waits for it to end (up to 45 s) instead of
+  handing its command line to a browser that is shutting down, or starting a second browser on the same profile once
+  that one has let go of Chromium's process singleton (which happens before its shutdown is over: the old process
+  then still writes its profile). The quitting browser signals it from `QuitApp` and from its main parts' end
+  (`launch_guard.cc`, named objects under `Local\ArdiaBrowser.<hash of the user data folder>`); a launch while it runs
+  normally isn't held. Without this, Chromium's own singleton took the closing browser for a hung one and killed it
+  (`RESULT_CODE_HUNG`) before it had written its profile. The launch log says how long a start waited.
+- When the app can't start inside the engine (its library doesn't load, it has no `ArdiaAppStart`, or that refuses),
+  the engine shows why in a message box (none in a hidden instance), writes it to the launch log as
+  `app start failed: <reason>`, and quits from inside the run loop, so the process exits 0. It used to call
+  `QuitApp()` before the run loop and CHECK-crash at `browser_process_impl.cc:1959` with nothing on screen (#2044).
+  The app hands back its reason through `ArdiaAppStartFailure`.
+- A start that crashes or fails before it has run for 15 s counts as unfinished (`launch-starts.txt` in the data
+  folder; a quit before then counts as finished). After two unfinished starts in a row, the next one moves the
+  state Ardia restores at launch (`session.json`, `launch-look.json`, `switches-cache.json`, `bookmarks-cache.json`)
+  to `Recovery\<date-time>` in the data folder, deletes Chromium's graphics caches (`GrShaderCache`,
+  `GraphiteDawnCache`, `ShaderCache`, `GPUPersistentCache` and the profile's `GPUCache`, `DawnGraphiteCache`,
+  `DawnWebGPUCache`: a relaunch differs from a first run in what the first session wrote there), and says so once it
+  has opened, so a profile that crashes Ardia at every start opens again on its own. Chromium's profile (bookmarks,
+  history, passwords, cookies) isn't touched. #2097's recording (the app gone about 4 s after its window appears, at
+  every launch after onboarding) is that shape; the launch log now kept in `Logs` says what ended it.
+- A window closed while minimized keeps its restored place and size for the next launch (the frame event's restored
+  bounds); it used to save the minimized frame and come back as a 480 x 360 window in the corner.
+- `scripts/windows/relaunch-check.ps1` (CI, after the installer check) installs the build and closes and reopens
+  it: twice right away, once after it has exited, once while the previous browser is held at its exit (it must
+  wait, with no second browser), once with two unfinished starts recorded (the session must be set aside), and
+  once with `Microsoft.ReactNative.dll` hidden (it must exit 0 with the reason logged). Every launch must show one
+  window from one browser, and Windows must log no Ardia crash, Crashpad no dump and the launch log no fatal line.
 - A second launch reaches the running app: Chromium's process singleton hands it the command line, and
   `chromium-win-relaunch-to-app.patch` gives that to `//ardia/win`, which sends the topic `relaunch` with the web and
   file addresses on it. The app treats them as links from another app (`onOpenURLs`: a Little Ardia window or a tab,

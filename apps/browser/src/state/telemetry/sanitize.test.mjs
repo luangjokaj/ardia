@@ -96,6 +96,33 @@ test("a saved context keeps the built-in page only as a host and first path segm
   }
 });
 
+test("the last built-in pages survive the property cleaner as page:minutes, and a value that is anything else is scrubbed", () => {
+  const kept = "flags:8,downloads:15,settings/cookies:25";
+  assert.deepEqual(cleanProperties({ ctx_webui_pages: kept, webui_pages: null }), { ctx_webui_pages: kept, webui_pages: null });
+  for (const bad of [
+    "settings/https://private.example/a:5",
+    "me@example.com:5",
+    "flags:8,downloads:15,settings/cookies:25,history:30",
+    "/Users/someone/x.json:1",
+  ]) {
+    const value = cleanProperties({ ctx_webui_pages: bad }).ctx_webui_pages;
+    assert.notEqual(value, bad, bad);
+    assert.deepEqual(leaks(value, "private", "someone", "example.com"), [], bad);
+  }
+});
+
+test("a saved context keeps at most the last 3 built-in pages with their time, and drops anything else", async () => {
+  const { readContext } = await import("./savedContext.ts");
+  assert.equal(readContext({ at: 1, webui_pages: "flags@3000,downloads@2000,settings/cookies@1000" }).webui_pages, "flags@3000,downloads@2000,settings/cookies@1000");
+  assert.equal(readContext({ at: 1, webui_pages: "flags@3000,downloads@2000,settings/cookies@1000,history@1" }).webui_pages, "flags@3000,downloads@2000,settings/cookies@1000");
+  assert.equal(readContext({ at: 1, webui_pages: "flags@3000,https://private.example/a@2,settings/cookies/detail@5,me@example.com@7,downloads@x" }).webui_pages, "flags@3000");
+  assert.equal(readContext({ at: 1, webui_pages: null }).webui_pages, null);
+  assert.equal("webui_pages" in readContext({ at: 1, tabs: 3 }), false, "a sample saved before the field existed stays without it");
+  for (const bad of ["", "private", 7, {}, ["flags@1"]]) {
+    assert.equal(readContext({ at: 1, webui_pages: bad }).webui_pages, null, String(bad));
+  }
+});
+
 test("an uncaught NSException sends its name and its throw site first, never its reason", () => {
   const { name, signal, exceptions } = nativeCrashExceptions({
     exceptionType: "EXC_BREAKPOINT",

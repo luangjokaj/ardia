@@ -49,6 +49,8 @@ NSString *PageMoveAt(NSWindow *window, NSPoint point);
 NSString *HoverProbeDev(NSWindow *window, NSString *_Nullable argument);
 NSString *HoverProbeLine();
 void WatchHover();
+void WatchPageCursor();
+NSString *PageCursorDev(NSWindow *window, NSString *_Nullable argument);
 NSString *DescribeFocusWindow(NSWindow *_Nullable window);
 void NoteFocusChange(NSString *what, NSWindow *_Nullable window);
 void SetAppActive(bool active);

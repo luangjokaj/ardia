@@ -106,6 +106,7 @@ const LINUX_SHELL_METHODS: Record<string, ShellMethod> = {
   },
   setDragEscapeCapture,
   saveKeyResponder,
+  takeEditKeyAcks: () => ({}),
   restoreKeyResponder,
   discardKeyResponder,
   cancelFocusMove: resolved,

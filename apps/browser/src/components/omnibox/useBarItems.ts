@@ -37,7 +37,7 @@ export function useBarItems({
   tabId: string;
   currentUrl: string;
 }) {
-  const { items: suggested, completion } = useSuggestions({
+  const { items: suggested, completion, via } = useSuggestions({
     text: typed,
     active: edited || !!scope,
     windowId,
@@ -62,5 +62,5 @@ export function useBarItems({
     () => (!scope && edited && !previewing ? offeredScope(typed, shownCompletion, windowId) : null),
     [scope, edited, previewing, typed, shownCompletion, windowId],
   );
-  return { items, completion, inline, shownCompletion, value, selectedIndex, current, tabScope, previewing };
+  return { items, completion, via, inline, shownCompletion, value, selectedIndex, current, tabScope, previewing };
 }

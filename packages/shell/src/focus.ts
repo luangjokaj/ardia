@@ -1,5 +1,6 @@
 export type FocusNative = {
   setSwitcherCapture(active: boolean): Promise<void>;
+  takeEditKeyAcks?(): Record<string, number>;
   setDragEscapeCapture(active: boolean): Promise<void>;
   cancelFocusMove(generation: number, restoringSource: boolean): Promise<void>;
   claimFocus(generation: number, tag: number): Promise<void>;

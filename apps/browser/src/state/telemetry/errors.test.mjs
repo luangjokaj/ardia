@@ -97,7 +97,32 @@ test("a native crash carries the built-in page its session was on as ctx_webui_p
     assert.equal(props.crash_process, "browser");
     assert.equal(props.ctx_tabs, 4);
     assert.equal(props.ctx_webui_page, expected, String(webui_page));
+    assert.equal(props.ctx_webui_pages, null, "a sample without the recent pages sends none");
   }
+});
+
+test("a native crash carries the last built-in pages from the saved context as page:minutes, never a page that isn't a built-in one", async () => {
+  const time = Date.now() + 3 * 60 * 60_000;
+  const saved = {
+    at: time - 500,
+    session_start: time - 5000,
+    webui_page: "flags",
+    webui_pages: `flags@${time - 2 * 60_000},downloads@${time - 17 * 60_000},settings/cookies@${time - 22 * 60_000}`,
+  };
+  stub.shellNativeModules.ArdiaApp.crashReports = async () => [
+    { time, fileTime: time, process: "browser", exceptionType: "EXC_BAD_ACCESS", signal: "SIGSEGV", frames: [{ image: "Chromium Framework", offset: 0xee9858 }] },
+  ];
+  await reportNativeCrashes([saved]);
+  assert.equal(queued().at(-1).properties.ctx_webui_pages, "flags:2,downloads:17,settings/cookies:22");
+
+  const tampered = { ...saved, webui_pages: `flags@${time},https://private.example/a@${time},settings/cookies/detail@${time}` };
+  stub.shellNativeModules.ArdiaApp.crashReports = async () => [
+    { time: time + 1000, fileTime: time + 1000, process: "browser", exceptionType: "EXC_BAD_ACCESS", signal: "SIGSEGV", frames: [{ image: "Chromium Framework", offset: 0xee9858 }] },
+  ];
+  await reportNativeCrashes([{ ...tampered, at: time + 500, session_start: time - 5000 }]);
+  const props = queued().at(-1).properties;
+  assert.equal(props.ctx_webui_pages, "flags:0");
+  assert.equal(JSON.stringify(queued().at(-1)).includes("private"), false);
 });
 
 test("a browser crash carries the kind of JS fatal that stopped it as crash_js_fatal, never the message, and no other crash does", async () => {

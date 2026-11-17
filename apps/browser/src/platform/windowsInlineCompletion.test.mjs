@@ -16,8 +16,8 @@ test("inline completions shown are counted and reset once taken", () => {
   takeInlineCompletionCounts();
   noteInlineCompletionShown();
   noteInlineCompletionShown();
-  assert.deepEqual(takeInlineCompletionCounts(), { command_bar_inline_completions: 2 });
-  assert.deepEqual(takeInlineCompletionCounts(), { command_bar_inline_completions: 0 });
+  assert.deepEqual(takeInlineCompletionCounts(), { command_bar_inline_completions: 2, command_bar_inline_completions_search_first: 0, command_bar_site_suggestions: 0 });
+  assert.deepEqual(takeInlineCompletionCounts(), { command_bar_inline_completions: 0, command_bar_inline_completions_search_first: 0, command_bar_site_suggestions: 0 });
 });
 
 test("on Windows a completion needs the caret right after what was typed, as the Mac's field checks", async () => {

@@ -4,7 +4,7 @@ import { test } from "node:test";
 globalThis.__DEV__ = false;
 
 const { applyHistoryChanges } = await import("./engineSync.ts");
-const { MAX_HISTORY, MAX_VISIT_TIMES, SUGGESTION_HISTORY, suggestionHistory } = await import("./history.ts");
+const { FREQUENT_VISITS, MAX_HISTORY, MAX_VISIT_TIMES, SUGGESTION_FREQUENT, SUGGESTION_HISTORY, suggestionHistory } = await import("./history.ts");
 
 const applyHistoryChange = (list, change, note) => applyHistoryChanges(list, [change], note);
 
@@ -261,6 +261,18 @@ test("command bar suggestions search the newest SUGGESTION_HISTORY pages of a lo
   assert.equal(suggestionHistory(list), newest, "the same list gives the same copy, so the suggestion caches hold");
   const short = view(10);
   assert.equal(suggestionHistory(short), short);
+});
+
+test("command bar suggestions keep an older page visited often, such as a Maps visited weekly under 5,000 newer pages", () => {
+  const list = view(SUGGESTION_HISTORY + 300).map((e) => ({ ...e, visits: 1 }));
+  const maps = { ...list[SUGGESTION_HISTORY + 100], url: "https://www.google.com/maps", title: "Google Maps", visits: FREQUENT_VISITS + 20 };
+  list[SUGGESTION_HISTORY + 100] = maps;
+  const kept = suggestionHistory(list);
+  assert.equal(kept.length, SUGGESTION_HISTORY + 1);
+  assert.equal(kept.at(-1), maps);
+  assert.deepEqual(kept.slice(0, SUGGESTION_HISTORY), list.slice(0, SUGGESTION_HISTORY), "the newest pages come first, in order");
+  const crowded = view(SUGGESTION_HISTORY + SUGGESTION_FREQUENT + 50).map((e) => ({ ...e, visits: FREQUENT_VISITS }));
+  assert.equal(suggestionHistory(crowded).length, SUGGESTION_HISTORY + SUGGESTION_FREQUENT, "older frequent pages are capped");
 });
 
 test("an old visit lands in order among the entries by last visit", () => {
