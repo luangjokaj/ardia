@@ -14,7 +14,7 @@ import { appInfo, percentile } from "./transport";
 import { reportNativeCrashes } from "./errors";
 import { emitJourneys, journeysEnding, startJourneys } from "./journeys";
 import { commandBarPlacementLabel, takeExternalAppRequests, takeNotificationRequestCounts, takeRecentlyClosedCounts, takeHistoryRemovalCounts, takeOmniboxLatency, takePopupTabCounts, takeSearchSuggests } from "./track";
-import { contextProperties, contextSamples, hardwareProperties, launchGuardProperties, noteAppMemory, recordContext, takeMainProcessWork, takeContentDriftCounts, takeColdTabHoldCounts, startContextSamples, stopContextSamples, watchHoverLost } from "./diagnostics";
+import { contextProperties, contextSamples, hardwareProperties, launchGuardProperties, noteAppMemory, recordContext, takeMainProcessWork, takeContentDriftCounts, takeColdTabHoldCounts, startContextSamples, stopContextSamples, watchEngineReports } from "./diagnostics";
 import { emitTabPresses } from "./tabPresses";
 import { switcherSwitchProperties } from "./switcherPresses";
 import { profileSwitched } from "./profileSwap";
@@ -368,7 +368,7 @@ export function startUsage(continuing = false) {
   watchSync();
   watchTranslate();
   watchExtensions();
-  watchHoverLost();
+  watchEngineReports();
   watchPopupProtectedMedia();
   setTimeout(() => void sampleMemory(), FIRST_MEMORY_SAMPLE_MS);
   setTimeout(snapshotSettings, FIRST_SETTINGS_SNAPSHOT_MS);
