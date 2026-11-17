@@ -393,8 +393,11 @@ BOOL Above(NSView *a, NSView *b) {
   }
   for (ArdiaWebView *view in views)
     if (view->_visible) [view applyPainting];
-  for (ArdiaWebView *view in views)
-    if (view->_visible) [view restoreFocusIfDue];
+  for (ArdiaWebView *view in views) {
+    if (!view->_visible) continue;
+    [view settleFirstShowFocus];
+    [view restoreFocusIfDue];
+  }
 }
 
 - (void)leaveScreen {

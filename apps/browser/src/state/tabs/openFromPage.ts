@@ -13,6 +13,7 @@ import { noteBackgroundTab } from "./newTabNotice";
 import { noteBlockedPageBehind, noteLinkTabWait } from "../telemetry/usage";
 import { isBlockedPage } from "../site/contentBlocking";
 import { notePopupOpenedAsTab } from "../telemetry/popupTabCounts";
+import { noteLinkTabLoad } from "../telemetry/barLoadFocus";
 
 export type { OpenWindowRequest } from "../../platform/tabs";
 
@@ -90,6 +91,7 @@ function openNow(request: OpenWindowRequest, page: PageRef, gated: boolean) {
   const background = disposition === "background" || from.profileId !== w.profileId;
   const opened = s.newTab(w.id, { url, adoptId, openerId: from.tabId, profileId: from.profileId, background, gated });
   if (background) noteBackgroundTab(w.id, opened, page.tabId);
+  else if (adoptId) noteLinkTabLoad(opened);
 }
 
 const opensBehind = (request: OpenWindowRequest) => (request.disposition === "foreground" || request.disposition === "window") && isBlockedPage(request.url);

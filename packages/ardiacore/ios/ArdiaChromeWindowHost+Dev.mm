@@ -335,6 +335,7 @@ NSString *WindowInfo(NSWindow *window, NSString *) {
   info[@"alpha"] = @(window.alphaValue);
   info[@"level"] = @(window.level);
   info[@"collectionBehavior"] = @(window.collectionBehavior);
+  info[@"accessibilityTitle"] = window.accessibilityTitle ?: @"";
   info[@"background"] = window.backgroundColor.description ?: @"";
   NSButton *close = [window standardWindowButton:NSWindowCloseButton];
   info[@"closeButton"] = close ? NSStringFromRect([close convertRect:close.bounds toView:nil]) : @"";

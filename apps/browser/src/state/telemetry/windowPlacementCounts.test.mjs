@@ -37,3 +37,15 @@ test("an hour with only a window reopened maximized still sends usage_counts", a
   usage.sessionEnding();
   assert.deepEqual((await sentPlacementCounts()).at(-1), [0, 1]);
 });
+
+test("an hour where a window switcher only read window titles still sends usage_counts, with how many windows", async () => {
+  client.loadChoice();
+  client.setSharing(true, "onboarding");
+
+  stub.emitAppEvent({ type: "windowTitleRead" });
+  stub.emitAppEvent({ type: "windowTitleRead" });
+  usage.sessionEnding();
+  await client.saveQueueNow();
+  const saved = JSON.parse(stub.docs.get("telemetry-queue.json") ?? '{"events":[]}');
+  assert.equal(saved.events.filter((e) => e.event === "usage_counts").at(-1).properties.window_titles_read, 2);
+});

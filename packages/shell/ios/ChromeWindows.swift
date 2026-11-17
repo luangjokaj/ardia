@@ -39,5 +39,6 @@ enum ChromeWindows {
     guard !swapHandlerInstalled else { return }
     swapHandlerInstalled = true
     ArdiaChromeWindowHost.swappedHandler = handler
+    ArdiaChromeWindowHost.accessibilityTitleReadHandler = { _ in ShellEvents.send(.app, ["type": "windowTitleRead"]) }
   }
 }

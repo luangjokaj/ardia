@@ -59,6 +59,12 @@ NSValue *_Nullable ArdiaTrafficLightsCenter(NSWindow *_Nullable window);
 BOOL ArdiaTrafficLightsTrailing(NSWindow *_Nullable window);
 FOUNDATION_EXPORT BOOL ArdiaPerformReservedKey(NSEvent *event);
 
+@interface ArdiaChromeWindowHost (AccessibilityTitle)
+
+@property(class, nonatomic, copy, nullable) void (^accessibilityTitleReadHandler)(NSWindow *window);
+
+@end
+
 @interface ArdiaChromeWindowHost (LittleFit)
 
 + (nullable NSValue *)littleFrameFittingLandingOf:(NSWindow *)window
