@@ -213,6 +213,7 @@ export type EngineEvents = {
   "engine.cliControl": CliControlStatus;
   "engine.hoverLost": HoverLostEpisode;
   "engine.popupProtectedMedia": PopupProtectedMedia;
+  "engine.devToolsKeyKept": Record<string, never>;
   "engine.cursorRestored": { hidden: boolean };
   "engine.windowUnpainted": WindowUnpaintedRecord;
   "engine.pressLoopLong": PressLoopLongReport;
