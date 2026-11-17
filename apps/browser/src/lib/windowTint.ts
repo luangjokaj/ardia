@@ -12,11 +12,17 @@ export function backdropTint(color: string, neutral: boolean): BackdropTint {
   return { tintColor: color, tintAlpha: neutral ? 0.12 : 0.36, tintLightness: LIGHTNESS };
 }
 
-const INACTIVE_FILL = { dark: [40.7, 33.1, 31.8], light: [235, 231, 230] };
+const MATERIAL_FILL = {
+  inactive: { dark: [40.7, 33.1, 31.8], light: [235, 231, 230] },
+  active: { dark: [30, 30, 30], light: [232, 232, 232] },
+};
 
-export function opaqueTint(tint: BackdropTint, dark: boolean): [string, string] {
+export type WindowState = keyof typeof MATERIAL_FILL;
+
+export function opaqueTint(tint: BackdropTint, dark: boolean, state: WindowState = "inactive"): [string, string] {
   const a = tint.tintAlpha * (dark ? 0.5 : 0.75);
-  const under = dark ? INACTIVE_FILL.dark.map((f) => 0.6 * f) : INACTIVE_FILL.light.map((f) => 0.8 * 255 + 0.2 * f);
+  const fill = MATERIAL_FILL[state];
+  const under = dark ? fill.dark.map((f) => 0.6 * f) : fill.light.map((f) => 0.8 * 255 + 0.2 * f);
   const top = parseColor(tint.tintColor).slice(0, 3);
   const bottom = lighten(top, tint.tintLightness);
   const over = (c: number[]) => toHex(c.map((v, i) => a * v + (1 - a) * under[i]!));
