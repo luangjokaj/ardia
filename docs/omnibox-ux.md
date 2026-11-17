@@ -56,6 +56,7 @@ Status: ✅ compliant, ❌ gap, ⚠️ unsure or a deliberate Dia/Ardia choice.
 | Whitespace on Enter | trimmed (`AutocompleteInput`) | ? | `resolveInput` trims (`omnibox.ts:93`) | ✅ |
 | URL vs search | `AutocompleteInput::Parse` (`autocomplete_input.cc`) | Chromium | see "URL heuristics" below | ⚠️ #7 |
 | Suggestions refresh without flicker | default match from local providers is stable; remote suggestions append | stable in recording | first row is computed from local data only, remote rows append (`suggest.ts:516-531`); live: row 0 steady while remote arrived | ✅ |
+| Rows don't move under the pointer | (Chrome has no Go button under its list) | — | while the pointer is over the list or the bottom row, rows that arrive later for the same text and scope wait until it leaves (`components/omnibox/steadyRows.ts`, `steadyRows.test.mjs`), so the Go button and the rows stay where the pointer aimed. New text always shows its own rows. Before, a late search suggestion pushed Go down and a click aimed at Go opened the suggestion (#2102) | ✅ |
 | Blur | popup closes, typed text and inline state are kept (`OnKillFocus`, state restored on refocus/tab switch) | panel dismisses | `Omnibox.tsx:326` `onBlur={onCancel}` closes the panel and drops what was typed; outside click does the same (`CommandPanel.tsx`); hero keeps text (`saveNtpQuery`) | ⚠️ by design |
 | Hover vs selection | hover highlights only; Enter uses the keyboard selection | ? | hover sets the selected row (`Omnibox.tsx:355` `hover: setSelected`), so Enter opens the hovered row | ⚠️ |
 

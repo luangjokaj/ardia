@@ -15,10 +15,12 @@ export type AppEvent =
   | { type: "switcherMouseUp" }
   | { type: "dragEscape" }
   | { type: "unclaimedEscape"; windowId: string }
+  | { type: "snapKeyHandedBack"; windowId: string }
   | { type: "centeredResize" }
   | { type: "appLinkOpened"; windowId: string | null }
   | { type: "littleArdiaReturnedToApp" }
-  | { type: "windowTitleRead" };
+  | { type: "windowTitleRead" }
+  | { type: "keyHoldReplay"; tag: number; count: number };
 
 export type AppearanceMode = "auto" | "light" | "dark";
 

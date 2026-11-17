@@ -125,6 +125,14 @@ const windowsModule: Modules["ArdiaAppWindows"] & { requestClose(id: string): Pr
 };
 
 export const pressesWithoutRelease = { count: 0 };
+export const focusHandoffCounts = {
+  pending: {} as Record<string, number>,
+  take() {
+    const taken = this.pending;
+    this.pending = {};
+    return taken;
+  },
+};
 export const pressRepeated: { earlier: { landedOn: string; ms: number } | null } = { earlier: null };
 
 const focus: Modules["ArdiaFocus"] = {
@@ -138,6 +146,7 @@ const focus: Modules["ArdiaFocus"] = {
   cancelFocusMove: () => Promise.resolve(),
   claimFocus: () => Promise.resolve(),
   pressesWithoutRelease: () => pressesWithoutRelease.count,
+  takeFocusHandoffCounts: () => focusHandoffCounts.take(),
   pressRepeated: () => Promise.resolve(pressRepeated.earlier),
 };
 

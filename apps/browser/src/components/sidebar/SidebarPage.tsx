@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Animated, ScrollView, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { switchOn } from "../../state/app/switches";
 import { ContextMenuArea, space, WindowDragRegion } from "../ui";
@@ -116,13 +116,11 @@ export const SidebarPage = memo(function SidebarPage({ profileId, slot, paging, 
   windowRef.current = windowId;
   const page = useRef<PageGeometry>({ scrollY: 0, viewport: 0, regions: { pinnedGroups: 0, list: 0 } }).current;
   const scrollView = useRef<ScrollView | null>(null);
-  const setScrollView = useCallback(
-    (view: ScrollView | null) => {
-      scrollView.current = view;
-      if (current) onScrollView(view);
-    },
-    [current, onScrollView],
-  );
+  useLayoutEffect(() => {
+    if (!current) return;
+    onScrollView(scrollView.current);
+    return () => onScrollView(null);
+  }, [current, onScrollView]);
   const selectedRow = useSelectedRowAway(windowId, geometry, scrollView, () => page.scrollY);
   const [listFrame, setListFrame] = useState<{ top: number; height: number } | null>(null);
   useLayoutEffect(() => {
@@ -195,7 +193,7 @@ export const SidebarPage = memo(function SidebarPage({ profileId, slot, paging, 
                   <Animated.View style={{ flex: 1, overflow: "hidden", transform: [{ translateY: playerMotion.listClip }] }}>
                     <Animated.View style={{ flex: 1, transform: [{ translateY: playerMotion.listUnclip }] }}>
                       <Animated.ScrollView
-                        ref={setScrollView}
+                        ref={scrollView}
                         onLayout={(e) => {
                           page.viewport = e.nativeEvent.layout.height;
                           scrollEdgeBelow.measure({ viewport: page.viewport });

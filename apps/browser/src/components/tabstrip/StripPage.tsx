@@ -69,7 +69,7 @@ export const StripPage = memo(function StripPage({ profileId, slot, pageWidth, c
   shownNeeds.current = needsTitle;
   const holding = held.current ? heldWideTab(parsed, held.current.wide) : null;
   const wideId = holding?.tabId ?? activeId;
-  const { chip, selected, widths, tabWidth, top, targets, memberWidth, spanOf: spanInStrip, tabsEnd, tabsShrink } = layoutStrip(parsed, activeId, pageWidth, { groupChip: chipOf, folderChip, needsTitle }, dock, held.current?.widths, wideId);
+  const { chip, selected, widths, tabWidth, top, memberWidth, spanOf: spanInStrip, tabsEnd, tabsShrink } = layoutStrip(parsed, activeId, pageWidth, { groupChip: chipOf, folderChip, needsTitle }, dock, held.current?.widths, wideId);
   const animateWidths = !held.current && !!last.current && last.current.count === count && last.current.pageWidth === pageWidth;
   last.current = { count, pageWidth, widths, end: stripEnd(top), lastSlot: top.slots.at(-1)?.tabIds[0], wide: { tabId: wideId, slot: Math.max(0, top.slots.findIndex((s) => s.tabIds.includes(wideId))) } };
   const spare = held.current ? Math.max(0, held.current.end - stripEnd(top)) : 0;
@@ -85,7 +85,7 @@ export const StripPage = memo(function StripPage({ profileId, slot, pageWidth, c
   const slotOf = (id: string) => top.slots.findIndex((slot) => slot.tabIds[0] === id);
   const grow = useRef(new Animated.Value(0)).current;
   const strip = useRef<Strip>(null!);
-  strip.current = { top, targets, chip, grow, dock, slotOf, animateWidths };
+  strip.current = { top, chip, grow, dock, slotOf, animateWidths };
   const incoming = useIncomingTab(windowId, current, top);
   const scroll = useRef<ScrollView>(null);
   const scrolled = useRef(0);

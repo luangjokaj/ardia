@@ -262,6 +262,10 @@ NSView *ArdiaWindowRootView(NSWindow *window) {
   if (!MoveTrafficLights(window, center)) [self setTrafficLightsCenter:center trailing:trailing inWindow:window];
 }
 
++ (void)insetTrafficLightsOfWindow:(NSWindow *)window {
+  if (window) InsetUtilityTrafficLights(window);
+}
+
 + (NSSize)windowSizeFromInterfaceSize:(NSSize)size forWindow:(NSWindow *)window {
   return InterfaceSize(size, window);
 }

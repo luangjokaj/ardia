@@ -1,7 +1,7 @@
 import { extensionSidePanelUrl } from "../../platform/extensions";
 import { useBrowser } from "../browser/store";
 import { shownPageId } from "../peek/peek";
-import { shownReadyTab, extensionPageUrl, extensionProfile, isPrivate, pageProfile, shownIn, useExtensions, type SidePanel } from "./store";
+import { shownReadyTab, extensionPageUrl, extensionProfile, isPrivate, pageProfile, shownIn, tabProfile, useExtensions, type SidePanel } from "./store";
 
 const wanted = new Map<string, string>();
 const fetches = new Map<string, number>();
@@ -94,7 +94,7 @@ async function showSidePanel(windowId: string, extensionId: string): Promise<voi
   const url = !ext
     ? null
     : readyTab
-      ? await extensionSidePanelUrl(readyTab, extensionId)
+      ? await extensionSidePanelUrl(readyTab, extensionId, tabProfile(readyTab))
       : !isPrivate(useBrowser.getState(), windowId) && ext.sidePanel
         ? extensionPageUrl(extensionId, ext.sidePanel)
         : null;

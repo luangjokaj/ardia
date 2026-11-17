@@ -20,7 +20,7 @@ function setup() {
   usePages.setState({ ready: { [a]: 1, [b]: 2 } });
   useExtensions.setState({ lists: { "": [EXT] }, actions: {}, popup: null, sidePanels: {} });
   const asked = [];
-  const ask = (what) => (tabId) => new Promise((resolve) => asked.push({ what, tabId, resolve }));
+  const ask = (what) => (tabId, _arg, profile) => new Promise((resolve) => asked.push({ what, tabId, profile, resolve }));
   native.extensionAnswers.actionStates = ask("states");
   native.extensionAnswers.sidePanelUrl = ask("panel");
   const answer = async (i, value) => {
@@ -44,6 +44,25 @@ test("a tab switch while a tab's states are on their way gets its own states rig
   await Promise.all([first, second]);
   assert.equal(E().actions[a].ext.badgeText, "A");
   assert.equal(E().actions[b].ext.badgeText, "B");
+});
+
+test("a profile switched into another profile's window asks for its tab's states and side panel in its own profile", async () => {
+  const { w, answer, asked } = setup();
+  const { engineProfile } = await import("../browser/model.ts");
+  const aurum = S().createProfile({ name: "Aurum" });
+  S().switchProfile(w, aurum);
+  const tab = S().newTab(w, { url: "c.com" });
+  const profile = engineProfile(S(), aurum);
+  assert.notEqual(profile, "");
+  usePages.setState({ ready: { ...usePages.getState().ready, [tab]: 3 } });
+  useExtensions.setState({ lists: { "": [EXT], [profile]: [EXT] } });
+  const states = refreshActionStates();
+  const opened = panels.openSidePanel(w, "ext");
+  assert.deepEqual(asked.map((x) => [x.what, x.tabId, x.profile]), [["states", tab, profile], ["panel", tab, profile]]);
+  await answer(0, {});
+  await answer(1, null);
+  await Promise.all([states, opened]);
+  panels.closeSidePanel(w);
 });
 
 test("A→B→A shows A's side panel whatever order Chrome answers in", async () => {
@@ -257,6 +276,28 @@ test("Add on an install prompt the engine no longer holds says so in the dialog,
     assert.deepEqual(unhandled, []);
   } finally {
     process.off("unhandledRejection", noteUnhandled);
+    native.extensionAnswers.resolveInstallPrompt = async () => null;
+  }
+});
+
+test("Add and Cancel answer an install prompt in the profile that asked, not the window's own", async () => {
+  const { showInstallPrompt, confirmInstall, cancelInstall } = await import("./actions.ts");
+  const { w } = setup();
+  const answers = [];
+  native.extensionAnswers.resolveInstallPrompt = async (requestId, accepted, profile) => {
+    answers.push([requestId, accepted, profile]);
+    return null;
+  };
+  const prompt = { requestId: "install1", profile: "aurum", id: "abc", name: "Ext", version: "1", type: "install", icon: null, permissions: [], tabId: null };
+  try {
+    showInstallPrompt(w, prompt);
+    await confirmInstall();
+    showInstallPrompt(w, { ...prompt, requestId: "install2", profile: "" });
+    cancelInstall();
+    await new Promise((r) => setImmediate(r));
+    assert.deepEqual(answers, [["install1", true, "aurum"], ["install2", false, ""]]);
+    assert.equal(E().install, null);
+  } finally {
     native.extensionAnswers.resolveInstallPrompt = async () => null;
   }
 });

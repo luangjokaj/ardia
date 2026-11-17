@@ -64,6 +64,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property(class, readonly) BOOL holdsIncomingLinks;
 @property(class, readonly) NSDictionary<NSString *, NSNumber *> *launchMarks;
 @property(class, readonly, nullable) NSNumber *launchedHidden;
+@property(class, readonly, nullable) NSString *launchSource;
 + (void)markMainStarted;
 + (void)setHoldIncomingLinks:(BOOL)hold hooksStamp:(nullable NSString *)hooksStamp NS_SWIFT_NAME(setHoldIncomingLinks(_:hooksStamp:));
 + (NSString *)fileStampOfDescriptor:(int)fd NS_SWIFT_NAME(fileStamp(ofDescriptor:));

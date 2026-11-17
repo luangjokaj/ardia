@@ -377,6 +377,13 @@ it is already spent at `engineDidStart` (6.4 s of 7.0 s in one row). Stable buil
 cause isn't known: it could be the OS (Gatekeeper, a cold page cache, a loaded Mac) or our code between process start and
 `engineDidStart`. Nothing here is fixed or confirmed; the next change waits for the data below.
 
+Nightlies that carry the marks below (4 days to 2026-11-16, cold launches): the first 2 minutes after boot have a
+1-minute load average of 87 at the median and 178 at p90 (4 a day or more after boot), and every stretch grows with it:
+`main_ms` 2.1 s median and 5.5 s p90 (the OS loading the app before `main`), `engine_ms - chromium_ms` 0.6 s and 3.4 s
+(Chromium's startup), everything after `engine_ms` under 0.5 s. So the Mac is still saturated logging in, and no one
+stretch of ours holds the time. `launch_source` and the AppKit marks below say whether those launches are login items or
+windows the Mac reopens, and where AppKit's own launch falls inside Chromium's startup.
+
 `perf_launch` now also sends the marks that split process start → `engineDidStart`, in ms from process start, each null
 when the app didn't reach it:
 
@@ -385,10 +392,13 @@ when the app didn't reach it:
 | `main_ms` | first statement of `main.swift`, before `LaunchConfig` and `LegacyMigration` | the OS's time before our code runs |
 | `startup_ms` | after `ardia_host::PrepareStartup` in `runWithArgc` | `startup_ms - main_ms`: migration, launch config, data directory |
 | `chromium_ms` | just before `ArdiaCoreEngine runWithArgc:` | `chromium_ms - startup_ms`: the rest of our setup |
+| `appkit_will_finish_ms` | `NSApplicationWillFinishLaunching` | `appkit_will_finish_ms - chromium_ms`: Chromium reaching AppKit's launch |
+| `appkit_did_finish_ms` | `NSApplicationDidFinishLaunching` | `appkit_did_finish_ms - appkit_will_finish_ms`: AppKit finishing the launch |
 | `engine_ms` | `engineDidStart` | `engine_ms - chromium_ms`: Chromium's startup and its profile load |
 
 `load_1m` (the 1-minute load average from `getloadavg`) says whether the Mac was busy, and `launched_hidden` whether
-the launch was a hidden one (a login item) or the user opening the app. Together with `since_boot` and `since_quit`
+the launch was a hidden one (a login item) or the user opening the app. `launch_source` says which of three started it:
+`login_item`, `documents` (another app opened a link or file with Ardia) or `user`; null until AppKit finished launching. Together with `since_boot` and `since_quit`
 (`unclean`) they tell the first launch after a reboot or an unclean quit from the rest.
 
 How to read a slow launch once these ship (nightly first, since stable builds carry no `engine_ms` today): when

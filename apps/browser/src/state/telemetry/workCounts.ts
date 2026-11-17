@@ -1,5 +1,6 @@
 import type { Adapter } from "../../platform/sync";
 import { isSharing, useTelemetry } from "./choice";
+import { takePopupProtectedMediaCounts } from "./popupProtectedMedia";
 
 export type SyncWorkKind = "bookmark" | "history";
 type Phase = "extract" | "apply";
@@ -65,6 +66,7 @@ const none = () => ({
   liveSaveIntentsUnchanged: 0,
   extensionActionRefreshes: 0,
   extensionActionStateRequests: 0,
+  extensionActionStateFailures: 0,
   extensionActionTabChangesSkipped: 0,
 });
 
@@ -86,6 +88,7 @@ export const noteLiveSave = (changed: boolean, kind: "write" | "intent" = "write
   count(kind === "intent" ? changed ? "liveSaveIntentsQueued" : "liveSaveIntentsUnchanged" : changed ? "liveSavesWritten" : "liveSavesUnchanged");
 export const noteExtensionActionRefresh = () => count("extensionActionRefreshes");
 export const noteExtensionActionStateRequest = () => count("extensionActionStateRequests");
+export const noteExtensionActionStateFailure = () => count("extensionActionStateFailures");
 export const noteExtensionActionTabChangeSkipped = () => count("extensionActionTabChangesSkipped");
 
 export function takeLiveWorkCounts() {
@@ -100,8 +103,9 @@ export function takeLiveWorkCounts() {
     live_save_intents_unchanged: taken.liveSaveIntentsUnchanged,
     extension_action_refreshes: taken.extensionActionRefreshes,
     extension_action_state_requests: taken.extensionActionStateRequests,
+    extension_action_state_failures: taken.extensionActionStateFailures,
     extension_action_tab_changes_skipped: taken.extensionActionTabChangesSkipped,
   };
 }
 
-export const takeWorkCounts = () => ({ ...takeSyncWorkCounts(), ...takeLiveWorkCounts() });
+export const takeWorkCounts = () => ({ ...takeSyncWorkCounts(), ...takeLiveWorkCounts(), ...takePopupProtectedMediaCounts() });

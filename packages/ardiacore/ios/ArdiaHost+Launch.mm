@@ -346,12 +346,21 @@ void StartEarlyWindow() {
   return [launch reached:ArdiaLaunchAppKitDidFinish] ? @(launch.launchedHidden) : nil;
 }
 
++ (nullable NSString *)launchSource {
+  ArdiaLaunchSequence *launch = ArdiaLaunchSequence.shared;
+  if (![launch reached:ArdiaLaunchAppKitDidFinish]) return nil;
+  if (launch.launchedHidden) return @"login_item";
+  return launch.launchedForDocuments ? @"documents" : @"user";
+}
+
 + (NSDictionary<NSString *, NSNumber *> *)launchMarks {
   ArdiaLaunchSequence *launch = ArdiaLaunchSequence.shared;
   NSMutableDictionary<NSString *, NSNumber *> *marks = [NSMutableDictionary dictionary];
   if (launch.mainStartedAt > 0) marks[@"mainStarted"] = @(launch.mainStartedAt);
   if (launch.startupPreparedAt > 0) marks[@"startupPrepared"] = @(launch.startupPreparedAt);
   if (launch.chromiumEnteredAt > 0) marks[@"chromiumEntered"] = @(launch.chromiumEnteredAt);
+  if (launch.appKitWillFinishAt > 0) marks[@"appKitWillFinish"] = @(launch.appKitWillFinishAt);
+  if (launch.appKitDidFinishAt > 0) marks[@"appKitDidFinish"] = @(launch.appKitDidFinishAt);
   if (launch.engineStartedAt > 0) marks[@"engineStarted"] = @(launch.engineStartedAt);
   if (launch.reactNativeStartedAt > 0) marks[@"reactNativeStarted"] = @(launch.reactNativeStartedAt);
   if (launch.earlyWindowShownAt > 0) marks[@"earlyWindowShown"] = @(launch.earlyWindowShownAt);
@@ -417,6 +426,7 @@ void StartEarlyWindow() {
                                                   object:nil
                                                    queue:nil
                                               usingBlock:^(NSNotification *) {
+                                                ArdiaLaunchSequence.shared.appKitWillFinishAt = LaunchNowMs();
                                                 [ArdiaLaunchSequence.shared reach:ArdiaLaunchAppKitWillFinish];
                                               }];
   if ([config traced:@"visibility"]) {
@@ -447,6 +457,7 @@ void StartEarlyWindow() {
                                                 const BOOL hidden = event.eventID == kAEOpenApplication &&
                                                                     [event paramDescriptorForKeyword:keyAEPropData].enumCodeValue == keyAELaunchedAsLogInItem;
                                                 const BOOL documents = event && !(event.eventClass == kCoreEventClass && event.eventID == kAEOpenApplication);
+                                                ArdiaLaunchSequence.shared.appKitDidFinishAt = LaunchNowMs();
                                                 [ArdiaLaunchSequence.shared appKitFinishedHidden:hidden forDocuments:documents];
                                               }];
 

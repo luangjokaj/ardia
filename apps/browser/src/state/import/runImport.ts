@@ -243,6 +243,7 @@ export async function runImport(wanted: ReadonlySet<ImportKind>, withoutKey = fa
   updateStatus(signal, (st) => Object.fromEntries(Object.entries(st).map(([k, v]) => [k, failed.has(k as ImportKind) ? "failed" : v === "failed" ? v : "done"])));
   api.forgetUnlockedKeys();
   noteImportRun({ done: order.filter((k) => !failed.has(k)).length, failed: failed.size, secretsLeft });
+  if (total.bookmarks > 0) useBrowser.getState().updateSettings({ bookmarksImportDismissed: true });
   finishImport(signal, {
     counts: total,
     failures: [...failed].map(([kind, names]) => ({ kind, profiles: selected.length > 1 ? names : [] })),

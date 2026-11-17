@@ -143,6 +143,8 @@ function remoteFor(host: ArdiaHost): SyncRemote {
     setProfileSynced: (profileId: string, enabled: boolean) => engine.setProfileSynced(profileId, enabled),
     setOpenTabsSynced: (profileId: string, enabled: boolean) => engine.setOpenTabsSynced(profileId, enabled),
     addRemoteProfile: (syncId: string) => engine.addRemoteProfile(syncId),
+    removeRemoteProfile: (syncId: string) => engine.removeRemoteProfile(syncId),
+    removeSyncedDevice: (deviceId: string) => engine.removeSyncedDevice(deviceId),
     adoptProfileTheme: (profileId: string) => engine.adoptProfileTheme(profileId),
     useFolder: (path: string) => withChosenSyncFolder(path, () => engine.chooseSyncFolder()),
     sendTargets: (profileIds: string[]) => Object.fromEntries(profileIds.map((profileId) => [profileId, engine.sendTargets(profileId)])),
@@ -286,6 +288,18 @@ export function addRemoteProfile(syncId: string): string | null {
   if (leading()) return engine.addRemoteProfile(syncId);
   quietly(forward("addRemoteProfile", [syncId]));
   return null;
+}
+
+export function removeRemoteProfile(syncId: string): boolean {
+  if (leading()) return engine.removeRemoteProfile(syncId);
+  quietly(forward("removeRemoteProfile", [syncId]));
+  return true;
+}
+
+export function removeSyncedDevice(deviceId: string): boolean {
+  if (leading()) return engine.removeSyncedDevice(deviceId);
+  quietly(forward("removeSyncedDevice", [deviceId]));
+  return true;
 }
 
 let relayedTargets: Record<string, SendTarget[]> = {};

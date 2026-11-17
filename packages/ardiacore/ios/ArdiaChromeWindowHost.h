@@ -30,6 +30,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (void)setTrafficLightsCenter:(nullable NSValue *)center trailing:(BOOL)trailing inWindow:(NSWindow *)window;
 + (void)moveTrafficLightsCenter:(nullable NSValue *)center trailing:(BOOL)trailing inWindow:(NSWindow *)window;
++ (void)insetTrafficLightsOfWindow:(NSWindow *)window NS_SWIFT_NAME(insetTrafficLights(of:));
 
 + (void)closeWindow:(NSWindow *)window;
 

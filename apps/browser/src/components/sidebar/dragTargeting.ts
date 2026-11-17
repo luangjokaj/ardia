@@ -134,7 +134,7 @@ export class DragTargeting extends DragGeometry {
     if (folderAway !== dragMarksOf(this.marks).folderAway) markDrag(this.marks, { folderAway });
     const key = JSON.stringify(drop);
     if (key === session.dropKey && gapKey === session.gapKey) return;
-    if (session.dropKey && drop.type !== "none" && currentSettings().tabReorderHaptics) hapticTick();
+    if (session.dropKey && drop.type !== "none") hapticTick();
     session.dropKey = key;
     session.drop = drop;
     session.into = into;

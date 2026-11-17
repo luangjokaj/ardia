@@ -290,6 +290,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
     controller.view = root
     controller.view.frame = NSRect(origin: .zero, size: size)
     window.contentViewController = controller
+    if settings { ArdiaChromeWindowHost.insetTrafficLights(of: window) }
     InterfaceScale.rootAttached(root)
     window.setContentSize(size)
     window.delegate = self

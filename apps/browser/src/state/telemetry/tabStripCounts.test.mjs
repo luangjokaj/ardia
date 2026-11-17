@@ -6,7 +6,6 @@ import {
   noteTabStripGroupToggle,
   noteTabStripOverflow,
   noteTabStripHeldClose,
-  noteTabStripHeldOntoDrop,
   noteTabStripRevealAfterPress,
   noteTabStripRevealHeldForScroll,
   noteTabStripScrolled,
@@ -20,7 +19,6 @@ const ZERO = {
   pinned_rows_made_text_only: 0,
   tab_strip_compact_layouts: 0,
   tab_strip_edge_scroll_drags: 0,
-  tab_strip_held_onto_drops: 0,
   tab_strip_reveals_after_press: 0,
   tab_strip_most_tabs: 0,
   tab_strip_held_closes: 0,
@@ -43,11 +41,10 @@ test("compact layouts, edge-scrolled drags and reveals held for a press are coun
   noteTabStripEdgeScroll();
   noteTabStripEdgeScroll();
   noteTabStripRevealAfterPress();
-  noteTabStripHeldOntoDrop();
   noteTabStripOverflow(40);
   noteTabStripOverflow(120);
   noteTabStripOverflow(60);
-  assert.deepEqual(takeTabStripCounts(), { ...ZERO, tab_strip_compact_layouts: 1, tab_strip_edge_scroll_drags: 2, tab_strip_held_onto_drops: 1, tab_strip_reveals_after_press: 1, tab_strip_most_tabs: 120 });
+  assert.deepEqual(takeTabStripCounts(), { ...ZERO, tab_strip_compact_layouts: 1, tab_strip_edge_scroll_drags: 2, tab_strip_reveals_after_press: 1, tab_strip_most_tabs: 120 });
   assert.deepEqual(takeTabStripCounts(), ZERO);
 });
 

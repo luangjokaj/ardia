@@ -41,35 +41,8 @@ export const LINUX_WORDING: readonly Wording[] = [
     replacements: [["`Auto · ${toDark ? \"Dark\" : \"Light\"} like your ${PLATFORM_TERMS.computer}`", "`Auto · ${toDark ? \"Dark\" : \"Light\"} like your desktop`"]],
   },
   {
-    file: "components/settings/panes/Appearance.tsx",
-    replacements: [["{ value: \"system\", title: `Follow ${PLATFORM_TERMS.os}` }", `{ value: "system", title: "Follow system" }`]],
-  },
-  {
-    file: "components/settings/rows/generalRows.ts",
-    replacements: [
-      ["description: PLATFORM_FEATURES.quitsWithLastWindow ? `Asks before ${APP} quits when you close its last window.` : `Asks before ${APP} quits with ${keyText(\"⌘Q\")}.`", "description: `Asks before ${APP} quits with Ctrl+Shift+Q.`"],
-      ["description: `Asks before ${keyText(\"⇧⌘W\")} or the close button closes its tabs.`", `description: "Asks before the close button or File › Close Window closes its tabs."`],
-      ["The window buttons stay at the top left.", "The window buttons move with the sidebar."],
-    ],
-  },
-  {
-    file: "components/settings/rows/appearanceRows.ts",
-    replacements: [
-      [
-        `"Follow macOS uses System Settings › Appearance › Show scroll bars. Thin shows slim scroll bars over the page only while you scroll, even with a mouse."`,
-        `"Follow system keeps the scroll bars your desktop shows. Thin shows slim scroll bars over the page only while you scroll, even with a mouse."`,
-      ],
-    ],
-  },
-  {
-    file: "components/settings/panes/Privacy.tsx",
-    replacements: [[`description="Built on EasyList and EasyPrivacy. Blocking happens on this Mac."`, `description="Built on EasyList and EasyPrivacy. Blocking happens on this computer."`]],
-  },
-  {
-    file: "components/settings/rows/privacyRows.ts",
-    replacements: [
-      ["title: `Zoom with ${keyText(\"⌘\")} and the mouse wheel`", `title: "Zoom with Ctrl and the mouse wheel"`],
-    ],
+    file: "components/settings/panes/General.tsx",
+    replacements: [["label: PLATFORM_FEATURES.quitsWithLastWindow ? `Quitting when you close the last window` : `Quitting with ${keyText(\"⌘Q\")}`", `label: "Quitting with Ctrl+Shift+Q"`]],
   },
   {
     file: "state/telemetry/copy.ts",

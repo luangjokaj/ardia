@@ -490,6 +490,26 @@ for (const busy of [0, 120]) {
       `bar "${bar}", page "${inPage}"`);
   }
 }
+for (const mode of ["page", "commandBar"]) {
+  await ac(`ac.store.getState().updateSettings({ newTabOpens: ${JSON.stringify(mode)} }); return 1;`);
+  for (const busy of mode === "page" ? [450, 700, 1200] : [450]) {
+    for (const gap of [50, 600]) {
+      await resetToPageField("", [0, 0]);
+      await busyJsOnce(busy);
+      const typed = [["q", 12], ["w", 13], ["e", 14]].map(([k, code], i) => keyPress(k, code, i ? 15 : gap, []));
+      await postKeys([keyPress("t", 17), ...typed]);
+      await sleep(busy + 1500);
+      const bar = (await devWindow("ax")).split("\n").find((l) => /AXTextField/.test(l))?.trim().replace(/^AXTextField:? ?/, "") ?? "";
+      const inPage = await pageField("f.value");
+      const trace = await ac(`return globalThis.expo.modules.ArdiaDev.devFocusHandoffTrace();`);
+      const began = trace.findLastIndex((l) => / begin /.test(l));
+      const dropped = began < 0 || trace.slice(began).some((l) => / drop /.test(l));
+      check(`⌘T then typing at +${gap} ms, JS busy ${busy} ms, New tab opens ${mode}: the letters land in the box, in order, with no beep`,
+        bar === "qwe" && inPage === "" && !dropped, `box "${bar}", page "${inPage}", dropped or no gate ${dropped}`);
+    }
+  }
+}
+await ac(`ac.store.getState().updateSettings({ newTabOpens: "page" }); return 1;`);
 {
   await resetToPageField("", [0, 0]);
   await clipboard.set("ordered");

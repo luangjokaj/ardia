@@ -63,7 +63,8 @@ import { noticeUnsandboxedLaunch } from "./sandboxNotice";
 import { countLoginPasswordChecks } from "./reauthCounts";
 import { startPipPlayer } from "./pipPlayer";
 import { startLinuxShortcuts } from "./shortcutsRuntime";
-import { linuxWindowMenu, TrafficLights } from "./TrafficLights";
+import { linuxWindowMenu } from "./linuxWindowMenu";
+import { followWindowMaximized } from "./windowMaximized";
 import { createUtilitySessionSnapshot, initialLinuxSession, isLinuxUtility, setSessionDeparture, setSessionFlush } from "./session";
 import { startUtility } from "./utility";
 import { announceShellPainted } from "./shellPainted";
@@ -106,6 +107,7 @@ async function start() {
   const restoreSession = launch ? configRestoreSession() : undefined;
   setStoreBatching(unstable_batchedUpdates);
   useBrowser.getState().hydrate(initialLinuxSession(ardiaHost, saved?.settings && restoreSession !== undefined ? { ...saved, settings: { ...saved.settings, restoreSession } } : saved));
+  followWindowMaximized(ardiaHost, windowId);
   startConfigFiles(colorRoles, launch);
   startHostTelemetry({ host: ardiaHost, candidate: !utility, locks: navigator.locks as unknown as LeaderLocks });
   countLoginPasswordChecks(linuxTelemetryHooks.leading);
@@ -169,7 +171,6 @@ async function start() {
       <div className="ardia-window">
         {!utility && <InWindowPlayer windowId={windowId} />}
         <WindowRoot windowId={windowId} />
-        <TrafficLights windowId={windowId} />
       </div>
       <MenuHost />
       <FirstWindowCommitted typeahead={!utility} />

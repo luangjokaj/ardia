@@ -18,11 +18,11 @@ import { font, iconButton } from "../ui/tokens";
 import { DockContext, FloatingStrip } from "./context";
 import { tabIn, tileHold } from "./dockCross";
 import { FadeIn } from "./FadeIn";
-import { dropAt, useOnto, type GroupOut, type StripDrag } from "./model";
+import { dropAt, type GroupOut, type StripDrag } from "./model";
 import { PinnedFace } from "./PinnedFace";
 import { SelectedTab } from "./SelectedTab";
 import { CELL_STEP, dragRange, leaveIndex, type DragGeometry } from "./stripGroups";
-import { AUDIO_BADGE, CHIP_LABEL_GAP, CHIP_PAD, CLOSE_MIN_CHIP, DROP_RING_WIDTH, FAVICON, GAP, ITEM_HEIGHT, ITEM_TOP, PINNED_CELL, tabRadius, TITLE_FADE_MAX, TITLE_FADE_MIN, TITLE_MIN_CHIP, TOP_STRIP_HEIGHT, WIDTH_SPRING } from "./tokens";
+import { AUDIO_BADGE, CHIP_LABEL_GAP, CHIP_PAD, CLOSE_MIN_CHIP, FAVICON, GAP, ITEM_HEIGHT, ITEM_TOP, PINNED_CELL, tabRadius, TITLE_FADE_MAX, TITLE_FADE_MIN, TITLE_MIN_CHIP, TOP_STRIP_HEIGHT, WIDTH_SPRING } from "./tokens";
 import { useStripDrag } from "./useStripDrag";
 import { StripScrollContext } from "./stripScroll";
 import { useStripCardHover } from "./StripHoverCard";
@@ -58,7 +58,6 @@ export const DraggableChip = memo(function DraggableChip({
 }) {
   const active = useIsActiveTab(tabId);
   const windowId = useWindowId();
-  const dragToGroup = useSettings((s) => s.dragToGroupInTopStrip);
   const strip = useContext(DockContext);
   const scroll = useContext(StripScrollContext);
   const topLevel = !givenGeometry && !group;
@@ -92,9 +91,6 @@ export const DraggableChip = memo(function DraggableChip({
     },
     get cross() {
       return dockOf() ? tabIn(() => strip?.current ?? null, fromOf(), width) : undefined;
-    },
-    get targets() {
-      return dragToGroup && topLevel && fromOf() >= 0 ? strip?.current.targets : undefined;
     },
     drop: (dx, ids) => {
       if (!member) return false;
@@ -154,7 +150,6 @@ export const TabChip = memo(function TabChip({ tabId, width, drawn, tuck, dragge
   const onTint = useTheme();
   const windowId = useWindowId();
   const tab = useTab(tabId);
-  const onto = useOnto({ kind: "tab", id: tabId });
   const active = useIsActiveTab(tabId);
   const theme = active ? surfaceTheme(onTint) : onTint;
   const floating = useContext(FloatingStrip);
@@ -181,13 +176,12 @@ export const TabChip = memo(function TabChip({ tabId, width, drawn, tuck, dragge
         {dragged && !active && (
           <View pointerEvents="none" style={{ position: "absolute", left: 0, width, top: ITEM_TOP, height: ITEM_HEIGHT, borderRadius: tabRadius(), backgroundColor: theme.windowTint[0] }} />
         )}
-        {onto && <OntoRing width={width} />}
         <TabPressArea windowId={windowId} tab={tab} style={StyleSheet.absoluteFill} pressStyle={{ flex: 1 }}>
           {({ pressed }) => (
             <ChipRow
               hover={chipHover}
               dragged={dragged}
-              quiet={active || onto}
+              quiet={active}
               pressed={pressed && !active}
               inset={compact ? (width - FAVICON) / 2 : undefined}
               action={closable &&
@@ -273,26 +267,6 @@ function ChipRow({
         </HoverSlot>
       )}
     </ItemRow>
-  );
-}
-
-export function OntoRing({ width }: { width: number | Animated.Value }) {
-  const theme = useTheme();
-  return (
-    <FadeIn
-      style={{
-        left: 0,
-        top: ITEM_TOP,
-        width,
-        height: ITEM_HEIGHT,
-        borderRadius: tabRadius(),
-        borderWidth: DROP_RING_WIDTH,
-        borderColor: theme.accent,
-        backgroundColor: theme.tabPressed,
-      }}
-    >
-      {null}
-    </FadeIn>
   );
 }
 

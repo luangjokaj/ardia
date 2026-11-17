@@ -7,7 +7,7 @@ The fix is `FocusHandoff` in packages/shell/ios/FocusHandoff.swift.
 
 **How a handoff runs**
 - The command resigns the page's RenderWidgetHostViewCocoa synchronously.
-- A gate opens for that window with a 400 ms lifetime, counted from the first command. A newer command while the gate is open starts a newer generation without extending the deadline.
+- A gate opens for that window and holds keys and edit actions for up to 3 s while the command's field mounts and takes focus. A newer command while the gate is open starts a newer generation and gives it the full 3 s again. The gate used to last 400 ms, so with the JS thread busy for 450 ms or more the first keys after ⌘T beeped or went back into the old page (#816).
 - Edit › Cut, Copy, Paste, Paste and Match Style and Select All wait on the newest generation.
 
 **Delivery: one path only.** The field that generation's command focuses (the New Tab box, the command bar, Find, or the page a new tab opens on) claims the generation and is verified as first responder. Only then are the waiting actions performed, and only on it.
@@ -30,5 +30,5 @@ Codex reviews r1–r8 found these not to be safely fixable inside this scope:
 - **Services and text-system edit commands** (DefaultKeyBinding `paste:`, a Services `insertText:`). They bypass the Edit menu.
 - **A chrome field (Find, the address field) as the source.** Nothing is resigned and nothing is gated.
 - **Plain keystrokes typed during the handoff.** A resigned page drops them.
-- **Edit actions while the destination is slower than 400 ms** (a very busy JS thread). They're dropped with a beep, and the next press works.
+- **Edit actions while the destination is slower than 3 s** (a very busy JS thread). They're dropped with a beep, and the next press works.
 - **Selection timing.** RN applies a text input's selection in a later UI block than its focus. The claim hops through the UIManager queue first, but a selection queued after that hop can still land after the paste.

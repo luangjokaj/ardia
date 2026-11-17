@@ -13,6 +13,7 @@
 #include "GradientFailures.h"
 #include "LaunchConfig.h"
 #include "Host.h"
+#include "InstanceLoad.h"
 #include "LaunchLog.h"
 #include "LoggedErrors.h"
 #include "Modules.h"
@@ -147,7 +148,7 @@ static int Prepare(const ArdiaEngineApi *engine) {
 #endif
 
   Ardia::WindowManager::Shared().Prewarm();
-  host->reactHost.ReloadInstance();
+  Ardia::InstanceLoad::Start();
   Ardia::LaunchLog::Write(L"launch", L"instance loading");
   return 0;
 }

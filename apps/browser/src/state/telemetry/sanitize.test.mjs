@@ -303,10 +303,7 @@ test("the settings snapshot reports borderless mode and its default without chan
   assert.deepEqual(cleanProperties(snap), snap);
 });
 
-test("the snapshot says whether text adjusts to the colour, and how many profiles have a custom colour, never which", () => {
-  const snap = settingsSnapshot({ ...DEFAULT_SETTINGS, adaptTextToColor: false });
-  assert.equal(snap.setting_adaptTextToColor, "false");
-  assert.equal(snap.default_adaptTextToColor, "true");
+test("the snapshot says how many profiles have a custom colour, never which", () => {
   const theme = { stops: [{ x: 0, y: 0, color: { r: 0.88, g: 0.88, b: 0.88, a: 1 } }], intensity: 1, mode: "dark" };
   const counted = customColorProfiles({ a: { name: "Work", theme }, b: { name: "Home" }, c: { name: "Play", theme: null } });
   assert.deepEqual(counted, { custom_color_profiles: "1" });

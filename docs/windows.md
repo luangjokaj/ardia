@@ -260,9 +260,9 @@ what differs; the Mac's list is `docs/dia-feature-parity.md`. Rows marked "hidde
     close. It asks before the window closes, so a Cancel leaves the window and the app as they were and no quit
     starts; Quit closes the window and the quit above runs as before. A close that asked it never also shows the
     close-tabs confirm. The dialog is the shared confirm on the dialog thread (#1672). Closing Settings when it is
-    the only window left quits without asking: Settings closes without a close request. A window that closes
-    elsewhere while a close-tabs confirm is open isn't counted again, so that close can then quit without asking.
-    Both are #1803.
+    the only window left quits without asking: Settings closes without a close request (#1803). When another window
+    closes while a close-tabs confirm is open, confirming it asks the quit question too, since that close now quits:
+    the only close that shows both dialogs (#1889; `quit_warnings_after_tabs_confirm` and its `_cancelled` count them).
   - Windows fade as on the Mac (`WindowFade.h`), fade only with no grow. A window opened with `animated`, and every
     window that is not a browser window (Little Ardia, Settings, Import: the Mac's system animates those open),
     stays transparent until its React root has content or for 0.6 s, then fades in over 0.25 s (Little Ardia
@@ -315,6 +315,119 @@ what differs; the Mac's list is `docs/dia-feature-parity.md`. Rows marked "hidde
   shortcut still runs. The launch log says `keys escape capture on|off` and
   `keys escape sent to the open popover or drag`. The Mac's Downloads popover does not close on Escape yet
   (`PLATFORM_FEATURES.escapeClosesDownloads` is off there).
+- The new tab's bar takes the keyboard about 50 ms after Ctrl+T (#2098). It used to take it only on its first layout,
+  60 to 280 ms after the command on CI's runner, after the whole New Tab page had mounted, and the letters typed
+  before then went to the previous tab's hidden bar.
+  - **The change:** with `PLATFORM_FEATURES.newTabBarFirst` (Windows only; the Mac and Linux keep today's order), a
+    fresh New Tab page commits its bar alone, and the bar focuses in its commit's layout effect, with the layout event
+    as the fallback. The rest of the page (the logo mark, the intro glow, the bar's shadows, `NewTabExtras`) mounts a
+    frame after the bar lays out.
+  - **Launch log:** `new tab bar page|committed|focused|rest|typed <tab>` (`platform/newTabMarks.windows.ts`);
+    `typed` is the bar's first typed change, once per page.
+  - **Tour:** the `first-run` part of `scripts/windows/tour.ps1` presses Ctrl+T and types the first key 100 ms later,
+    in fresh launches after Get Started, during and after the tool tour, under CPU and disk load, and with the Go
+    button. A stop fails only when the new tab's bar takes focus more than 90 ms after the `newTab` command (the
+    worst seen was 69 ms under load), or the first key does not land in the new tab's bar (its first `typed` mark
+    after the command, and the settled text starting with that key). A stop typing from 15 ms after Ctrl+T
+    must keep every key (#2099). The rest is report only: the whole text at 30 ms a key (#2101), where Go goes
+    (#2102), and three launches each typing at 80 and at 120 ms a key that read the field after every key.
+  - **A stalled JS thread** (a slow first launch, #2059) is covered by the key hold below (#2099).
+- The command bar puts back a letter its text field drops (#2101). React Native Windows 0.81's text field applies
+  the state of its first change (event count 0) whenever that state mounts. When JS is busy, as right after Ctrl+T,
+  the state lands after the next letter and wipes it: "example.com" became "eample.com" in 2 of 10 tries at 80 ms a
+  key and 2 of 10 at 120 ms. React Native Windows fixed it with React Native 0.88 (commit 1f59db13f9), not in 0.81.40,
+  and the app uses its prebuilt package, so the bar repairs it instead.
+  - **Where it is lost:** in the control itself. UI Automation reads the RichEdit text live, and it read "ea" while
+    the change events had said "ex" and JS had written nothing.
+  - **The repair:** with `PLATFORM_FEATURES.textInputRevertsFirstChange` (Windows only), `useRevertRepair` acts only
+    when the change events prove which letters went where (`components/omnibox/revertedText.ts`):
+    - every change since the empty field was one letter typed at the end, with the caret there;
+    - JS never wrote the field;
+    - it is within 3 s of the first change;
+    - the field drops back to its first change plus one new letter;
+    - every character involved is printable ASCII, so an IME composition that turns typed letters into か or ê never
+      looks like a revert;
+    - the new text is not a strict prefix of the old one, which Backspace could also make.
+
+    A new text equal to the old one counts: a typed letter has to change the text, so "go" after "go" proves the
+    second "o" came after a revert. It puts the lost letters back where they were and moves the caret after them,
+    since React Native keeps the old caret position. It keeps doing so until native shows the restored text, and
+    stops at any edit that isn't one letter typed at the end. A paste, a selection, Backspace, a completion or any
+    JS write turns it off for that field. It acts at most once per field. The proof comes from the change events
+    alone; it doesn't use key events.
+  - **Launch log:** `bar change <variant> #<count> len <n>`, `bar write <variant> len <n> over native len <m>`,
+    `bar repair <variant> native len <n> to len <m>`, `bar suggestions <ms> ms`, `js stall <ms>` after a New Tab
+    page mounts, `new tab bar gone <tab>` and `new tab pane <tab> mounted|gone|<flags>`
+    (`platform/barMarks.windows.ts`, `platform/newTabMarks.windows.ts`).
+  - **Tour:** these are required to lose no letter:
+    - ten first-run launches each at 80 and 120 ms a key;
+    - in the `typing` part, ten tries each into Ctrl+L's field on a page, a warm Ctrl+T, the top-tabs toolbar field
+      and the floating bar.
+
+    The per-key reads name the focused UI Automation element.
+  - **Telemetry:** `command_bar_letters_restored` in `usage_counts`, counted once per field the repair acted on.
+- A window's views mount only after the React instance finishes loading (#2115, `InstanceLoad.h`). React Native
+  Windows 0.81's `ReactNativeIsland::ShowInstanceLoaded` starts a new surface each time it runs. It runs when a view
+  host attaches to an instance already marked Loaded, and again when the host's `whenLoaded` continuation updates
+  every attached view host. A window that attached between the two got two copies of the app, both alive: every New
+  Tab page mounted twice, and the first letter typed after Ctrl+T went into the copy that then lost focus. It
+  happened in 3 of 27 first-run launches in run 43786493639; each of those logged `Running "main"` twice. `Open` now
+  mounts a window that comes before `ReloadInstance()` completes once it has completed, and logs
+  `window <id> waited <ms> ms for the instance to finish loading`. `window_roots_doubled` in `usage_counts` counts a
+  window whose root mounts while another root for it is still up.
+- The keys typed right after Ctrl+T or Ctrl+L wait for the bar's field (#2099, #2124). The keyboard hook runs on the UI
+  thread and handles a typed key before the queued mount that focuses the new bar, so a key typed then went into the
+  old, dying field or nowhere: 1 of 20 first letters with #2060's mount order and 3 of 20 with main's, at 80 and
+  120 ms a key. `FocusHold.h` holds them, through the Mac's focus-handoff contract:
+  - **Start:** `MenuKeyboard::Emit` gives `newTab` and `focusCommandBar` a `focusGeneration` when the window is
+    visible and in front. Another command ends the hold.
+  - **Ready:** `ArdiaFocus.claimFocus(generation, tag)` names the field, and that field reports native focus
+    (`src/textFocus.ts` calls `fieldFocused`/`fieldBlurred` from `TextInputState.focusInput`, `blurInput` and
+    `unregisterInput`). Windows can't focus a view by tag natively, so it needs both. With
+    `PLATFORM_FEATURES.claimsFollowFocus`, a bar field that already has focus claims when the move asks for it (Ctrl+L
+    on an open bar, a hero bar asked again), and a field claims again when it takes focus. The contract's missing part
+    is #989's acknowledgement; until it lands, a hold gives up 3 s after the command.
+  - **Held:** character keys with no Ctrl, Alt or Win, turned into characters when recorded (`ToUnicodeEx` with flag 4,
+    so the dead-key state is left alone). Modifiers pass. At most 64.
+  - **Replay:** one `WM_CHAR` at a time (a surrogate pair together) posted to the focused `InputSiteWindowClass`
+    window, then a sentinel to the hold's own message window, re-checking the window in front and the focus before the
+    next, waiting 50 ms after the first one's sentinel returns so the field's first change settles before a second letter can meet #2101's
+    revert. No `SendInput`. A failed post, or a sentinel not back within 1 s, ends the hold. A posted character can't be
+    recalled, and the check sees the input window, not which React field inside it has focus. So `src/textFocus.ts`
+    also tells the hold when JS asks another field to take focus (`fieldAsked`, sent before the request; a request
+    before the claim is kept and checked against it), which should end the hold before that move reaches the UI
+    thread: the report is sent first, but that it arrives before Fabric's focus command is expected, not proven. What's left: a focus move inside the window that doesn't come
+    from JS can take characters until the new field's focus report arrives, and a click inside the bar's own field
+    while the replay runs can put a held letter where the click left the caret (Composition clicks reach none of the
+    hold's hooks).
+  - **No second writer during a replay:** when a hold is ready with keys held, `ArdiaFocus` sends the app event
+    `keyHoldReplay` with the field's tag and the count, and again with 0 when the replay ends or the hold drops.
+    Until then that field's bar shows no inline completion and writes none (`state/omnibox/keyHoldReplay.ts`, with a
+    2 s guard so a lost end can't leave completion off); then it computes completion once for the text it has.
+  - **A typed text is never read as a completion's echo on Windows:** a value write from JS fires no change event
+    there, so `PLATFORM_FEATURES.inlineWritesEcho` is off and `useInlineCompletion` doesn't match changes against its
+    pending completion writes. Before, the whole completion arriving as typed text ("example.com" after a completion
+    computed for "e" that hadn't settled) was read as that old write's echo; the bar kept "example.co" and its next
+    render wrote that over the field. Replayed letters made it likely; a person typing the rest of a completion before
+    it settles could hit it too.
+  - **Ends a hold, dropping what it holds and passing the key on:** Ctrl, Alt or Win going down, or a key with them
+    (so AltGr characters and Ctrl+V right after Ctrl+T aren't held; the Ctrl still down from Ctrl+T doesn't count); Backspace and Enter, since a posted key event can't be ordered by the
+    sentinel; a key without a character (Escape, Tab, arrows, function keys); a dead key, `VK_PROCESSKEY` or
+    `VK_PACKET`; a mouse button; another window in front or the window closing; the move cancelled; another field
+    asked to take focus or taking it; a reload; 64 keys; 3 s. The foreground hook watches every process, so leaving for another program
+    ends the hold even while the UI thread is busy. A key whose press was held owes its release to the hold; after a
+    drop its repeats stay swallowed until it's released, even across a new hold. A dead key already
+    pending before Ctrl+T isn't protected.
+  - **Launch log:** `keys hold <g> begun for <command>`, `keys hold <g> ready after <ms> ms, replayed <n>` and
+    `keys hold <g> dropped: <why> with <n> held, <m> replayed`.
+  - **Tour:** the first-letter stop (ten tries each at 80 and 120 ms a key) and the 15 ms stop are required, at the
+    runner's own timing. The `hold-*` stops in the typing part launch with `ARDIA_TEST=keyHoldReadyMs=400`, which keeps
+    a hold from being ready for 400 ms (a slow launch; a warm runner is ready in about 50 ms), so each path runs: all of
+    example.com replayed in ten of ten tries (and ten more at the runner's own timing, no floor), capitals from Shift
+    and Caps Lock, and drops on Backspace, Escape, a click into another
+    window of ours and Notepad taking the keyboard, each logged with keys held. Ctrl+V passes through.
+  - **Telemetry:** `command_bar_key_holds`, `command_bar_keys_replayed` and `command_bar_key_hold_drops_<reason>` in
+    `usage_counts`.
 - "Ctrl+Z reopens closed tabs" works as the Mac's retargeted Undo: with the setting on, the keyboard hook in
   `MenuKeyboard.h` sends `reopenClosedTab` for a plain Ctrl+Z in a browser window (Little Ardia included, Settings and
   Import not) when Reopen isn't disabled, no command is bound to Ctrl+Z, the window itself is the active one (not a
@@ -583,6 +696,33 @@ is plain Chromium.
   app text field is focused while the keyboard is in a page of the field's own window (the command bar, the find bar,
   an empty pane's search field), `ArdiaFocus.takeKeyboardFromPage` activates that window. A page that hides or
   closes leaves full screen, as the Mac's does.
+- Win+Up, Win+Down, Win+Left, Win+Right, Win+Z and their chains work while a page has the keyboard, as natively as
+  with the sidebar (#2148). The shell acts on the window that was in front when the Windows key went down (CI showed
+  an arrow sent later, with the app window in front, still ignored), and a page's own window can't be snapped, so
+  nothing moved. `MenuKeyboard`'s thread hook sees the Windows key go down over a page; when the foreground window is
+  then a page window owned by one of the app's browser or Little Ardia windows (and the instance isn't a background
+  one; a pop-up window's page keeps today's behaviour), the app window takes the foreground at once (same thread, so
+  nothing is taken from another app) and the hook remembers the page. The user's own keys then reach the shell with
+  the app window as its target; nothing is ever sent with `SendInput`, so the shell acts on the arrow's key-down, a
+  held arrow repeats, Win+Left then Up in one press works, and Snap Assist and the snap layouts are the system's. The
+  keyboard goes back to the remembered page through the follow path (`snapKeyHandedBack` to `followHandedBack`, which
+  asks the window's Peek page, or else its shown tab, to follow): at once on the key-up of any other key pressed with
+  the Windows key (V, the period, H, a letter, a digit), so clipboard history, the emoji panel and dictation still
+  type into the page; 150 ms after the Windows key is let go if the app window is still in front and not minimized;
+  or, when Start, Snap Assist or another program came to the front, as soon as the app window is in front again. The
+  shell eats the Windows key's own key-up when a tap opens Start, so the key counts as let go once it is no longer
+  physically down. The page is let go if it or its window goes away, another window of the app comes to the front, the
+  window is minimized, or 5 s pass; if the Windows key is up and another program is still in front then, the page is
+  asked to follow anyway, and the follow path gives it the keyboard when the window is activated again, as Windows
+  gives it back to the last active window today. The page sees one blur and focus. The launch log counts the pages
+  held and given back ("snap keys: … so far"). The launch check presses the five keys with the sidebar and with a page
+  focused, quickly and with the Windows key held 300 ms around the arrow, presses Win+Left then Up in one press and
+  compares it with the sidebar's, presses Win+V, Win+. and a Windows key tap from a page's text box, each dismissed
+  with Escape, and checks after each where the keyboard is and that typing still reaches the box; a pop-up window's
+  page must keep the keyboard, and the pop-up its place, through Win+Up. No clipboard or emoji panel opens on the CI
+  runner, so the check proves that the text box keeps the keyboard, not that a panel inserts into it; the keyboard is
+  back in the page at the key-up of V or the period, before a panel item is picked. Win+Shift+Left and Right need a
+  second monitor and aren't checked.
 - Find in page is the app's bar, as on the Mac. Ctrl+F in a page reaches the app's `findInPage` through `MenuKeyboard`'s
   thread keyboard hook, which sees keys meant for the page windows (the hosted windows have no Chromium shortcuts), so
   Chromium's own find bar never shows. React Native for Windows fires both `onKeyDown` and `onSubmitEditing` for one

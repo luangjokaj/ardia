@@ -44,7 +44,7 @@ export function LittleArdiaWindow() {
   const fullScreen = useWindowFullScreen(windowId);
   const [width, setWidth] = useState(0);
   const frame = usePageFrameInset();
-  const gestures = useSettings((s) => s.littleWindowGestures) && !fullScreen;
+  const gestures = !fullScreen;
   const pinch = useLittleArdiaPinch(windowId);
   const swipe = useLittleArdiaSwipeClose(windowId);
   useEffect(startLittleArdiaNewTabLinks, []);

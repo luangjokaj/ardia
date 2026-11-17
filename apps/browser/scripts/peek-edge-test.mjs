@@ -138,14 +138,6 @@ try {
     }
   });
 
-  await rep.check("with Reveal hidden tabs on hover off, the edge doesn't open it (#1393)", async () => {
-    await run(`st().updateSettings({ revealTabsOnHover: false }); return settle(300);`);
-    assert.equal(await run(`return peek();`), false);
-    await run(`st().updateSettings({ revealTabsOnHover: true }); return away();`);
-    assert.equal(await run(`return peek();`), true, "back on");
-    assert.equal(await run(`return away();`), false);
-  });
-
   await rep.check("a pointer resting on the bottom edge beside the peek keeps it out", async () => {
     assert.equal(await run(`return peek();`), true);
     const out = await run(`return jitter(80, [${HEIGHT - 3}, ${HEIGHT + 3}, ${HEIGHT - 1}, ${HEIGHT + 6}], 160);`);

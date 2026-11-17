@@ -5,8 +5,9 @@ import { takePageFocusReturns } from "./pageFocusReturns";
 import { takeReaderCounts } from "./readerCounts";
 import { takeWindowOcclusionCounts } from "./windowOcclusionCounts";
 import { takeBarLoadFocusCounts } from "./barLoadFocus";
+import { takeFocusHandoffCounts } from "./focusHandoffCounts";
 import { takePageCursorCounts } from "./pageCursorCounts";
 
 export function takeFocusFeatureCounts() {
-  return { ...takeMinimalismCounts(), ...takeReaderCounts(), ...takeHiddenElementCounts(), ...takeChromeSettingsOpens(), ...takeWindowOcclusionCounts(), ...takePageFocusReturns(), ...takeBarLoadFocusCounts(), ...takePageCursorCounts() };
+  return { ...takeMinimalismCounts(), ...takeReaderCounts(), ...takeHiddenElementCounts(), ...takeChromeSettingsOpens(), ...takeWindowOcclusionCounts(), ...takePageFocusReturns(), ...takeBarLoadFocusCounts(), ...takePageCursorCounts(), ...takeFocusHandoffCounts() };
 }

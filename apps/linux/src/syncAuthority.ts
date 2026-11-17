@@ -17,6 +17,8 @@ export const REMOTE_METHODS = [
   "setProfileSynced",
   "setOpenTabsSynced",
   "addRemoteProfile",
+  "removeRemoteProfile",
+  "removeSyncedDevice",
   "adoptProfileTheme",
   "useFolder",
   "sendTargets",

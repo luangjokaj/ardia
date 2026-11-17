@@ -473,6 +473,10 @@ void ConfigureWindow(NSWindow *window) {
   WindowCornerRadius(window);
 }
 
+void InsetUtilityTrafficLights(NSWindow *window) {
+  InsetTrafficLights(window);
+}
+
 }
 
 NSValue *ArdiaTrafficLightsCenter(NSWindow *window) {
