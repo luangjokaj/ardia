@@ -3,6 +3,7 @@
 > The default branch, `riangle`, is the original `main` plus a few patches of mine. Everything else in this README is the original project's.
 >
 > **Patches on top of `main`** (details and commits in [CHANGELOG.md](CHANGELOG.md))
+> - A tab that hasn't loaded yet keeps the New Tab page's profile color background until its page paints ([fork #22](https://github.com/luangjokaj/ardia/pull/22)).
 > - The iPhone app's bundle IDs and app group come from one build setting, `ARDIA_IOS_BUNDLE_ID`.
 > - `scripts/lib/export-developer-id.sh` signs for a team ID that starts with a digit.
 >

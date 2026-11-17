@@ -12,6 +12,12 @@ Each is merged into `riangle` from its branch here. When the original project me
 
 None right now.
 
+### 2026-11-17
+
+#### Fixed
+
+- **Tabs:** switching to a tab that hasn't loaded yet keeps the profile color background of the New Tab page until its page paints, then the page fades in. Before, the content area switched to a fixed backdrop that never quite matched, warmer on one Mac and darker on another, because the New Tab background is the see-through card over the live window blur. The new page now stays invisible until it draws, the way Little Ardia already waited for its pages, with a 4 s fallback. Only on macOS. ([fork #22](https://github.com/luangjokaj/ardia/pull/22), [fork #21](https://github.com/luangjokaj/ardia/issues/21))
+
 ### 2026-11-13
 
 #### Fixed
