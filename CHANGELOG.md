@@ -10,15 +10,7 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 
 Each is merged into `riangle` from its branch here. When the original project merges one, it moves to **Merged into the original project**.
 
-| Pull request | Branch | Status |
-| --- | --- | --- |
-| [#2352](https://github.com/ardia-browser/ardia/pull/2352) Traffic lights: they never stay behind at the peek spot after a hide | [`peek-lights`](https://github.com/luangjokaj/ardia/pull/20) | Open |
-
-### 2026-11-17
-
-#### Fixed
-
-- **Traffic lights:** with auto-hide tabs on, they never stay behind alone at the peek spot after the peeking sidebar hides. Resetting the slide transform and moving the buttons committed in two Core Animation transactions, so a frame drawn in between showed the lights over the toolbar until the next peek; both now commit together. ([#2352](https://github.com/ardia-browser/ardia/pull/2352))
+None right now.
 
 ### 2026-11-13
 
@@ -56,6 +48,7 @@ Each is merged into `riangle` from its branch here. When the original project me
 
 Merged by the original project on 2026-11-17.
 
+- **Traffic lights:** with auto-hide tabs on, they never stay behind alone at the peek spot after the peeking sidebar hides. Resetting the slide transform and moving the buttons committed in two Core Animation transactions, so a frame drawn in between showed the lights over the toolbar until the next peek; both now commit together. ([#2352](https://github.com/ardia-browser/ardia/pull/2352))
 - **Window:** dragging the window's top edge resizes it, maximized too, where the cursor shows resize arrows. Since [57bae1d](https://github.com/ardia-browser/ardia/commit/57bae1d5c) every press on the top 3 pt moved the window instead. A double-click there still zooms, and the drag region just below still moves the window. ([#2340](https://github.com/ardia-browser/ardia/pull/2340), [#1187](https://github.com/ardia-browser/ardia/issues/1187))
 - **Window:** in macOS split view, Ardia's edge follows the divider between the two windows instead of jumping behind it. Ardia launches with Chromium's `AsyncLiveResize` off: it held every resize step until a new frame was drawn, and macOS tiling waits on both windows at each step. ([#2340](https://github.com/ardia-browser/ardia/pull/2340), [#1127](https://github.com/ardia-browser/ardia/issues/1127))
 - **Sidebar:** with auto-hide tabs on, a mouse wheel scrolls the sidebar that slides in from the window's edge again. Since [573d939](https://github.com/ardia-browser/ardia/commit/573d9396404db57cf3fc2aa0845d23bf56f59f7f) the list barely moved: wheel routing skipped the peeking sidebar's outer view, which sat off the window's edge while an inner layer slid it back. ([#2330](https://github.com/ardia-browser/ardia/pull/2330))
