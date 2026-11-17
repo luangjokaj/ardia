@@ -21,7 +21,8 @@ export type AppEvent =
   | { type: "littleArdiaReturnedToApp" }
   | { type: "windowTitleRead" }
   | { type: "keyHoldReplay"; tag: number; count: number }
-  | { type: "littleArdiaGlobalShortcut" };
+  | { type: "littleArdiaGlobalShortcut" }
+  | { type: "windowDragLoop" };
 
 export type AppearanceMode = "auto" | "light" | "dark";
 

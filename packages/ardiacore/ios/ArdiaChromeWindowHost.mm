@@ -19,6 +19,8 @@ BOOL (^gShouldClose)(NSWindow *);
 
 void (^gSwapped)(NSWindow *, NSWindow *);
 
+NSString *(^gFocusHandoffSummary)(NSWindow *);
+
 const void *const kFloatsForWindowManagersKey = &kFloatsForWindowManagersKey;
 
 void AnswerFloatingSubrole(Class windowClass) {
@@ -214,6 +216,7 @@ NSView *ArdiaWindowRootView(NSWindow *window) {
     ArdiaWindowController *shown = weakController;
     if (!p || !coreWindow || !shown) return;
     coreWindow.activeProfile = p;
+    ardia_host::NoteProfileSwitch(p, coreWindow.window);
     const double activeMs = (CACurrentMediaTime() - started) * 1000;
     ArdiaCoreTab *tab = [ArdiaTabStrip activeTabInWindow:shown profile:p];
     ArdiaWebView *view = tab ? [ArdiaTabRegistry viewForTab:tab] : nil;
@@ -335,6 +338,14 @@ NSView *ArdiaWindowRootView(NSWindow *window) {
 
 + (BOOL (^)(NSWindow *, NSEvent *))refusesUnhandledKeyHandler {
   return gRefusesUnhandledKey;
+}
+
++ (void)setFocusHandoffSummaryHandler:(NSString *(^)(NSWindow *))handler {
+  gFocusHandoffSummary = [handler copy];
+}
+
++ (NSString *(^)(NSWindow *))focusHandoffSummaryHandler {
+  return gFocusHandoffSummary;
 }
 
 + (void)embedRootView:(NSView *)root inWindow:(NSWindow *)window {
