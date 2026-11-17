@@ -13,6 +13,7 @@ import type {
   DownloadNavigation,
   FairPlayReport,
   FindResult,
+  FocusRestoreOutcome,
   LoadError,
   MediaAccess,
   MediaFault,
@@ -66,6 +67,7 @@ type NativeEvents = {
   onCommand: PageCommand;
   onPageFocus: object;
   onPagePress: { refused?: boolean };
+  onFocusRestore: { outcome?: string };
   onSelection: { selection: PageSelection | null };
   onScroll: { state: ScrollState };
   onProtectedMedia: ProtectedMediaRequest;
@@ -83,6 +85,8 @@ type NativeEvents = {
 export type Handlers = keyof NativeEvents;
 export type PageEvent = { name: string; data: unknown };
 export type NativeProps = Omit<WebViewProps, Handlers> & { pageEvents: string[]; onPageEvent: (e: NativeSyntheticEvent<PageEvent>) => void };
+
+const FOCUS_RESTORE_OUTCOMES: readonly FocusRestoreOutcome[] = ["focused", "kept", "refused", "gaveUp"];
 
 const PAGE_EVENTS = {
   onNavigationChange: "navigation",
@@ -117,6 +121,7 @@ const PAGE_EVENTS = {
   onCommand: "command",
   onPageFocus: "focus",
   onPagePress: "pagePress",
+  onFocusRestore: "focusRestore",
   onSelection: "selection",
   onScroll: "scroll",
   onProtectedMedia: "protectedMedia",
@@ -168,6 +173,7 @@ const unwrap: { [K in Handlers]: (e: NativeEvents[K]) => Parameters<NonNullable<
   onCommand: (e) => [e],
   onPageFocus: () => [],
   onPagePress: (e) => [e.refused === true],
+  onFocusRestore: (e) => [FOCUS_RESTORE_OUTCOMES.find((o) => o === e.outcome) ?? "unknown"],
   onSelection: (e) => [e.selection],
   onScroll: (e) => [e.state],
   onProtectedMedia: (e) => [e],

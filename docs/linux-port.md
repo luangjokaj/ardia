@@ -1140,7 +1140,19 @@ Linux reads calendars from Evolution Data Server, which GNOME Online Accounts, G
   (`ac_linux_password_check.cc`).
   - The helper must be a root-owned executable no one else can write, in root-owned folders no one else can write,
     at `/usr/sbin`, `/sbin`, `/usr/bin` or NixOS's `/run/wrappers/bin`; without one, reauth stays unavailable.
-  - The helper runs with an empty environment and is killed after 15 s; the typed password is wiped once checked.
+  - The helper runs with an empty environment and is killed after 15 s.
+  - The password field isn't a Views `Textfield` (its model, edit history and `RenderText` keep copies that are freed
+    without being overwritten). `PasswordField` (`ac_linux_password_field.cc`) keeps the typed text and any IME
+    composition in `SecretText` (`ac_linux_secret_text.cc`): a fixed-size buffer in its own mapped page, left out of
+    core dumps and forks, locked against swap where allowed, edited in place and zeroed before it's unmapped. It draws
+    bullets from a character count, has no undo, refuses paste and copy, gives the IME no surrounding text and
+    exposes no value to accessibility. On Confirm the text is encoded straight into another such page, which the
+    helper's stdin write reads from; submit, cancel, closing the window, a superseding request and teardown all zero
+    it. What it can't cover: each keystroke's own event, the IME's commit buffer for that keystroke, and the kernel's
+    socket buffer.
+  - `scripts/linux/password-heap-check.mjs` types random passwords into the real dialog of a package under Xvfb and
+    scans the browser process's memory, as UTF-8 and UTF-16: while typed the password must exist exactly once, text
+    typed over or erased must be gone while the dialog is still open, and nothing may be left once it closes.
   - Wrong passwords back off 2 s, 5 s, 30 s, then 60 s. The grant window and supersession are polkit's.
   - `ProbeReauth` reports such a system as available (`loginPassword`), and `reauth.requested` says which method ran.
 - **Secret routes.**

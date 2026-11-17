@@ -64,7 +64,7 @@ export type WindowsSlice = {
 
   createWindow(options?: CreateWindowOptions): string;
   closeWindow(id: string, options?: CloseWindowOptions): void;
-  setWindowFrame(id: string, frame: Frame, restored?: Frame): void;
+  setWindowFrame(id: string, frame: Frame, restored?: Frame, fitted?: boolean): void;
   setWindowMaximized(id: string, on: boolean): void;
   setWindowFullScreen(id: string, on: boolean, display?: string): void;
   toggleSidebar(windowId: string): void;
@@ -240,8 +240,8 @@ export const createWindowsSlice: StateCreator<BrowserState, [], [], WindowsSlice
     });
   },
 
-  setWindowFrame(id, frame, restored) {
-    set((s) => withWindowFrame(s, id, frame, restored));
+  setWindowFrame(id, frame, restored, fitted) {
+    set((s) => withWindowFrame(s, id, frame, restored, fitted));
   },
 
   setWindowMaximized(id, on) {

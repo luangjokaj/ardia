@@ -1,5 +1,6 @@
 #import "ArdiaHostInternal.h"
 #import "ArdiaLaunchConfig.h"
+#import "ArdiaLittleFitMath.h"
 #import "ArdiaSavedSession.h"
 #import "ArdiaSavedDocument.h"
 #import "ArdiaEarlyWindow.h"
@@ -282,9 +283,9 @@ static NSArray<NSNumber *> *LittleArdiaFrame(id size) {
     width = [size[0] doubleValue];
     height = [size[1] doubleValue];
   }
-  width = MIN(MAX(width, 420), NSWidth(visible));
-  height = MIN(MAX(height, 300), NSHeight(visible));
-  return @[ @(round(NSMidX(visible) - width / 2)), @(round(NSMidY(visible) - height / 2)), @(round(width)), @(round(height)) ];
+  const ardia_little_fit::Rect fitted = ardia_little_fit::Fit(
+      {visible.origin.x, visible.origin.y, visible.size.width, visible.size.height}, {width, height}, {420, 300});
+  return @[ @(fitted.x), @(fitted.y), @(fitted.w), @(fitted.h) ];
 }
 
 static bool gEarlyLittleTried;

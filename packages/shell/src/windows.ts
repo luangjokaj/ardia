@@ -17,7 +17,7 @@ export type WindowControlsNative = {
 export type WindowEvent =
   | { type: "focus"; id: string; fromPage?: boolean }
   | { type: "close"; id: string }
-  | { type: "frame"; id: string; frame: [number, number, number, number]; restored?: [number, number, number, number] }
+  | { type: "frame"; id: string; frame: [number, number, number, number]; restored?: [number, number, number, number]; fitted?: boolean }
   | { type: "fullScreen"; id: string; on: boolean; display?: string }
   | { type: "maximized"; id: string; on: boolean }
   | { type: "sidebarEdge"; id: string; over: boolean; point: [number, number]; screenEdge?: "stopped" | "passed" }

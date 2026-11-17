@@ -137,7 +137,7 @@ export const TabPane = memo(function TabPane({
         <View style={{ flex: 1 }}>
           {visible && !fullscreen && <ShareBar tabId={tabId} />}
           <View style={{ flex: 1 }}>
-            {(mounted || prewarmed) && <TabWebView tabId={tabId} visible={visible && !newTabShown && !isNewTab} warm={!!warm && !newTabShown && !isNewTab} />}
+            {(mounted || prewarmed) && <TabWebView tabId={tabId} visible={visible && !newTabShown && !isNewTab} selected={focused} warm={!!warm && !newTabShown && !isNewTab} />}
             {visible && isNewTab && !small && (
               <TabContentArea contentAreaOf={tabId}>
                 <NewTabDropArea tabId={tabId} accepting={!covered && !lingering}>

@@ -12,6 +12,8 @@ final class WindowManager: NSObject, NSWindowDelegate {
   private var managed: [String: ManagedWindow] = [:]
   private var pending: [PendingOpen] = []
   private var lightsCenters: [String: (center: NSPoint, trailing: Bool)] = [:]
+  private var hostFitSizes: [String: CGSize] = [:]
+  private var landingFits: [String: LittleLandingFit] = [:]
   private var unreportedFrames = Set<ObjectIdentifier>()
   private weak var lastPlaced: NSWindow?
   private static let lastFrameKey = "ArdiaLastWindowFrame"
@@ -142,7 +144,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
     if let lights = lightsCenters[id] { ChromeWindows.setTrafficLightsCenter(lights.center, trailing: lights.trailing, in: window) }
     window.title = title
     Self.identify(window, id: id, kind: entry.kind)
-    if small, frame == nil { placeSmall(window, size: smallSize, pointer: smallPointer) } else if frame != nil || !window.isVisible { place(window, frame: frame, display: display) }
+    if small, frame == nil { placeSmall(window, id: id, size: smallSize, pointer: smallPointer) } else if frame != nil || !window.isVisible { place(window, frame: frame, display: display) }
     relayoutRoot(window)
     managed[id] = entry
     if !small { lastPlaced = window }
@@ -172,7 +174,22 @@ final class WindowManager: NSObject, NSWindowDelegate {
     if small, focus, smallPointer != nil { linkActivation.openedFromLink(window) }
     observeFrame(window)
     reportFrame(window)
+    if small { fitToLanding(entry) }
     fullScreen.windowShown(id)
+  }
+
+  private func fitToLanding(_ entry: ManagedWindow) {
+    let id = entry.id
+    landingFits[id]?.stop()
+    let landing = LittleLandingFit(window: { [weak self] in self?.window(id) }) { [weak self] window, frame in
+      guard let self else { return }
+      self.hostFitSizes[id] = frame.size
+      window.setFrame(frame, display: true)
+      self.reportFrame(window)
+    }
+    landingFits[id] = landing
+    landing.start()
+    if entry.isWaitingToReveal { entry.whenRevealed { [weak landing] in landing?.fit() } }
   }
 
   private func reveal(_ entry: ManagedWindow) {
@@ -319,7 +336,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
     window.collectionBehavior.insert(.moveToActiveSpace)
   }
 
-  private func placeSmall(_ window: NSWindow, size: CGSize?, pointer: NSPoint?) {
+  private func placeSmall(_ window: NSWindow, id: String, size: CGSize?, pointer: NSPoint?) {
     let mouse = pointer ?? NSEvent.mouseLocation
     let screen = (pointer == nil && NSApp.isActive ? NSApp.keyWindow?.screen : nil)
       ?? NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) } ?? NSScreen.main
@@ -328,6 +345,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
     let height = min(max(size?.height ?? 640, window.minSize.height), visible.height)
     let origin = NSPoint(x: (visible.midX - width / 2).rounded(), y: (visible.midY - height / 2).rounded())
     window.setFrame(NSRect(origin: origin, size: NSSize(width: width.rounded(), height: height.rounded())), display: false)
+    hostFitSizes[id] = window.frame.size
   }
 
   func moveToSavedDisplay(_ id: String) {
@@ -412,6 +430,8 @@ final class WindowManager: NSObject, NSWindowDelegate {
 
   private func forget(_ entry: ManagedWindow) {
     LittleArdiaHandoff.shared.forget(entry.id)
+    hostFitSizes[entry.id] = nil
+    landingFits.removeValue(forKey: entry.id)?.stop()
     entry.stopWatchingContent()
     lightsCenters[entry.id] = nil
     entry.takeReveal()?.then.forEach { $0() }
@@ -552,6 +572,12 @@ final class WindowManager: NSObject, NSWindowDelegate {
       UserDefaults.standard.set(lastFrame, forKey: Self.lastFrameKey)
     }
     let f = window.frame
-    ShellEvents.send(.window, ["type": "frame", "id": id, "frame": [f.minX, f.minY, f.width, f.height]])
+    var event: [String: Any] = ["type": "frame", "id": id, "frame": [f.minX, f.minY, f.width, f.height]]
+    if hostFitSizes[id] == f.size {
+      event["fitted"] = true
+    } else {
+      hostFitSizes[id] = nil
+    }
+    ShellEvents.send(.window, event)
   }
 }
