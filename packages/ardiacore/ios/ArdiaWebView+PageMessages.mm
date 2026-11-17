@@ -128,10 +128,8 @@ NSMutableOrderedSet<NSString *> *ScriptFramesOf(ArdiaCoreTab *tab) {
     [self noteScriptFrame:frameId main:main];
     [self callFrame:frameId kind:@"peekConfig" json:PeekConfigJSON(self)];
     AnswerHello(tab, _profile, frameId, main, verifiedOrigin);
-    if (main && _firstPaint.held) {
-      _firstPaint.scripted = YES;
-      [self callFrame:frameId kind:@"firstPaint" json:@"{}"];
-    }
+    if (main) _firstPaint.scripted = YES;
+    if (main && _firstPaint.held) [self callFrame:frameId kind:@"firstPaint" json:@"{}"];
   } else if ([kind isEqualToString:@"displayMediaHello"]) {
     [self callFrame:frameId kind:@"config" json:gDisplayMediaPicker ? @"{\"displayMediaPicker\":true}" : @"{}"];
   } else if ([kind isEqualToString:@"firstPaint"] && main) {

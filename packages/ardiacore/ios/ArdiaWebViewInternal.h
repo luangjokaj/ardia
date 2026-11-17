@@ -229,6 +229,7 @@ typedef NS_ENUM(NSInteger, ArdiaTransfer) {
 
 @interface ArdiaWebView (FirstPaintInternal)
 - (void)holdPageUntilPainted:(BOOL)created;
+- (void)holdCreatedPageShown;
 - (void)showHeldPage:(ArdiaHeldPageEnd)end;
 - (void)showHeldPageOnNextFrame;
 - (void)showHeldPageAfterLoad;

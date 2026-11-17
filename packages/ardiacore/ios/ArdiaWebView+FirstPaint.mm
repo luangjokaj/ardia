@@ -64,6 +64,12 @@ FirstPaintHolds gFirstPaintHolds;
   });
 }
 
+- (void)holdCreatedPageShown {
+  if (!_tab || !_firstPaint.created) return;
+  _firstPaint.created = NO;
+  if (_tab.loading) [self holdPageUntilPainted:YES];
+}
+
 - (void)showHeldPage:(ArdiaHeldPageEnd)end {
   if (!_firstPaint.held) return;
   _firstPaint.held = NO;
