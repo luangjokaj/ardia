@@ -10,9 +10,7 @@ The changelog has two parts. **Only in this fork** lists what the original proje
 
 Each is merged into `riangle` from its branch here. When the original project merges one, it moves to **Merged into the original project**.
 
-| Pull request | Branch | Status |
-| --- | --- | --- |
-| [#2446](https://github.com/ardia-browser/ardia/pull/2446) Tabs: a tab that hasn't painted yet keeps the New Tab background | [`cold-tab-first-paint`](https://github.com/luangjokaj/ardia/tree/cold-tab-first-paint) | Open |
+None right now.
 
 ### 2026-11-17
 
@@ -20,9 +18,9 @@ Each is merged into `riangle` from its branch here. When the original project me
 
 - **iPhone app:** the `ARDIA_IOS_BUNDLE_ID` patch and the README's iPhone build steps are gone. The original project replaced the SwiftUI iPhone app in `apps/ios` with its Expo app in `apps/phone`, which this patch never covered, so the iPhone app now builds with the original's own bundle IDs.
 
-#### Fixed
+#### Changed
 
-- **Tabs:** switching to a tab that hasn't loaded yet keeps the profile color background of the New Tab page until its page paints, then the page fades in. Before, the content area switched to a fixed backdrop that never quite matched, warmer on one Mac and darker on another, because the New Tab background is the see-through card over the live window blur. The new page now stays invisible until it draws, the way Little Ardia already waited for its pages, with a 4 s fallback. Only on macOS. ([fork #22](https://github.com/luangjokaj/ardia/pull/22), [fork #21](https://github.com/luangjokaj/ardia/issues/21))
+- **Tabs:** a page that still hasn't drawn after the 4 s hold shows the New Tab card over a neutral estimate of the active window (`prePaintColor`) instead of the original's warmer inactive tint, so it stays closer to the New Tab background. The hold itself is now the original project's ([#2446](https://github.com/ardia-browser/ardia/pull/2446)). ([fork #22](https://github.com/luangjokaj/ardia/pull/22))
 
 ### 2026-11-13
 
@@ -60,6 +58,7 @@ Each is merged into `riangle` from its branch here. When the original project me
 
 Merged by the original project on 2026-11-17.
 
+- **Tabs:** switching to a tab that hasn't loaded yet keeps the profile color background of the New Tab page until its page paints, then the page fades in. Before, the content area switched to a fixed backdrop that never quite matched, warmer on one Mac and darker on another, because the New Tab background is the see-through card over the live window blur. The new page now stays invisible until it draws, the way Little Ardia already waited for its pages, with a 4 s fallback. Only on macOS. ([#2446](https://github.com/ardia-browser/ardia/pull/2446), [#2445](https://github.com/ardia-browser/ardia/issues/2445))
 - **Traffic lights:** with auto-hide tabs on, they never stay behind alone at the peek spot after the peeking sidebar hides. Resetting the slide transform and moving the buttons committed in two Core Animation transactions, so a frame drawn in between showed the lights over the toolbar until the next peek; both now commit together. ([#2352](https://github.com/ardia-browser/ardia/pull/2352))
 - **Window:** dragging the window's top edge resizes it, maximized too, where the cursor shows resize arrows. Since [57bae1d](https://github.com/ardia-browser/ardia/commit/57bae1d5c) every press on the top 3 pt moved the window instead. A double-click there still zooms, and the drag region just below still moves the window. ([#2340](https://github.com/ardia-browser/ardia/pull/2340), [#1187](https://github.com/ardia-browser/ardia/issues/1187))
 - **Window:** in macOS split view, Ardia's edge follows the divider between the two windows instead of jumping behind it. Ardia launches with Chromium's `AsyncLiveResize` off: it held every resize step until a new frame was drawn, and macOS tiling waits on both windows at each step. ([#2340](https://github.com/ardia-browser/ardia/pull/2340), [#1127](https://github.com/ardia-browser/ardia/issues/1127))

@@ -3,7 +3,7 @@
 > The default branch, `riangle`, is the original `main` plus a few patches of mine. Everything else in this README is the original project's.
 >
 > **Patches on top of `main`** (details and commits in [CHANGELOG.md](CHANGELOG.md))
-> - A tab that hasn't loaded yet keeps the New Tab page's profile color background until its page paints ([fork #22](https://github.com/luangjokaj/ardia/pull/22)).
+> - A page that still hasn't drawn after 4 s shows the New Tab card over a neutral estimate of the active window, closer to the New Tab background than the original's pre-paint colour.
 > - `scripts/lib/export-developer-id.sh` signs for a team ID that starts with a digit.
 >
 > **Staying up to date**
