@@ -100,6 +100,11 @@ export function dropIndex({ slots, lefts }: DragGeometry, from: number, dx: numb
 
 export type Aim = { to: number; onto: number | null };
 
+export function reorderIndex(geometry: DragGeometry, from: number, grab: number, dx: number, pointerAimed: boolean): number {
+  if (!pointerAimed) return dropIndex(geometry, from, dx);
+  return aimDrop(geometry, from, geometry.lefts[from]! + grab + dx, () => false, 0).to;
+}
+
 export function aimDrop({ slots, lefts }: DragGeometry, from: number, pointer: number, target: (index: number) => boolean, edge: number): Aim {
   let to = 0;
   let onto: number | null = null;

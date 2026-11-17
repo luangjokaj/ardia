@@ -180,10 +180,13 @@ owner's Mac ──▶ ardia.dev/_ch/ (read-only ClickHouse user)   ardia.dev/_re
     10 GB, whole GB above), `ctx_memory_pressure` (`normal`, `warning`, `critical`), `ctx_page_processes_gone`,
     `ctx_webui_page` (the built-in page the active tab was on: the host and first path segment of an `ardia://` or
     `chrome://` URL, like `settings/cookies` or `history`, never a query or hash; null on any web page, and on a
+    sample saved by an older version), `ctx_hermes_heap_mb` (Hermes's JS heap in whole MB at that sample, from the
+    same reader as `state/tabs/memoryTrim.ts`, `lib/hermesHeap.ts`; null when the engine reports none and on a
     sample saved by an older version), `ctx_session_min` and `ctx_age_min` (how old the context was at the crash). The context is the latest one
     sampled at or before the crash (the report's `captureTime`; the file's date only decides which reports are new)
     in the session that crashed, else none. Native exception reasons are never sent, only the exception's type, name
-    and stack (older builds sent a scrubbed reason in `$exception_values`). Before 0.2.45-nightly.3 a report from an
+    and stack (older builds sent a scrubbed reason in `$exception_values`). The error that stopped the app's own JS is sent
+    only as a kind from a fixed list (below): `crash_js_fatal`, only on a `native_crash`. Before 0.2.45-nightly.3 a report from an
     older version was dropped (the native reader required the running binary's UUID, JS the running version), so a
     crash found at the first launch after an update never arrived. Crash reports are now read 1 s after an unclean
     launch (5 s otherwise) and again every hour, and the queue goes out 2 s after an unclean launch.
@@ -224,6 +227,34 @@ owner's Mac ──▶ ardia.dev/_ch/ (read-only ClickHouse user)   ardia.dev/_re
     data only, to find which built-in page a crash happens on (#1244: adding a third-party cookie exception on
     `ardia://settings/cookies`). The crash property cleaner lets a `webui_page` value through only in the shape
     `host` or `host/segment` (letters, digits, dashes); anything else is scrubbed like any string.
+  - `crash_js_fatal` is data only, to find why the app's JS stops the app. Two crashes name no reason without it.
+    A Hermes abort (0.2.45–0.2.46 `SIGABRT`s from `hermes + 0x19bea4`, #1980) is a Hades GC out-of-memory: resolved
+    against React Native 0.81.6's `hermes-ios-release` tarball (the shipped hermes has the same UUID, 2CA494AE), the
+    frames are `hermesFatalErrorHandler` ‹ `llvh::report_fatal_error` ‹ `GCBase::oom` ‹ `HadesGC::youngGenCollection`
+    ‹ `allocSlow` ‹ `Object.values` ‹ `Array.prototype.filter`, with 320 to 2,748 tabs open. An `RCTFatalException`
+    (0.2.46 `SIGTRAP` from `Ardia + 0x444da4`, which is `RCTFatal`) is a C++ exception that escaped a task on the
+    JS thread (`RCTJSThreadManager _tryAndHandleError`); its name was over the 64 characters the `.ips` reader allowed,
+    so it arrived as a plain `NSException`. Hermes aborts through a fatal handler, so
+    `HermesFatal.install()` (called in `AppDelegate.swift` before the React host starts, `ArdiaHermesFatal.mm`)
+    registers one with `IHermesRootAPI::setFatalHandler`. It only opens, writes and closes `hermes-fatal.txt` in the
+    data folder: the first line of Hermes's message, at most 200 bytes of printable ASCII, and the process still
+    aborts. `CrashReports.swift` reads all new reports first, then gives that file to the browser-process `SIGABRT`
+    whose crash time is nearest to the file's time, from 2 s before it to 30 s after it (`FatalMatch` in
+    `UpdaterCore`, tested in `FatalMatchTests.swift`), whatever order the reports are listed in. It adds the
+    message as `jsFatal` with `jsFatalSource` `hermes`, and moves the file to `hermes-fatal-last.txt`, which stays
+    on the Mac. A file no report matches is kept for a later read, and set aside after an hour. For an
+    `RCTFatalException` the report gets the exception name's text after `RCTFatalException: ` (React Native puts
+    the error's description there), with `jsFatalSource` `reactNative`. The text never leaves the Mac: `errors.ts`
+    sends only `jsFatalKind`'s kind from `sanitize.ts` (`JS_FATAL_KINDS`): `hermes_heap_limit` (`OOM:` … `Max heap
+    size was exceeded`), `hermes_out_of_memory`, `hermes_stack_overflow`, `hermes_other`; for React Native, from
+    the prefixes React Native's `tryAndReturnError` (`RCTCxxUtils.mm`) writes, `rn_js_type_error`, `rn_js_reference_error`,
+    `rn_js_range_error`, `rn_js_syntax_error`, `rn_js_stack_overflow`, `rn_js_error` (`Unhandled JS Exception:`),
+    `rn_host_function`, `rn_host_object` (Hermes's `Exception in HostFunction` / `HostObject`),
+    `rn_objc_exception`, `rn_cpp_exception` (`non-std …`), `rn_other`; `unknown` without a source; null on
+    every other crash. The release build strips Hermes's local symbols, but the shipped hermes is React Native's
+    prebuilt release binary: `react-native-artifacts-<hermes-engine version in Podfile.lock>-hermes-ios-release.tar.gz`
+    on Maven Central holds it unstripped (`destroot/Library/Frameworks/macosx`), and `atos -o … -l 0 <offset>` resolves
+    a `hermes + 0x…` frame once `dwarfdump --uuid` matches the report's `crash_images` uuid.
   - The dashboard's health table credits app crashes to `crashed_version` and lists a version that has crashes but no
     usage in the window, with no rate.
 - **Checks of the pipeline:** send with service `ardia-selftest` (or version `0.0.0-selftest`); the views

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { cleanProperties, errorCode, errorMessage, errorType, nativeCrashExceptions, nativeFrames, parseStack, scrubText } from "./sanitize.ts";
+import { cleanProperties, errorCode, errorMessage, errorType, JS_FATAL_KINDS, jsFatalKind, nativeCrashExceptions, nativeFrames, parseStack, scrubText } from "./sanitize.ts";
 import { customColorProfiles, narrowWindows, settingsSnapshot, themeFileSnapshot } from "./settingsSnapshot.ts";
 const { DEFAULT_SETTINGS, SETTING_SPECS } = await import("../settings/settings.ts");
 
@@ -332,6 +332,32 @@ test("the theme file snapshot is flags and counts only, and survives sanitizing"
   });
   assert.equal(JSON.stringify(snap).includes("nord") || JSON.stringify(snap).includes("Avenir"), false);
   assert.deepEqual(cleanProperties(snap), snap);
+});
+
+test("jsFatalKind sends only a kind from a fixed list, never the message, and null when there's nothing", () => {
+  const cases = [
+    ["hermes", "OOM: error_code(value = 1, category = vm_allocate_category, message = Max heap size was exceeded)", "hermes_heap_limit"],
+    ["hermes", "OOM: error_code(value = 12, category = generic, message = Cannot allocate memory)", "hermes_out_of_memory"],
+    ["hermes", "Native stack overflow in Hermes", "hermes_stack_overflow"],
+    ["hermes", "failed at https://example.com/a?token=abc and ~/Library/x/y.json", "hermes_other"],
+    ["reactNative", "Unhandled JS Exception: TypeError: undefined is not a function", "rn_js_type_error"],
+    ["reactNative", "Unhandled JS Exception: ReferenceError: x is not defined", "rn_js_reference_error"],
+    ["reactNative", "Unhandled JS Exception: RangeError: Maximum call stack size exceeded", "rn_js_stack_overflow"],
+    ["reactNative", "Unhandled JS Exception: RangeError: Invalid array length", "rn_js_range_error"],
+    ["reactNative", "Unhandled JS Exception: SyntaxError: bad JSON", "rn_js_syntax_error"],
+    ["reactNative", "Unhandled JS Exception: something thrown at https://example.com", "rn_js_error"],
+    ["reactNative", "Exception in HostFunction: Unknown native module at https://example.com/x?token=secret", "rn_host_function"],
+    ["reactNative", "Exception in HostObject::get for prop 'x'", "rn_host_object"],
+    ["reactNative", "non-std ObjC Exception", "rn_objc_exception"],
+    ["reactNative", "non-std C++ exception", "rn_cpp_exception"],
+    ["reactNative", "vector::_M_range_check: __n (which is 7)", "rn_other"],
+    [undefined, "anything", "unknown"],
+  ];
+  for (const [source, text, kind] of cases) {
+    assert.equal(jsFatalKind(source, text), kind, text);
+    assert.ok(JS_FATAL_KINDS.includes(kind), kind);
+  }
+  for (const empty of ["", "   ", undefined, null, 7, {}, ["x"]]) assert.equal(jsFatalKind("hermes", empty), null, String(empty));
 });
 
 test("the snapshot reports the interface size in whole percent with its default, and counts narrow windows in root points", async () => {

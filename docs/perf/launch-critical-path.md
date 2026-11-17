@@ -168,8 +168,10 @@ warm tab, gets a page at launch).
 ## Done in this sprint
 
 - **9ce39c96** `release.sh` strips the engine (`packages/ardiacore/scripts/strip-engine.sh`): the framework 441 → 266 MB,
-  the bundle 592 → 418 MB, UUIDs and exports unchanged (the script checks), unstripped files in `dist/<v>/symbols`
-  (keep that folder with each release: it is what symbolicates a crash in Chrome's framework). `smoke.sh` on a
+  the bundle 592 → 418 MB, UUIDs and exports unchanged (the script checks), unstripped files kept locally in
+  `dist/<v>/symbols` and never uploaded (they hold only the names the official build left in). `publish-engine.sh`
+  uploads a separate symbols archive with each engine, `ArdiaCore-<key>-symbols.tar.xz` with the build's dSYMs, and
+  `scripts/symbolicate-crash.sh` names a crash in Chrome's framework from that. `smoke.sh` on a
   stripped, re-signed copy of 0.2.27: every check passes but the two notarization ones (the copy isn't notarized).
 - **be2ca8f7** `ARDIA_PREWARM=1` exits at the top of `main.swift`; `UpdatePrewarm` (`packages/shell/ios/UpdatePrewarm.swift`)
   runs the update Sparkle staged in `~/Library/Caches/<bundle id>/org.sparkle-project.Sparkle/Installation` when

@@ -132,10 +132,45 @@ test("hardware comes as chip, GPU, memory, displays and hardware decode flags, n
 
 test("a recorded context is saved for the next launch and holds only counts and sizes", async () => {
   const context = await diagnostics.recordContext();
-  assert.deepEqual(Object.keys(context).sort(), ["app_memory_mb", "at", "footprint_mb", "free_disk_gb", "memory_pressure", "page_processes_gone", "profiles", "session_start", "tabs", "webui_page", "windows"]);
+  assert.deepEqual(Object.keys(context).sort(), ["app_memory_mb", "at", "footprint_mb", "free_disk_gb", "hermes_heap_mb", "memory_pressure", "page_processes_gone", "profiles", "session_start", "tabs", "webui_page", "windows"]);
   assert.equal(context.webui_page, null);
   assert.equal(context.footprint_mb, 500);
   assert.equal(JSON.parse(stub.docs.get("telemetry.json")).context.footprint_mb, 500);
+  assert.equal(context.hermes_heap_mb, null, "an engine that reports no heap size leaves it null");
+});
+
+test("the context sample holds Hermes's JS heap in whole megabytes, null when it can't be read, and a crash carries it as ctx_hermes_heap_mb", async () => {
+  const previous = globalThis.HermesInternal;
+  const heap = (stats) => (globalThis.HermesInternal = { getInstrumentedStats: stats });
+  try {
+    heap(() => ({ js_heapSize: 3.5 * 1024 * 1024 * 1024 }));
+    const big = await diagnostics.recordContext();
+    assert.equal(big.hermes_heap_mb, 3584);
+    assert.equal(JSON.parse(stub.docs.get("telemetry.json")).context.hermes_heap_mb, 3584);
+
+    heap(() => ({ js_heapSize: 123_456_789 }));
+    assert.equal((await diagnostics.recordContext()).hermes_heap_mb, 118);
+
+    for (const unreadable of [() => ({}), () => ({ js_heapSize: "big" }), () => ({ js_heapSize: -1 }), () => ({ js_heapSize: NaN }), () => undefined, () => { throw new Error("stats"); }]) {
+      heap(unreadable);
+      assert.equal((await diagnostics.recordContext()).hermes_heap_mb, null);
+    }
+    globalThis.HermesInternal = {};
+    assert.equal((await diagnostics.recordContext()).hermes_heap_mb, null);
+    globalThis.HermesInternal = undefined;
+    assert.equal((await diagnostics.recordContext()).hermes_heap_mb, null);
+
+    heap(() => ({ js_heapSize: 2 * 1024 * 1024 * 1024 }));
+    const sampled = await diagnostics.recordContext();
+    const time = Math.max(sampled.at, client.crashCursor()) + 1000;
+    stub.diagnostics.crashReports = [{ time, fileTime: time + 500, process: "browser", exceptionType: "EXC_CRASH", signal: "SIGABRT", frames: [{ image: "hermes", offset: 0x19bea4 }] }];
+    await reportNativeCrashes([sampled]);
+    const crash = events("$exception").at(-1).properties;
+    assert.equal(crash.ctx_hermes_heap_mb, 2048);
+    assert.equal(diagnostics.contextProperties({ at: 5000, session_start: 1000 }, "ctx_", 6000).ctx_hermes_heap_mb, null, "a sample saved before the field existed");
+  } finally {
+    globalThis.HermesInternal = previous;
+  }
 });
 
 test("the built-in page is the host and first path segment of an ardia:// or chrome:// URL, and null for any web URL", () => {

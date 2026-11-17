@@ -5,6 +5,7 @@ type ScreenEdge = NonNullable<Extract<WindowEvent, { type: "sidebarEdge" }>["scr
 const NONE = {
   sidebar_slides: 0,
   sidebar_slides_past_target: 0,
+  sidebar_page_full_screen_peeks: 0,
   sidebar_peek_reveals_held_back: 0,
   sidebar_peek_resizes: 0,
   sidebar_peek_closes_while_resizing: 0,
@@ -24,6 +25,8 @@ export function noteSidebarSlide(pastTarget: boolean) {
 }
 
 export const noteSidebarPeekRevealHeldBack = () => void counts.sidebar_peek_reveals_held_back++;
+
+export const notePageFullScreenPeek = () => void counts.sidebar_page_full_screen_peeks++;
 
 export const noteSidebarPeekResize = () => void counts.sidebar_peek_resizes++;
 

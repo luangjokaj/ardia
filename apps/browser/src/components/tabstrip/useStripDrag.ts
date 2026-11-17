@@ -5,15 +5,16 @@ import { setStripOnto, storeChangedSince, storeMark } from "../../state/tabs/top
 import { curve } from "../ui/motion";
 import { dropOnto, ontoKey, releaseDrop, reorder, type DropTarget, type Landing, type StripDrag } from "./model";
 import { raiseView } from "../../state/windows/nativeWindow";
-import { aimDrop, dragRange, dropIndex } from "./stripGroups";
+import { aimDrop, dragRange, dropIndex, reorderIndex } from "./stripGroups";
 import { makeRoom, registerSlot, reorderOffsets, settleRoom } from "./stripReorder";
 import { SLIDE } from "./tokens";
 import { AUTO_SCROLL_MAX, AUTO_SCROLL_ZONE, LIFT_MS, LIFT_SLOP, ONTO_EDGE, TOP_STRIP_HEIGHT } from "./tokens";
 import { autoScrollSpeed } from "./stripScroll";
-import { noteTabStripEdgeScroll } from "../../state/telemetry/tabStripCounts";
+import { noteTabStripEdgeScroll, noteTabStripHeldOntoDrop } from "../../state/telemetry/tabStripCounts";
 import { endHeldTabPress, TAB_CLICK_SLOP } from "../../state/sidebar/heldTabPress";
 import { currentSettings } from "../../state/browser/current";
 import { hapticTick } from "../../state/drag/dragNative";
+import { FOLDER_HOLD_MS } from "../sidebar/dragModel";
 
 const IDLE = { kind: "idle" } as const;
 
@@ -33,7 +34,33 @@ export function useStripDrag(item: StripDrag) {
     if (!targets || from < 0) return null;
     return aimDrop(geometry, from, geometry.lefts[from]! + drag.current.grab + dx, (i) => !!targets[i], ONTO_EDGE);
   };
-  const indexAt = (dx: number) => aimAt(dx)?.to ?? dropIndex(latest.current.geometry, latest.current.from, dx);
+  const reorderAt = (dx: number) => {
+    const { geometry, from, targets } = latest.current;
+    return from < 0 ? null : reorderIndex(geometry, from, drag.current.grab, dx, !!targets);
+  };
+  const indexAt = (dx: number) => reorderAt(dx) ?? dropIndex(latest.current.geometry, latest.current.from, dx);
+  const hold = useRef({ key: null as string | null, ready: false, timer: undefined as ReturnType<typeof setTimeout> | undefined });
+  const dropHold = () => {
+    clearTimeout(hold.current.timer);
+    hold.current = { key: null, ready: false, timer: undefined };
+  };
+  const heldOnto = (target: DropTarget | null): DropTarget | null => {
+    if (target?.kind !== "tab") {
+      dropHold();
+      return target;
+    }
+    const key = ontoKey(target);
+    if (hold.current.key === key) return hold.current.ready ? target : null;
+    dropHold();
+    hold.current.key = key;
+    hold.current.timer = setTimeout(() => {
+      if (hold.current.key !== key) return;
+      hold.current.ready = true;
+      const g = drag.current.gesture;
+      if (g && phase.current.kind === "dragging") moveTo(g);
+    }, FOLDER_HOLD_MS);
+    return null;
+  };
   const setOnto = (target: DropTarget | null) => {
     if (ontoKey(drag.current.onto) === ontoKey(target)) return;
     drag.current.onto = target;
@@ -79,6 +106,7 @@ export function useStripDrag(item: StripDrag) {
   };
   const reset = () => {
     stopAutoScroll();
+    dropHold();
     phase.current = IDLE;
     setCross(false);
     setOnto(null);
@@ -133,8 +161,10 @@ export function useStripDrag(item: StripDrag) {
     setCross(across);
     const aim = across || lifted ? null : aimAt(along);
     const aimedBefore = drag.current.to >= 0 ? `${drag.current.to}:${ontoKey(drag.current.onto)}` : null;
-    setOnto(aim?.onto != null ? (latest.current.targets?.[aim.onto] ?? null) : null);
-    if (!across) makeRoomAt(lifted || from < 0 ? -1 : (aim?.to ?? dropIndex(geometry, from, along)));
+    const onto = heldOnto(aim?.onto != null ? (latest.current.targets?.[aim.onto] ?? null) : null);
+    setOnto(onto);
+    const to = onto?.kind === "tab" ? from : onto ? aim?.to : reorderAt(along);
+    if (!across) makeRoomAt(lifted || from < 0 ? -1 : (to ?? dropIndex(geometry, from, along)));
     const aimedNow = drag.current.to >= 0 ? `${drag.current.to}:${ontoKey(drag.current.onto)}` : null;
     if (!across && aimedBefore && aimedNow && aimedNow !== aimedBefore && currentSettings().tabReorderHaptics) hapticTick();
     if (!local) updateTabDrag(g.moveX, g.moveY, lifted);
@@ -166,6 +196,7 @@ export function useStripDrag(item: StripDrag) {
   useEffect(
     () => () => {
       stopAutoScroll();
+      dropHold();
       landSettle();
       if (phase.current.kind !== "dragging") return;
       setOnto(null);
@@ -194,6 +225,7 @@ export function useStripDrag(item: StripDrag) {
           dx.setValue(0);
           const mine = { stripBottom: TOP_STRIP_HEIGHT, lifted: false, ids, dx: 0, to: -1, grab: latest.current.width / 2, crossed: false, onto: null, far: travel(g.moveX, g.moveY), scrolled: 0, viewport: null as readonly [number, number] | null, gesture: null, frame: 0 };
           stopAutoScroll();
+          dropHold();
           setOnto(null);
           drag.current = mine;
           phase.current = { kind: "dragging" };
@@ -218,6 +250,7 @@ export function useStripDrag(item: StripDrag) {
         },
         onPanResponderRelease: (e, gesture) => {
           stopAutoScroll();
+          dropHold();
           if (drag.current.scrolled) noteTabStripEdgeScroll();
           const g = { dx: gesture.dx + drag.current.scrolled, moveX: gesture.moveX, moveY: gesture.moveY };
           const { local, drop, from, range, geometry } = latest.current;
@@ -243,6 +276,7 @@ export function useStripDrag(item: StripDrag) {
             dropOnto: () => {
               const dropped = !!(onto && dropOnto(onto, ids));
               if (dropped) settleRoom(geometry);
+              if (dropped && onto?.kind === "tab") noteTabStripHeldOntoDrop();
               return dropped;
             },
             move: () => {

@@ -3,6 +3,7 @@ import { onHoverLost, systemState, type HoverLostEpisode } from "../../platform/
 import { cliControlStatus } from "../../platform/cli";
 import { call } from "../../platform/engine";
 import { withDeadline } from "../../lib/deadline";
+import { hermesHeapMegabytes } from "../../lib/hermesHeap";
 import { activeTab } from "../browser/model";
 import { useBrowser } from "../browser/store";
 import { capture, isSharing, saveContext, useTelemetry } from "./client";
@@ -84,6 +85,7 @@ export async function recordContext(): Promise<SavedContext | null> {
     memory_pressure: pressure,
     page_processes_gone: pageProcessesGone,
     webui_page: activeWebuiPage(),
+    hermes_heap_mb: hermesHeapMegabytes(),
   };
   if (!isSharing()) return null;
   samples = keepRecent([...samples, context], now);
@@ -156,7 +158,7 @@ export function stopContextSamples() {
   firstSample = everySample = webuiRecord = unwatchWebuiPage = undefined;
 }
 
-const CONTEXT_FIELDS = ["tabs", "windows", "profiles", "footprint_mb", "app_memory_mb", "free_disk_gb", "memory_pressure", "page_processes_gone", "webui_page"] as const;
+const CONTEXT_FIELDS = ["tabs", "windows", "profiles", "footprint_mb", "app_memory_mb", "free_disk_gb", "memory_pressure", "page_processes_gone", "webui_page", "hermes_heap_mb"] as const;
 
 export function contextProperties(context: SavedContext | null, prefix: string, at: number): Record<string, unknown> {
   if (!context || typeof context.at !== "number") return {};

@@ -29,7 +29,7 @@ import { useStripCardHover } from "./StripHoverCard";
 import { useChipHover, useChipHovered, useOwnChipHover, type ChipHover } from "./reachableHover";
 import { TabPressArea } from "../sidebar/TabPressArea";
 import { tabTitle } from "../../state/browser/model";
-import { awayTitle } from "../../state/pins/organize";
+import { rowAwayTitle } from "../../state/pins/organize";
 import { AwayTitleLabel } from "../sidebar/AwayTitle";
 import { useStruckTitle } from "../../state/sidebar/rowState";
 import { SLEEPING_TITLE_OPACITY } from "../sidebar/tokens";
@@ -168,7 +168,7 @@ export const TabChip = memo(function TabChip({ tabId, width, drawn, tuck, dragge
   const struck = useStruckTitle(tabId);
   if (!tab) return null;
   const title = tab.customTitle ? tabTitle(tab) : titleWithoutUnread(tabTitle(tab), unread);
-  const away = awayTitle(tab);
+  const away = rowAwayTitle(tab);
   const compact = !active && !tuck && width < TITLE_MIN_CHIP;
   const titleFade = Math.max(TITLE_FADE_MIN, Math.min(TITLE_FADE_MAX, (width - CHIP_PAD.left - FAVICON - CHIP_LABEL_GAP - CHIP_PAD.right) / 3));
   const closable = active || !!tuck || width >= CLOSE_MIN_CHIP;

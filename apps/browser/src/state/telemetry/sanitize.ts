@@ -65,6 +65,57 @@ export function errorType(error: unknown): string {
   return typeof error === "undefined" ? "Undefined" : error === null ? "Null" : "NonError";
 }
 
+export const JS_FATAL_KINDS = [
+  "hermes_heap_limit",
+  "hermes_out_of_memory",
+  "hermes_stack_overflow",
+  "hermes_other",
+  "rn_js_type_error",
+  "rn_js_reference_error",
+  "rn_js_range_error",
+  "rn_js_syntax_error",
+  "rn_js_stack_overflow",
+  "rn_js_error",
+  "rn_host_function",
+  "rn_host_object",
+  "rn_objc_exception",
+  "rn_cpp_exception",
+  "rn_other",
+  "unknown",
+] as const;
+
+export type JsFatalKind = (typeof JS_FATAL_KINDS)[number];
+
+const RN_JS_ERRORS: Record<string, JsFatalKind> = {
+  TypeError: "rn_js_type_error",
+  ReferenceError: "rn_js_reference_error",
+  RangeError: "rn_js_range_error",
+  SyntaxError: "rn_js_syntax_error",
+};
+
+function hermesFatalKind(text: string): JsFatalKind {
+  if (/^OOM\b|out of memory/i.test(text)) return /max heap size/i.test(text) ? "hermes_heap_limit" : "hermes_out_of_memory";
+  if (/stack overflow|call stack/i.test(text)) return "hermes_stack_overflow";
+  return "hermes_other";
+}
+
+function reactNativeFatalKind(text: string): JsFatalKind {
+  const js = /^Unhandled JS Exception: (?:([A-Za-z]+Error)\b)?/.exec(text);
+  if (js) return /Maximum call stack size exceeded/.test(text) ? "rn_js_stack_overflow" : (RN_JS_ERRORS[js[1] ?? ""] ?? "rn_js_error");
+  if (text.startsWith("Exception in HostFunction")) return "rn_host_function";
+  if (text.startsWith("Exception in HostObject")) return "rn_host_object";
+  if (text.startsWith("non-std ObjC Exception")) return "rn_objc_exception";
+  if (text.startsWith("non-std C++ exception")) return "rn_cpp_exception";
+  return "rn_other";
+}
+
+export function jsFatalKind(source: unknown, text: unknown): JsFatalKind | null {
+  if (typeof text !== "string" || !text.trim()) return null;
+  if (source === "hermes") return hermesFatalKind(text.trim());
+  if (source === "reactNative") return reactNativeFatalKind(text.trim());
+  return "unknown";
+}
+
 const NATIVE_CALL = /^Calling the '([A-Za-z_$][\w$]{0,60})' function has failed$/;
 
 export function errorMessage(error: unknown): string {

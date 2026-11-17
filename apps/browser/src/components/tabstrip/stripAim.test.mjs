@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-const { aimDrop, dragGeometry, MEMBERS_INSET } = await import("./stripGroups.ts");
+const { aimDrop, dragGeometry, dropIndex, MEMBERS_INSET, reorderIndex } = await import("./stripGroups.ts");
 
 const tabs = dragGeometry([{ tabIds: ["a"], width: 100 }, { tabIds: ["b"], width: 100 }, { tabIds: ["c"], width: 100 }], 4);
 const all = () => true;
@@ -35,4 +35,12 @@ test("a wide group's ends stay narrow", () => {
   assert.deepEqual(aimDrop(strip, 0, 104 + 30, all, 43), { to: 0, onto: null });
   assert.deepEqual(aimDrop(strip, 0, 104 + 50, all, 43), { to: 0, onto: 1 });
   assert.deepEqual(aimDrop(strip, 0, 104 + 400, all, 43), { to: 1, onto: null });
+});
+
+test("a strip without drop targets (a group dragged in place) reorders by its edges, as its drop callback does", () => {
+  const wide = dragGeometry([{ tabIds: ["g1", "g2", "g3", "g4"], width: 400 }, { tabIds: ["t"], width: 100 }], 4);
+  assert.equal(dropIndex(wide, 0, 104), 1, "the group's travel past the narrow tab");
+  assert.equal(reorderIndex(wide, 0, 0, 104, false), 1, "edge-based, the index its drop callback lands on");
+  assert.equal(reorderIndex(wide, 0, 0, 104, true), 0, "pointer aim with an unmeasured grab would leave it in place");
+  assert.equal(reorderIndex(tabs, 0, 50, 110, true), 1, "a tab with targets still reorders by the pointer, past the neighbour's middle");
 });

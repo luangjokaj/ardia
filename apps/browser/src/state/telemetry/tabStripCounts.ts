@@ -2,6 +2,7 @@ let groupToggles = 0;
 let textOnlyRows = 0;
 let compactLayouts = 0;
 let edgeScrollDrags = 0;
+let heldOntoDrops = 0;
 let revealsAfterPress = 0;
 let mostTabs = 0;
 let heldCloses = 0;
@@ -28,6 +29,10 @@ export function noteTabStripCompact() {
 
 export function noteTabStripEdgeScroll() {
   edgeScrollDrags++;
+}
+
+export function noteTabStripHeldOntoDrop() {
+  heldOntoDrops++;
 }
 
 export function noteTabStripRevealAfterPress() {
@@ -63,6 +68,7 @@ export function takeTabStripCounts() {
     pinned_rows_made_text_only: textOnlyRows,
     tab_strip_compact_layouts: compactLayouts,
     tab_strip_edge_scroll_drags: edgeScrollDrags,
+    tab_strip_held_onto_drops: heldOntoDrops,
     tab_strip_reveals_after_press: revealsAfterPress,
     tab_strip_most_tabs: mostTabs,
     tab_strip_held_closes: heldCloses,
@@ -75,6 +81,7 @@ export function takeTabStripCounts() {
   textOnlyRows = 0;
   compactLayouts = 0;
   edgeScrollDrags = 0;
+  heldOntoDrops = 0;
   revealsAfterPress = 0;
   mostTabs = 0;
   heldCloses = 0;
