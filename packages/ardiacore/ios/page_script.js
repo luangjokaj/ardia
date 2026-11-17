@@ -830,7 +830,15 @@
   let firstPaintObserver = null;
   handlers.firstPaint = () => {
     if (!isTop || firstPaintObserver) return;
-    const painted = () => send("firstPaint", { url: location.href });
+    let sent = false;
+    const painted = () => {
+      if (sent) return;
+      sent = true;
+      send("firstPaint", { url: location.href });
+    };
+    const afterFrames = () => apply(raf, window, [() => apply(raf, window, [painted])]);
+    if (document.readyState === "complete") afterFrames();
+    else apply(listen, window, ["load", afterFrames, { once: true }]);
     try {
       firstPaintObserver = new PO((list) => {
         for (const e of list.getEntries())

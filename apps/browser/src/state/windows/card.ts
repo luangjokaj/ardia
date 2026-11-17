@@ -13,6 +13,8 @@ import { removeTabs } from "../tabs/tabs";
 import { isSmallWindow } from "./small";
 import type { PagerPage } from "./profilePager";
 import { isWebPageUrl } from "../../lib/url";
+import { PLATFORM_FEATURES } from "../../lib/platformFeatures";
+import { webviews } from "../../platform/webviews";
 import { notePageOverlay } from "../telemetry/usage";
 
 export const useSplitOf = (tabId: string | undefined) => useBrowser((s) => splitOf(s, tabId));
@@ -153,6 +155,7 @@ export function newTabLingeringOver(windowId: string, from: string | undefined, 
     notePageOverlay("newTabLeftForWebKit");
     return undefined;
   }
+  if (PLATFORM_FEATURES.holdsColdPagesUntilPainted && !webviews.has(to)) return undefined;
   notePageOverlay("newTabLingered");
   return from;
 }
