@@ -513,6 +513,17 @@ is one folder: Chromium's launcher as `Ardia.exe`, `chrome.dll`, and the app's l
 manifest entries). With `ArdiaApp.dll` beside the launcher the browser process runs the app; without it the same build
 is plain Chromium.
 
+- Features the engine turns off at launch (`AddLaunchSwitches` in `scripts/windows/engine/src/ardia/win/main.cc`,
+  appended to any `--disable-features` the launcher passed, which a launcher's `--enable-features` can't undo):
+  `CalculateNativeWinOcclusion`, and `SettingsGlowupJourneys` (engine `windows-engine-20261117-9`, #2326). The latter
+  feeds Chrome's own guided tours, which Ardia never shows, and its chrome://settings handlers CHECK for a tracked
+  browser view in the tab's window, which a hidden page window doesn't have. The Mac turns it off too (#2289). The
+  `engine settings:` self-checks change a search engine, a site permission, the theme and browsing data through
+  chrome://settings in shown, private, pop-up and hidden pages and ask the engine for the page after each.
+- A browser-theme change (chrome://settings › Appearance › Reset to default, a theme installed or removed) leaves a
+  hosted page window's frame alone (`chromium-win-hosted-theme-change.patch`, engine `windows-engine-20261117-9`,
+  #2332). Chromium regenerates the frame on Windows for every theme change, which asks the window for a DWM frame
+  transition; a hosted window's frame is custom drawn, so that ended in a failed CHECK that closed the app.
 - The Visual C++ runtime ships inside the folder. React Native's DLLs import the app-container CRT (`vcruntime140_app.dll`,
   `msvcp140_app.dll` and the other `*_app.dll`), whose exports forward to the desktop `VCRUNTIME140.dll`, `MSVCP140.dll`
   and friends. A clean Windows 11 has none of those, and the per-user installer can't run `vc_redist`, so
@@ -731,7 +742,9 @@ is plain Chromium.
   ignores `findNext` (#1425), so reopening the bar on the same words moves one match on.
 - Peek opens as on the Mac. The engine host keeps a DevTools session of its own on each page and puts the Peek part of
   ArdiaCore's page script into an isolated world of every web frame (`page_links.cc`): the page can't see the script
-  or its binding. A click on a link with the Peek key (`webView.setPeekModifier`), the Split key
+  or its binding. It is registered for each new document (`Page.addScriptToEvaluateOnNewDocument` in that world, with
+  the binding scoped to it), so it is in place before a page that just woke from sleep or came by a cross-process
+  navigation takes input (engine `windows-engine-20261117-9`, #2198; the `engine links:` self-checks). A click on a link with the Peek key (`webView.setPeekModifier`), the Split key
   (`setSplitLinkModifier`), or a plain click to another site on a tab that peeks those (`setPeekOtherSiteTabs`), is
   cancelled and reported; the host checks it against the last real left mouse-up over that page and sends the Mac's
   `openWindow` (`peek` or `split`), or falls back as the Mac does. A tab the page opens itself carries `fromClick` only
