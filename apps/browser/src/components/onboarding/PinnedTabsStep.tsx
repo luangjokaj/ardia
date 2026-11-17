@@ -86,13 +86,17 @@ function PinnedPreview({ selected }: { selected: string[] }) {
             {Array.from({ length: PREVIEW.columns }, (_, column) => {
               const i = row * PREVIEW.columns + column;
               const site = sites[i];
-              const tile = { flex: 1, height: PREVIEW.tileHeight, alignItems: "center", justifyContent: "center" } as const;
-              return site ? (
-                <ChoiceCard key={site.id} radius={radius.chrome * PREVIEW.scale} fill={colors.button} border={null} style={tile}>
-                  <SiteLogo url={site.url} size={18} />
-                </ChoiceCard>
-              ) : (
-                <ChoiceCard key={`empty-${i}`} dashed radius={radius.chrome * PREVIEW.scale} fill={ink.clear} style={tile} />
+              const tile = { flex: 1, alignItems: "center", justifyContent: "center" } as const;
+              return (
+                <View key={site?.id ?? `empty-${i}`} style={{ flex: 1, flexBasis: 0, height: PREVIEW.tileHeight }}>
+                  {site ? (
+                    <ChoiceCard radius={radius.chrome * PREVIEW.scale} fill={colors.button} border={null} style={tile}>
+                      <SiteLogo url={site.url} size={18} />
+                    </ChoiceCard>
+                  ) : (
+                    <ChoiceCard dashed radius={radius.chrome * PREVIEW.scale} fill={ink.clear} style={tile} />
+                  )}
+                </View>
               );
             })}
           </View>
