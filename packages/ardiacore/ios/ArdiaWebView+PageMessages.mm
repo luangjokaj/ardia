@@ -152,12 +152,16 @@ NSMutableOrderedSet<NSString *> *ScriptFramesOf(ArdiaCoreTab *tab) {
     double startedMs = 0;
     if (main) [ArdiaProtectedVideo helloFromTab:tab origin:VerifiedOrigin(verifiedOrigin) bridged:Flag(dict, @"protectedVideo") started:Finite(dict, @"started", &startedMs) ? startedMs / 1000 : 0];
     if (main) [ArdiaHLSVideo helloFromTab:tab origin:VerifiedOrigin(verifiedOrigin) bridged:Flag(dict, @"protectedVideo")];
-    if (main && _littlePage.held) [self callFrame:frameId kind:@"firstPaint" json:@"{}"];
+    if (main && _firstPaint.held) {
+      _firstPaint.scripted = YES;
+      [self callFrame:frameId kind:@"firstPaint" json:@"{}"];
+    }
   } else if ([kind isEqualToString:@"displayMediaHello"]) {
     [self callFrame:frameId kind:@"config" json:gDisplayMediaPicker ? @"{\"displayMediaPicker\":true}" : @"{}"];
   } else if ([kind isEqualToString:@"firstPaint"] && main) {
     NSString *url = Text(dict, @"url", 8192);
-    if (url.length && ![url hasPrefix:@"about:"] && SamePage(url, tab.url)) [self revealLittlePage:YES];
+    if (url.length && ![url hasPrefix:@"about:"] && SamePage(url, tab.url))
+      [self showHeldPage:Flag(dict, @"loaded") ? ArdiaHeldPageEnd::Loaded : ArdiaHeldPageEnd::Painted];
   } else if ([kind isEqualToString:@"peek"] && dict) {
     [self peekLink:dict frame:frameId main:main];
   } else if ([kind isEqualToString:@"peekHello"]) {
