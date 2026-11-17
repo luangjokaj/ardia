@@ -3,7 +3,7 @@
 > The default branch, `riangle`, is the original `main` plus a few patches of mine. Everything else in this README is the original project's.
 >
 > **Patches on top of `main`** (details and commits in [CHANGELOG.md](CHANGELOG.md))
-> - My open pull requests, merged into `riangle` until the original project merges them: [#2340](https://github.com/ardia-browser/ardia/pull/2340) the top edge and the split view divider resize the window in step with the pointer; [#2352](https://github.com/ardia-browser/ardia/pull/2352) the traffic lights never stay behind after the peeking sidebar hides.
+> - My open pull requests, merged into `riangle` until the original project merges them: [#2352](https://github.com/ardia-browser/ardia/pull/2352) the traffic lights never stay behind after the peeking sidebar hides.
 > - The iPhone app's bundle IDs and app group come from one build setting, `ARDIA_IOS_BUNDLE_ID`.
 > - `scripts/lib/export-developer-id.sh` signs for a team ID that starts with a digit.
 >
