@@ -122,6 +122,12 @@ rules are for the owner's Mac.
   remembers (positions, sizes), its animations and their timing in frames, and what keeps running.
   Obvious UX holds everywhere: dismissing something never pauses playback or drags you to another tab;
   going back to the source ends a temporary view (the mini player); nothing reopens right after you close it.
+- **Motion follows how often a thing is used.** What people touch all day (tab rows, pinned tiles, folders and
+  groups, toolbar buttons, menus, the command bar, switching tabs) is tactile, fast and snappy: it answers on the
+  press, with no bounce, squish, overshoot or other flourish, and nothing that delays or moves the thing being
+  aimed at. Rare, larger moves (the sidebar opening and closing, onboarding, a sheet arriving) may feel premium:
+  a longer curve, a soft spring, glass. When unsure, treat it as high-frequency and keep it plain. This is the
+  owner's rule and it beats matching Dia: a Dia effect that bounces on something used all day is not copied.
 - **Owner recordings and screenshots.** Copy a recording out of its temp folder at once (it vanishes, and
   the name has a narrow no-break space: use a glob). Extract 30 fps frames with ffmpeg, find events by
   frame difference, and measure positions and timings from the pixels. A position or size in the owner's
