@@ -58,6 +58,7 @@ import { cutDeckPullFromRest, deckPullArmed, deckPullFades, deckPullGrowing, dec
 import { beginInteraction, cutInteraction, INTERACTION_WINDOW_MS } from "../app/interactionPerf";
 import { refreshHiddenDeck, wantDeckStandby } from "./deckStandby";
 import { countUsage } from "../telemetry/telemetry";
+import { startBrowseForMe } from "../browseForMe/store";
 import { rememberPageTones, restorePageTones } from "../pages/toneMemory";
 import { followColorInWidgets } from "../settings/widgetColor";
 import { coverIsCapturable, isSyncableUrl, pageStatePatch, titleAfterFailedLoad, type BrowserTab, type TabOrigin } from "../tabs/tabModels";
@@ -165,6 +166,10 @@ export function searchFor(query: string) {
 }
 
 export function activateRow(row: TrayRow) {
+  if (row.kind === "browseForMe") {
+    startBrowseForMe(row.query);
+    return;
+  }
   if (row.kind === "calc") {
     copyCalculation(row.value);
     return;

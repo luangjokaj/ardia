@@ -1320,6 +1320,58 @@ Shared and per-phone parts:
     `waits`, `tickMs`, `mainThreadMs` and `droppedReports` where the phone has them.
   Android has all of it (`LookBudget.kt`); the iPhone half is not built yet.
 
+## Browse for Me (iPhone only)
+
+Arc Search's answer page, written on the iPhone. It came from the SwiftUI app (PR #1724, `ios-browse-for-me`) and
+keeps that app's Swift: the logic in ArdiaKit's `ArdiaBrowser/Research` and `ArdiaBrowser/ChatGPT` (with
+`ResearchTests` and `ChatGPTTests`), and the session, the answer page, the ChatGPT account and the settings page in
+`packages/phone/ios` (`ResearchSession`, `ResearchPageLoader`, `ResearchView`, `ChatGPTAccount`,
+`LoopbackCallbackServer`, `KeychainSecret`, `BrowseForMePage`). Android has none of it: the module isn't registered
+there, so the row, the button and the settings entry never appear.
+
+- **Where it starts.** Typing a plain search (three letters or more, not an address, not a bang) adds a Browse for Me
+  row under the typed query (`withBrowseForMe` in `state/search/omnibox.ts`), and voice search has a Browse for Me
+  button beside Search once it has heard words. Incognito changes nothing, and nothing is saved to history.
+- **The bridge.** `BrowseForMeModule` (`ArdiaPhoneBrowseForMe`) has `open(query)`, `isConnected()`, the
+  `onBrowseForMe` event and the `BrowseForMeSettingsView` view. `BrowseForMeHost` owns the one `ChatGPTAccount` and
+  the open `ResearchSession`, and presents `ResearchView` full screen in a `UIHostingController` over React Native's
+  root. What the SwiftUI page took from `AppModel` comes back to JavaScript as events (`state/browseForMe/events.ts`):
+  `openSource` (a source opens as a normal tab), `searchWeb` (Search the Web), `openLink` (Check Usage closes Settings
+  and opens chatgpt.com's usage page), `settled` (the outcome, for the counts below), `account` (ChatGPT connected or
+  not, for the Settings row) and `closed`. The hidden page readers use the page engine's content blocker.
+- **Reading.** DuckDuckGo's HTML results with a plain request (DuckDuckGo shows WebKit a bot check), the first five
+  readable pages (one per site, no video or social sites), three at a time in hidden web views with a throwaway data
+  store and the Reader's extraction (8 s each).
+- **Writing.** Apple Intelligence on the iPhone (`SystemLanguageModel`, Foundation Models) is the default: a short
+  answer with `[n]` citations from the pages' most relevant paragraphs, cut to fit the model's context. Without Apple
+  Intelligence (an older iPhone, turned off, still downloading), or when the model refuses, the answer is the pages'
+  most relevant sentences, cited, and the page says why. The sources sit in a row above the answer.
+- **Continue with ChatGPT.** Settings › Browse for Me (and a button under an on-device answer) signs in with OpenAI's
+  Sign in with ChatGPT plan-usage flow, so answers come from the user's own Plus or Pro plan, straight from the phone,
+  never through a server of ours. It mirrors OpenAI's devkit: discovery, `dynamic_agent_client` with
+  `agent_name_hint` on the first sign-in (the issued `oaiapp_…` client ID is saved per issuer and reused), S256 PKCE,
+  state, nonce and `resource=https://api.openai.com/v1`. The redirect is the documented loopback
+  `http://127.0.0.1:<port>/auth/callback`: a BSD socket listener takes the code and answers with a 302 to
+  `ardia-chatgpt://signed-in`, which closes the `ASWebAuthenticationSession` sheet (at most eight clients, ten seconds
+  each). The ID token's RS256 signature is checked against the issuer's JWKS, failing closed, with its claims, and a
+  later sign-in must return the same account. Tokens live in the Keychain (`com.ardia.browser.ios.chatgpt`, this
+  device only, after first unlock); the hour-long access token refreshes two minutes early, one refresh at a time,
+  and a rotated refresh token is saved before anything else. Answers stream from `POST /v1/responses` with exactly
+  `model`, `instructions`, `input`, `store: false` and `stream: true`, and count only on `response.completed`. Any
+  failure (limit reached, not eligible, network, a stream cut short, an empty answer) drops the partial text and
+  Apple Intelligence writes the answer, with the reason in the note. A model that lists reasoning levels
+  (`supported_reasoning_levels`) gets a Thinking picker, sent as `reasoning.effort`; Automatic sends nothing.
+  Disconnect waits for a refresh in flight, then revokes the latest refresh token and says so when OpenAI doesn't
+  confirm it.
+- **In Settings.** On iPhone, Settings › Experimental lists Browse for Me. Its row reads "ChatGPT" when connected
+  and "On iPhone" otherwise. The Browse for Me page shows "Read aloud coming soon".
+- **Testing.** These need a test build (`ArdiaTestBuild`): `-BrowseResearch <query>` opens the page at launch;
+  `-ArdiaResearchWriter excerpts` skips the model; `-ArdiaChatGPTIssuer <url>` and `-ArdiaChatGPTAPI <url>` point
+  ChatGPT at a fake server.
+  `-ArdiaVoiceHeard <text>` opens voice search as if it had just heard those words, for a capture of its buttons.
+  `-ArdiaSettingsPage browseForMe` opens the settings page.
+- **Left for a person.** A real Plus or Pro sign-in.
+
 ## Telemetry
 
 Off until the user chooses, in Settings (Share anonymous usage stats, with What's Sent) or on onboarding's last step. The consent model is the Mac's: nothing is sent, queued or counted while sharing is off, turning it off drops the queue, the day's counts and any request in flight at once, and an install ID is made only the first time sharing is turned on. Unlike the Mac, the phone sends no `daily_active` ping while sharing is off.
@@ -1335,7 +1387,7 @@ Events (service `ardia-phone`, `$lib` `ardia-phone-telemetry`, tags `app: phone`
 | `perf_launch` | `launch_ms`, `js_ms` | each launch, once the module gives the process start (`ArdiaPhoneSystem.processStartedAt()`, epoch ms) |
 | `perf_backdrop` | `backdrop_ms` | each launch on iPhone, once the native launch backdrop has shown (`system.launchBackdropShownAt()`, epoch ms on the process start's clock) |
 | `perf_launch_tray` | `tray_ms` | each launch with Auto-Open Keyboard on, once the launch tray is up (process start on `ArdiaPhoneSystem.processStartedAt()`'s clock) |
-| `usage_counts` | `tabs_opened`, `searches`, `pins_to_mac`, `tabs_sent`, `page_processes_gone`, `links_given_up` (a link whose handling passed its 8 s deadline), `pages_reloaded_online` (a failed page reloaded when the phone came back online), `find_opened_system` and `find_opened_bar` (Find on Page opened in WebKit's own panel, or in the app's find bar), `spaces_swiped` (a swipe in Spaces or on the start page that changed the profile), `tray_hidden_rows_opened` (a tray row opened while it peeked or sat under the keyboard), `deck_pictures_late` (a deck opened from a page whose picture hadn't painted within 250 ms, so it shrank without waiting), `search_tabs_opened` (the deck's Search Tabs field focused, in the redesign), `spaces_picked` (a space picked from the deck's switcher menu, or by a VoiceOver adjustment of the start page's dots, that changed the profile, in the redesign), `tabs_moved_to_space` (a tab moved to another space with the deck card menu's Move to Space, in the redesign), `pages_printed` (a page printed from the page menu's Print, counted when the print sheet opened, in the redesign), `pages_translated` (a page sent to Google Translate from the page menu's Translate, never from an Incognito tab), `pinned_tabs_refound` (a pinned site's tile or row switched to the tab it had opened after that tab had left the pinned address, where it used to open a second copy), `site_permissions_revoked` (a site's camera, microphone or location access revoked from Site Settings, by swipe or by its dialog, on iPhone's Expo UI Settings), `tray_back_swiped` (a search tray closed with Android's predictive back swipe), `card_opens_waited` (a card opened from the deck whose growth landed before its page had laid out and its picture painted, so the page waited up to 250 ms to take over), `native_menus_opened` (a menu opened as the system's own: a deck card's long press, the deck's ···, the space switchers, the + menus, Reader's Text Appearance, the page menu's Send to Device, the tabs button's recent tabs, on iPhone), `library_opened` (History, Bookmarks or Downloads opened in the system sheet from the page menu, on iPhone), `deck_grid_shown` (Grid picked for the deck in Settings › Appearance › Tabs, on iPhone), `landscape_shown` (a launch in which the phone was turned to landscape at least once, counted once a launch), `duo_layout_shown` (a launch that used the column, wide or split layout at least once, counted once a launch, on iPhone), `list_sheets_late` (an Archive or History sheet whose rows were drawn more than 400 ms after it was asked for, on iPhone), `list_pages_added` (Archive or History adding its next 200 rows as you scroll, on iPhone), `search_reveals_late` (a search panel opened whose content had not laid out within 250 ms, so the stage revealed it on its deadline, on iPhone), `address_field_scrolled` (a long address in the search field scrolled sideways with a swipe, on iPhone), `deck_bar_swipes` (the deck opened by swiping up on the browsing bar, the second way in beside the tabs button), `tabs_swiped_closed` and `tabs_swiped_reopened` (a back swipe on a page with no history that closed its tab, and a forward swipe with no forward history that reopened the last closed tab), `page_menu_tapped_away` (the page menu closed by a tap on the page above it, on iPhone), `new_tab_search_opened` (search opened on a new tab in the iPhone's full-height search panel), `deck_incognito_switches` (a tap on the deck bar's Incognito switch that went from the normal tabs to the Incognito tabs, on iPhone), `deck_bar_swipes_returned` (a swipe up on the browsing bar let go before its commit point, so the page grew back, on iPhone), `deck_pulls_hitched` (a swipe up or a tabs tap during whose shrink into the deck two UI-thread frames were more than 50 ms apart, on iPhone) | at most once a day, for the last UTC day the app was used before today, when anything was counted; private tabs are never counted |
+| `usage_counts` | `tabs_opened`, `searches`, `pins_to_mac`, `tabs_sent`, `page_processes_gone`, `links_given_up` (a link whose handling passed its 8 s deadline), `pages_reloaded_online` (a failed page reloaded when the phone came back online), `find_opened_system` and `find_opened_bar` (Find on Page opened in WebKit's own panel, or in the app's find bar), `spaces_swiped` (a swipe in Spaces or on the start page that changed the profile), `tray_hidden_rows_opened` (a tray row opened while it peeked or sat under the keyboard), `deck_pictures_late` (a deck opened from a page whose picture hadn't painted within 250 ms, so it shrank without waiting), `search_tabs_opened` (the deck's Search Tabs field focused, in the redesign), `spaces_picked` (a space picked from the deck's switcher menu, or by a VoiceOver adjustment of the start page's dots, that changed the profile, in the redesign), `tabs_moved_to_space` (a tab moved to another space with the deck card menu's Move to Space, in the redesign), `pages_printed` (a page printed from the page menu's Print, counted when the print sheet opened, in the redesign), `pages_translated` (a page sent to Google Translate from the page menu's Translate, never from an Incognito tab), `pinned_tabs_refound` (a pinned site's tile or row switched to the tab it had opened after that tab had left the pinned address, where it used to open a second copy), `site_permissions_revoked` (a site's camera, microphone or location access revoked from Site Settings, by swipe or by its dialog, on iPhone's Expo UI Settings), `tray_back_swiped` (a search tray closed with Android's predictive back swipe), `card_opens_waited` (a card opened from the deck whose growth landed before its page had laid out and its picture painted, so the page waited up to 250 ms to take over), `native_menus_opened` (a menu opened as the system's own: a deck card's long press, the deck's ···, the space switchers, the + menus, Reader's Text Appearance, the page menu's Send to Device, the tabs button's recent tabs, on iPhone), `library_opened` (History, Bookmarks or Downloads opened in the system sheet from the page menu, on iPhone), `deck_grid_shown` (Grid picked for the deck in Settings › Appearance › Tabs, on iPhone), `landscape_shown` (a launch in which the phone was turned to landscape at least once, counted once a launch), `duo_layout_shown` (a launch that used the column, wide or split layout at least once, counted once a launch, on iPhone), `list_sheets_late` (an Archive or History sheet whose rows were drawn more than 400 ms after it was asked for, on iPhone), `list_pages_added` (Archive or History adding its next 200 rows as you scroll, on iPhone), `search_reveals_late` (a search panel opened whose content had not laid out within 250 ms, so the stage revealed it on its deadline, on iPhone), `address_field_scrolled` (a long address in the search field scrolled sideways with a swipe, on iPhone), `deck_bar_swipes` (the deck opened by swiping up on the browsing bar, the second way in beside the tabs button), `tabs_swiped_closed` and `tabs_swiped_reopened` (a back swipe on a page with no history that closed its tab, and a forward swipe with no forward history that reopened the last closed tab), `page_menu_tapped_away` (the page menu closed by a tap on the page above it, on iPhone), `new_tab_search_opened` (search opened on a new tab in the iPhone's full-height search panel), `deck_incognito_switches` (a tap on the deck bar's Incognito switch that went from the normal tabs to the Incognito tabs, on iPhone), `deck_bar_swipes_returned` (a swipe up on the browsing bar let go before its commit point, so the page grew back, on iPhone), `deck_pulls_hitched` (a swipe up or a tabs tap during whose shrink into the deck two UI-thread frames were more than 50 ms apart, on iPhone), `browse_for_me_opened` (Browse for Me opened from the tray, voice search or a launch argument, on iPhone), `browse_answers_chatgpt`, `browse_answers_on_device`, `browse_answers_excerpts` and `browse_answers_failed` (a Browse for Me answer by who wrote it, or a page that found or read nothing), `browse_chatgpt_fallbacks` (a ChatGPT answer that failed, so Apple Intelligence or the excerpts wrote it instead) | at most once a day, for the last UTC day the app was used before today, when anything was counted; private tabs are never counted |
 
 On the dashboard they are kept out of every Mac section by source and lib (`PHONE_APP_SOURCE` in `apps/dashboard/src/server/sql.ts`).
 
@@ -1378,6 +1430,9 @@ Every count and timing the phone can send, for the owner to read as one set and 
 | `page_menu_tapped_away` | a tap on the page above the iPhone's page menu sheet | Whether people find the way out of the page menu now that it stops at 90% of the screen; zero across iPhone testers after a release means the strip above the sheet stopped closing it |
 | `new_tab_search_opened` | the iPhone's new-tab search panel opening (search not editing a page's address) | How often people start from a new tab's search; a sharp drop after a release means the panel stopped opening on a new tab |
 | `deck_incognito_switches` | the deck bar's Incognito switch on iPhone (build 16 feedback) | Whether people switch the deck to Incognito from its bar; zero across testers after a release means the switch stopped showing or stopped switching. Taps back to the normal tabs are not counted, since they start in Incognito |
+| `browse_for_me_opened` | Browse for Me on Expo | Whether people use Browse for Me at all; zero across testers after a release means the tray row or the voice button stopped opening it |
+| `browse_answers_chatgpt`, `browse_answers_on_device`, `browse_answers_excerpts`, `browse_answers_failed` | Browse for Me on Expo | Who writes the answers: a share of `excerpts` that grows on phones with Apple Intelligence means the model path broke, and a growing `failed` share against `browse_for_me_opened` means search or page reading broke (DuckDuckGo's page changing is the likely cause) |
+| `browse_chatgpt_fallbacks` | Browse for Me on Expo | How often a connected ChatGPT plan fails to answer; a jump after a release, or against `browse_answers_chatgpt`, means the Responses call or the token refresh broke |
 
 ## What is left before the Expo app replaces both native apps
 
@@ -1414,10 +1469,10 @@ iPhone follows the SwiftUI app on main since the merge of main (8203d0b3c, 2026-
 
 - The owner's tabs pass on a real iPhone (2026-11-17, first built on main's SwiftUI app in 24c1ade07 on `ios-browse-for-me`), in the Expo app:
   - The browsing bar keeps its tabs button (the owner, 2026-11-18: "we should keep the left button coz it look weird"), with its tap and its recent-tabs menu. A swipe up on the bar, once it passes 22 points, is a second way into the deck, from the button, the address or the plus (`barSwipeUp` in `BrowsingScreen.tsx`, `deck_bar_swipes`). On iPhone in portrait the page follows the finger into its card ("The swipe into the deck" under Deck speed). Android's original bar opens the deck at once, as before; the column layouts keep their tabs button and have no swipe.
-  - The deck's header shows a space with no icon by its name alone, with no initial in a circle; the space menus' fallback symbol is `<letter>.square.fill`, then `square.fill`.
+  - A space with no icon shows its name alone, with no initial in a circle, everywhere its title is drawn: the deck's header, the start page and the Spaces sheet's header (build 19, the owner on the sheet's "D Default": "why the spaces one has icon left to it? Doesn't make sense"). A space with a symbol or an emoji keeps it beside the name. The space menus' fallback symbol is `<letter>.square.fill`, then `square.fill`.
   - The deck is the stack; Grid is a choice in Settings › Appearance › Tabs ("How your open tabs are laid out. Swipe up on the bottom bar to see them."), iPhone only. The deck's bars have no grid button.
   - The tabs button with one tab open draws its card upright-ish (−4°) in the same 20 × 26 tile box the pair uses, so it sits centred in the circle; it used to hang off the circle's centre because the lone card had no box around it in the glass button's glyph layer (build 16, the owner: "one tab looks bad in the left button"). Android's original bar centred the lone card already, and the box lands it on the same pixels (`render/tabStack.render.test.tsx`).
-  - The deck's bottom bar has a round Incognito switch on its left (build 16, the owner: "we do want the left button here too. But not tab option, something else"), the same 48-point glass circle 12 points in as the browsing bar's tabs button, with Search Tabs between it and the plus. One tap shows only the Incognito tabs, as Safari's Private; a second tap brings back the normal tabs where they were scrolled. It is the `incognito` flag the plus already follows, so on the Incognito side the plus makes an Incognito tab, and the deck opens on the side of the tab you came from. On Incognito the circle takes the Incognito glass and a white eyes glyph; VoiceOver reads "Incognito, switch" with its state and a hint. With no Incognito tabs the side is empty and says "No Incognito Tabs"; the Archive capsule and the empty deck's Open Archive stay on the normal side; closing the last Incognito card from the deck keeps you on that side. iPhone only: Android's original deck keeps its private tabs among the others and has no switch, and the Duo column keeps the mixed deck (`switchDeckIncognito`, `deck_incognito_switches`).
+  - The deck's bottom bar has a round Incognito switch on its left (build 16, the owner: "we do want the left button here too. But not tab option, something else"), the same 48-point glass circle 12 points in as the browsing bar's tabs button, with Search Tabs between it and the plus. One tap shows only the Incognito tabs, as Safari's Private; a second tap brings back the normal tabs where they were scrolled. It is the `incognito` flag the plus already follows, so on the Incognito side the plus makes an Incognito tab, and the deck opens on the side of the tab you came from. On Incognito the circle takes the Incognito glass and a white eyes glyph. The glyph is SF `eyes` on iPhone, the symbol the New Incognito Tab menu rows and the home screen's quick action already show, in the switch, the Incognito pill, a private card's header icon and a private tab's face (build 19, the owner: "use eyes in here"); Android keeps the drawn pair of capsules. VoiceOver reads "Incognito, switch" with its state and a hint. With no Incognito tabs the side is empty and says "No Incognito Tabs"; the Archive capsule and the empty deck's Open Archive stay on the normal side; closing the last Incognito card from the deck keeps you on that side. iPhone only: Android's original deck keeps its private tabs among the others and has no switch, and the Duo column keeps the mixed deck (`switchDeckIncognito`, `deck_incognito_switches`).
   - Closing a card has no dust cloud. The card flies off the top on main's `flyAway` spring (response 0.32, no bounce), starting at the flick's speed, and the cards after it close the gap in the same frames: the order drops the card at once and a leaving record (`DeckLeave` in `lib/deckGeometry.ts`, timed by one UI-thread clock) draws it until it is off the screen. Closing the last tab lets the card leave before the start screen comes. With Reduce Motion the card fades where it is.
 
 - Find on Page on iPhone is WebKit's own find panel (`UIFindInteraction`), as main's SwiftUI app has, decided from the side-by-side screenshots in `/tmp/ardia-phone-shots/find-on-page/`. The app's own find bar stays for Android, and on iPhone behind the launch switch `-ArdiaAppFind YES` for comparison. `find_opened_system` and `find_opened_bar` count which one opens.
@@ -1459,7 +1514,7 @@ What main changed, by screen:
 - Site permissions: camera, microphone and location answers are saved per site and listed and revocable in Site Settings (`SitePermissions.swift`). The Expo iPhone saves and lists them the same way since 942dc45df.
 - Deck: header with the space switcher, an Incognito pill and a `···` menu (Archive, Spaces, New Incognito Tab, Reopen, Close All, Settings); bottom bar of a grid button, Search Tabs and plus (the Expo app's has the Incognito switch where the grid button was); a grid view; a slim Archive capsule under the header; cards about 24 pt lower (`TabSwitcherView.swift`, `DeckChrome.swift`, `TabGridView.swift`, `TabsTokens.swift`, `TabsDeckGeometry.swift`).
 - Start page: no logo; the space switcher at 0.44 of the height, the space's pinned tiles (4 a row, icon only) and page dots; a sideways swipe changes space. In light mode a themed backdrop gets a 34% white veil (`SearchHomeView.swift`, `PinnedTiles.swift`, `ProfileBackdrop.themeVeil`).
-- Tray: a floating glass panel, 8 pt in from the sides and above the keyboard, radius 26; a submitted search lifts it 120 pt and fades it (`SearchTrayHost.swift`).
+- Tray: a floating glass panel, 8 pt in from the sides and above the keyboard, radius 32.75 (concentric with the field: 9 pt in plus half the 47.5 pt field); a submitted search lifts it 120 pt and fades it (`SearchTrayHost.swift`).
 - Spaces: tabs belong to one Mac space; the deck, the tab swipe and Switch to Tab show the current space's tabs, and the app takes its colour (`TabSpaces.swift`). The Spaces sheet gets the switcher and page dots.
 - Settings: an Appearance page (colour, Glass or Classic, Light or Dark, each able to match the Mac through the synced `look`); row icons dropped (`AppearancePage.swift`, `InterfaceStyle.swift`, `SyncedLook`).
 - Onboarding: 28 pt bold titles, capsule buttons, rows and tips without icons, faster steps.
@@ -1498,7 +1553,7 @@ Owner: **screens** (JS), **iPhone** (native), **decision** (needs the owner).
 | Start page | Pinned tiles | match | Tiles draw main's SF Symbols (Calendar, folders) at main's sizes, d09343dba | |
 | Start page | No spaces, sync off (invitation) | match | The Sync With Your Mac capsule alone, same place and size (`r-e-light`/`r-m-light`/invitation) | |
 | Search panel | Empty, recent searches | match | Main's source lists recent searches and the Mac's tabs, no open tab (the audit's SwiftUI row is a Mac tab); rows now refresh live with sync, 2fd28bbe5 | |
-| Search panel | Typing | match | Typed for real: app completes to apple.com as main's; main's row and field measures, no glyph before Switch to Tab, 2fd28bbe5. The Incognito toggle draws SF `eyeglasses` at 17 semibold on iPhone, as main does: the same ink box and pixel count on the simulator | |
+| Search panel | Typing | match | Typed for real: app completes to apple.com as main's; main's row and field measures, no glyph before Switch to Tab, 2fd28bbe5. The Incognito toggle is the address bar's thin specs (`eyeglassesThin`, 26 pt) inside the field, where main draws SF `eyeglasses` at 17 semibold; see "Deliberately different" | owner |
 | Search panel | Incognito | match | Same panel; the field asks for the dark keyboard in Incognito as main's does (6f1653513 native, the panel passes it since this change) | |
 | Search panel | Classic in Incognito, through the morph | match | Seen 2026-11-17 on the iPhone 18 Pro at 006f1afa3 beside main set to Classic by hand: both grow the dark Incognito pill into the same solid dark Classic panel and fold it back into the pill with no tint change (`pr-2184/search-classic-incognito-open.png`, `-close.png`). At rest ours shows the red lock where main shows its eyeglasses: our bar puts not secure before private, and main's frame has no not-secure state on loopback | |
 | Search panel | Landed pill on a real site | match | A dim-tap close on en.wikipedia.org at 006f1afa3: the landed pill is whole (favicon, host, `···`) from the first frame it shows. The favicon-only pill for about 20 frames seen on an earlier build (stage-9, 6d88e1c95 plus one native line) doesn't reproduce at head | |
@@ -1651,7 +1706,7 @@ resets the browsing view's own state: the bar comes back expanded and the sideba
   wide with 59 insets gives a 598 address capsule). 21.5 above the bottom edge, ignoring the safe area. Collapsed
   pill unchanged (30 high, at most 240 wide).
 - Pager: the full screen width.
-- Search tray: the panel is the safe width less 8 each side, so it clears the island; radius 26; 8 above the
+- Search tray: the panel is the safe width less 8 each side, so it clears the island; radius 32.75; 8 above the
   keyboard; height `min(274 + 47.5·(fieldScale − 1), safeH + safeBottom − keyboard − 16)`, the keyboard term
   usually winning in landscape.
 - Deck: side padding `max(left, right)` for the header (+12), the bottom bar (+12) and the grid (+16).
@@ -1886,6 +1941,30 @@ Not audited at all: Compose's `SyncSetupContent` internals inside onboarding.
     stack it moves right as it shrinks, and it is never smaller than the card.
   - **Kept from Safari:** only the page shows during the pull, over the deck's backdrop; the other cards and the tab
     view's controls come in at release; the commit distance; the return.
+
+- The new-tab search panel (build 19, the owner: "decrease the height of the url bar", "it should continue to bottom
+  not be cut around keyboard", "the roundedness is weird around the url bar", "better to have the eyes icon in the
+  url bar and be clickable"):
+  - **Field:** the standard 47.5 pt Search field at the standard size, where it was a 56 pt field in 22 pt type.
+  - **Incognito:** the address bar's thin specs (`eyeglassesThin`, 26 pt) inside the field, after the mic, and a tap
+    on it switches Incognito, as the field does when editing a page's address. The 44 pt circle beside the field is
+    gone. Main draws SF `eyeglasses` at 17 semibold here.
+  - **Under the keyboard:** the panel's card runs on behind the keyboard to 8 pt above the screen's bottom
+    (`trayPanel` sits the keyboard's lift below the screen and the stage lifts it back); its rows still end 8 pt above
+    the keyboard. Editing a page's address keeps the shorter panel that floats above the keyboard.
+  - **Corners:** every search panel's corners are 32.75 pt, concentric with the field's capsule 9 pt in
+    (`BrowseLayout.panelRadius` for the native morph, `floatingPanelLayout.radius`); they were 26, tighter than the
+    field's own 23.75 pt curve allowed.
+  - **To watch:** `new_tab_search_opened` should hold its level after the release.
+
+- Settings, Archive, History and Bookmarks keep one neutral background, the system's grouped background, whatever
+  space is shown (build 19, the owner: "as different spaces have different bg we shouldn't carry that everywhere").
+  - **Main** tints every one of these pages with the shown space's window tint, so Settings changed colour with the
+    space behind it.
+  - **Ardia:** the space's colour stays where the space is: the start page, the deck and the Spaces sheet. The
+    Appearance row's icon still takes the chosen colour, and the colour picker is unchanged.
+  - **Where:** `SettingsChrome` in ArdiaDesign's `SettingsPieces.swift`, which every Expo UI settings page, the Archive
+    and the library pages apply.
 
 - A page that isn't secure shows a red open lock in the bar, not the words "Not Secure" (the owner's decision,
   16 Nov 2026: "we can show open lock with red i guess see the arc for that").
@@ -2984,9 +3063,10 @@ Whole stack (`SettingsView.swift`):
   `ToolbarItem(.confirmationAction)` "Done", semibold.
 - `.tint(Palette.formAccent)` (#007AFF light, #0A84FF dark) and `.toggleStyle(SettingsSwitchStyle())`: a switch
   tinted `systemGreen`.
-- Every page gets `.settingsChrome()`: `lookBackdrop()` (`scrollContentBackground(.hidden)` over
-  `ProfileBackdrop().ignoresSafeArea()`), `scrollEdgeEffectStyle(.hard, for: .top)`, and the navigation bar's
-  background `look.surface`, always visible.
+- Every page gets `.settingsChrome()`: `scrollContentBackground(.hidden)` over `SettingsSurface.page` (the system's
+  grouped background), `scrollEdgeEffectStyle(.hard, for: .top)`, and the navigation bar's background the same
+  colour, always visible. Main draws the space's window tint here (`ProfileBackdrop`, `look.surface`); see
+  "Deliberately different".
 - Pages with a hero use `.settingsPage(title)`: the inline title stays empty until the content scrolls past 150 pt
   (`onScrollGeometryChange`).
 - Lists are `Form` with `.contentMargins(.top, Spacing.small)` (12 pt).
@@ -3071,7 +3151,7 @@ What Expo UI doesn't have and we add through its extension path (`ExpoUIView` vi
 source:
 - Views: `SettingsIconTile` (already public in ArdiaDesign), `SettingsRowLabel`, `SettingsHero`, `SetupStepRow`,
   `ColorSwatch` row, `CheckmarkRow`, `AppIconPreview`, `ProfileBackdrop`.
-- Modifiers: `settingsChrome`, `settingsPage(title)`, `lookBackdrop`, `chromeSurface(in:interactive:tinted:)` (glass
+- Modifiers: `settingsChrome`, `settingsPage(title)`, `chromeSurface(in:interactive:tinted:)` (glass
   `.regular`/`.interactive()`, or Classic: `look.surface` or the background with a 0.5 pt stroke at 12%),
   `SettingsSwitchStyle`, `PressableStyle`, the `LegibleInk` text style.
 - Tokens as values: `SettingsTint`, `Palette.formAccent`, `Spacing` (4, 8, 12, 16, 20, 24, 32), `Motion.press` and
@@ -3403,7 +3483,9 @@ starts in that space. Captures without touch: `-BrowseQuery <text>`, `-BrowseSur
 `-ArdiaOnboarding YES`, `-ArdiaOpenSheet archive|spaces|history|bookmarks|downloads`, `-BrowsePlus`,
 `-BrowseOverlay <text>`, `-BrowseCollapsed`, `-BrowseOpen <url>`, `-ArdiaRestingStart`, `-ArdiaColor <name>`,
 `-ArdiaInterfaceStyle glass|classic`, `-ArdiaColorScheme light|dark`, `-ArdiaSettingsPage <route>`,
-`-ArdiaNoSitePermissions`, `-ArdiaDeckQuery <text>` and `-ArdiaDuoCanvas open|half`. Motion captures:
+`-ArdiaNoSitePermissions`, `-ArdiaDeckQuery <text>` and `-ArdiaDuoCanvas open|half`. Browse for Me's: `-BrowseResearch <query>`,
+`-ArdiaResearchWriter excerpts`, `-ArdiaChatGPTIssuer <url>`,
+`-ArdiaChatGPTAPI <url>` and `-ArdiaVoiceHeard <text>` ("Browse for Me (iPhone only)" above). Motion captures:
 `-BrowsePagerFreeze <fraction>`, `-BrowsePagerScript` and `-BrowseLoadFreeze <progress>`. `-BrowseDeckPull <n>`
 replays the swipe into the deck n times in a lab build ("The swipe into the deck" under Deck speed); it doesn't need
 `-ArdiaDemo`.
