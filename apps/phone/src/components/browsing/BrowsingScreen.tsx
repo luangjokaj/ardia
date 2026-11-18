@@ -149,7 +149,7 @@ export const BrowsingScreen = memo(function BrowsingScreen({ tab }: { tab: Brows
   const pullBegan = () => deckPullBegan(tab.id);
   const pullReleased = (lands: boolean) => deckPullReleased(tab.id, lands);
   const barPull = tracks ? { id: tab.id, prepare: refreshHiddenDeck, began: pullBegan, released: pullReleased, settled: deckPullSettled } : null;
-  const barGesture = useMemo(() => Gesture.Race(pager.gesture, barSwipeUp(swipesUp, pager.active, openDeckFromBar, barPull)), [pager.gesture, swipesUp, incognito, tracks, tab.id]);
+  const barGesture = useMemo(() => Gesture.Race(pager.gesture, barSwipeUp(swipesUp, pager.active, openDeckFromBar, barPull, pulls && reduceMotion)), [pager.gesture, swipesUp, incognito, tracks, tab.id]);
   const statusStyle = useAnimatedStyle(() => ({ backgroundColor: painted.value ? withTiming(top, { duration: tabsMotion.barTone }) : top }), [top]);
   const barStyle = useAnimatedStyle(() => ({ backgroundColor: painted.value ? withTiming(bottom, { duration: tabsMotion.barTone }) : bottom }), [bottom]);
   return (
@@ -306,18 +306,29 @@ function tabsMenuItems(order: BrowserTab[]): MenuItem[] {
 
 export type BarPull = { id: string; prepare: () => void; began: () => void; released: (lands: boolean) => void; settled: PullSettled };
 
-export function barSwipeUp(enabled: boolean, pagerActive: { value: number }, open: () => void, pull: BarPull | null = null) {
+export function barSwipeUp(enabled: boolean, pagerActive: { value: number }, open: () => void, pull: BarPull | null = null, primes = false) {
   const pan = Gesture.Pan()
     .withTestId("barSwipeUp")
     .enabled(enabled)
     .activeOffsetY(-browseLayout.barSwipeUp)
     .failOffsetY(PAGER.minimumDistance)
     .failOffsetX([-PAGER.minimumDistance, PAGER.minimumDistance]);
-  if (!pull)
-    return pan.onStart(() => {
+  if (!pull) {
+    const opens = pan.onStart(() => {
       if (pagerActive.value) return;
       runOnJS(open)();
     });
+    if (!primes) return opens;
+    return opens
+      .onBegin(() => {
+        deckPull.warm.value = true;
+        deckPull.primed.value = true;
+      })
+      .onFinalize(() => {
+        deckPull.warm.value = false;
+        deckPull.primed.value = false;
+      });
+  }
   const { id, prepare, began, released, settled } = pull;
   return pan
     .onBegin(() => {

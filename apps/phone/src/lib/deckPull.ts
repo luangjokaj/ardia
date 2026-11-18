@@ -46,6 +46,7 @@ export const DECK_PULL = {
   standbyCapMs: 500,
   captureCapMs: 180,
   paintCapMs: 250,
+  paintDeadlineMs: 1000,
 } as const;
 
 const springOf = (response: number, dampingFraction: number) => {

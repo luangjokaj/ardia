@@ -1,10 +1,11 @@
 import { Platform, StyleSheet } from "react-native";
 import { State } from "react-native-gesture-handler";
 import { fireGestureHandler, getByGestureTestId } from "react-native-gesture-handler/jest-utils";
-import { getAnimatedStyle } from "react-native-reanimated";
+import { getAnimatedStyle, runOnUI } from "react-native-reanimated";
 import { act, type ReactTestInstance } from "react-test-renderer";
 import { DECK_PULL, pullPagePose, pullShrink } from "../lib/deckPull";
-import { framesUntil, renderSurface, unmount, withTabs } from "../../test/render/harness";
+import { forgetPicturePainted, notePicturePainted, pictureKey } from "../lib/shownSnapshots";
+import { framesUntil, landOpeningPage, renderSurface, unmount, withTabs } from "../../test/render/harness";
 
 const mockMotion = { reduced: false };
 
@@ -17,13 +18,14 @@ const system = require("../platform/system") as typeof import("../platform/syste
 const perf = require("../state/app/interactionPerf") as typeof import("../state/app/interactionPerf");
 const pull = require("../state/browse/deckPull") as typeof import("../state/browse/deckPull");
 const { runDeckPullScript, DECK_PULL_SCRIPT } = require("../state/browse/deckPullScript") as typeof import("../state/browse/deckPullScript");
+const { sendDeckCommand } = require("../state/browse/deckCommands") as typeof import("../state/browse/deckCommands");
 const deckGrid = require("../state/browse/deckGrid") as typeof import("../state/browse/deckGrid");
 const browse = require("../state/browse/store") as typeof import("../state/browse/store");
 const { setRootSize } = require("../state/app/rootSize") as typeof import("../state/app/rootSize");
 const { writePreference } = require("../state/store/browserDatabase") as typeof import("../state/store/browserDatabase");
 const { browserDatabase } = require("../state/store/database") as typeof import("../state/store/database");
 const telemetry = require("../state/telemetry/telemetry") as typeof import("../state/telemetry/telemetry");
-const { currentTabs, useTabs } = require("../state/tabs/store") as typeof import("../state/tabs/store");
+const { currentTabs, selectTabById, updateTabById, useTabs } = require("../state/tabs/store") as typeof import("../state/tabs/store");
 
 const lookModule = require("@ardia/phone-native/src/look") as typeof import("@ardia/phone-native/src/look");
 
@@ -61,6 +63,8 @@ afterEach(() => {
   for (const root of mounted.splice(0)) unmount(root);
   act(() => pull.endDeckPull());
   act(() => jest.runOnlyPendingTimers());
+  act(() => jest.advanceTimersByTime(DECK_PULL.captureCapMs + DECK_PULL.paintCapMs + DECK_PULL.paintDeadlineMs + 100));
+  act(() => pull.endDeckPull());
   act(() => setRootSize(0, 0));
   writePreference(browserDatabase(), deckGrid.DECK_GRID_KEY, null);
   act(() => deckGrid.forgetDeckGrid());
@@ -80,6 +84,10 @@ const moved = (node: ReactTestInstance) => {
 const opacity = (node: ReactTestInstance) => (getAnimatedStyle(node).opacity as number | undefined) ?? 1;
 const frame = () => act(() => jest.advanceTimersByTime(16));
 const caughtUp = () => act(() => jest.advanceTimersByTime(320));
+const promisesSettled = () =>
+  act(async () => {
+    for (let turn = 0; turn < 10; turn++) await Promise.resolve();
+  });
 const travelFor = (target: { reach: number; pull: number }, rise: number) => (rise * target.pull) / target.reach;
 const surface = () => browse.useBrowse.getState().surface;
 
@@ -338,24 +346,457 @@ onIPhone("the bar is one bar throughout: its three glass shapes stay while the b
   frame();
 });
 
-onIPhone("with Reduce Motion nothing tracks the finger: the swipe cross-fades the page into the deck at rest, through the same handover", () => {
+const CACHED = "file:///snapshots/cached.jpg";
+const FRESH = "file:///snapshots/fresh.jpg";
+const LOADED = { nativeEvent: { source: { width: 600, height: 1333 } } };
+const pictureOf = (root: Root, uri: string) => host(root, "deckCards")!.findAll((node) => node.props.source?.uri === uri && typeof node.props.onLoad === "function" && typeof node.type !== "string")[0];
+const covered = (root: Root) => hosts(root, "deckCard").filter((card) => opacity(card) === 0);
+
+function reducedMotionPage() {
   mockMotion.reduced = true;
+  const id = currentTabs().selectedId!;
+  act(() => browse.pageStateChanged(id, { url: "https://site0.example/", title: "Site 0", isLoading: false, isLive: true, canGoBack: false, canGoForward: false } as never));
+  return { id, snapped: jest.spyOn(pages, "snapshot").mockImplementation(async () => ({ uri: FRESH, width: 600, height: 1333 }) as never) };
+}
+
+async function freshPictureTakesOver(root: Root) {
+  expect(surface()).toBe("browsing");
+  expect(pictureOf(root, FRESH)).toBeUndefined();
+  await promisesSettled();
+  frame();
+  expect(pictureOf(root, FRESH)).toBeDefined();
+  expect(surface()).toBe("browsing");
+  act(() => pictureOf(root, FRESH)!.props.onLoad(LOADED));
+  framesUntil(() => surface() === "deck", 12);
+  expect(surface()).toBe("deck");
+}
+
+onIPhone("with Reduce Motion nothing tracks the finger and nothing waits: over a card whose picture is already painted the swipe starts the cross-fade within two frames, the page fades where it is, and when the fade ends the live page stands in its own card until its fresh picture has painted under it", async () => {
+  const { id, snapped } = reducedMotionPage();
+  act(() => updateTabById(id, { snapshotFileName: CACHED }));
   const root = app();
+  act(() => pictureOf(root, CACHED)!.props.onLoad(LOADED));
+  frame();
+  const target = deckPull.target.value!;
   expect(pull.deckPullFades()).toBe(true);
   swipe([{ dy: -22 }, { dy: -150 }]);
+  frame();
   expect(deckPull.stage.value).toBe(PULL_STAGE.fading);
   expect(deckPull.reveal.value).toBe(1);
+  expect(moved(host(root, "tabDeck")!).translateX).toBe(0);
+  expect(opacity(host(root, "deckCards")!)).toBe(1);
+  expect(covered(root)).toHaveLength(0);
+  act(() => jest.advanceTimersByTime(DECK_PULL.fadeMs / 2));
+  const fading = host(root, "pagePull")!;
+  expect(opacity(fading)).toBeGreaterThan(0);
+  expect(opacity(fading)).toBeLessThan(1);
+  expect(moved(fading).scale).toBe(1);
+  expect(moved(fading).translateY).toBe(0);
+  expect(pull.usePullBar.getState().deckOwns).toBe(false);
+  for (const ghost of hosts(root, "pullGhost")) {
+    expect(opacity(ghost)).toBeGreaterThan(0);
+    expect(opacity(ghost)).toBeLessThan(1);
+  }
+  act(() => jest.advanceTimersByTime(DECK_PULL.fadeMs / 2 + 32));
+  expect(deckPull.stage.value).toBe(PULL_STAGE.landed);
+  const standing = host(root, "pagePull")!;
+  expect(opacity(standing)).toBe(1);
+  expect((moved(standing).scale ?? 1) * SCREEN.width).toBeCloseTo(target.width, 2);
+  expect(covered(root)).toHaveLength(1);
+  await freshPictureTakesOver(root);
+  expect(snapped).toHaveBeenCalledTimes(1);
+  expect(counted).toHaveBeenCalledWith("deck_bar_swipes");
+});
+
+onIPhone("with Reduce Motion the waiting deck takes each new picture of the page in front as it lands, so the next request can fade over it; with normal motion it doesn't re-render for one", async () => {
+  for (const reduced of [true, false]) {
+    mockMotion.reduced = reduced;
+    const id = currentTabs().selectedId!;
+    act(() => browse.pageStateChanged(id, { url: "https://site0.example/", title: "Site 0", isLoading: false, isLive: true, canGoBack: false, canGoForward: false } as never));
+    const uri = `file:///snapshots/landed-${reduced}.jpg`;
+    jest.spyOn(pages, "snapshot").mockImplementation(async () => ({ uri, width: 600, height: 1333 }) as never);
+    const root = app();
+    expect(pull.deckPullFades()).toBe(reduced);
+    renders = [];
+    await act(async () => {
+      await browse.captureSnapshot(id);
+    });
+    frame();
+    expect(currentTabs().open.find((tab) => tab.id === id)!.snapshotFileName).toBe(uri);
+    expect(pictureOf(root, uri) !== undefined).toBe(reduced);
+    expect(renders.includes("TabDeck")).toBe(reduced);
+    mounted.splice(mounted.indexOf(root), 1);
+    unmount(root);
+    act(() => updateTabById(id, { snapshotFileName: null }));
+  }
+});
+
+onIPhone("with Reduce Motion and no painted picture in the card there is no fade and still no wait: within two frames of the tap the live page stands in its own card with the tabs around it, a cut as before the swipe followed the finger, and the card is never seen empty", async () => {
+  const { snapped } = reducedMotionPage();
+  const root = app();
+  const target = deckPull.target.value!;
+  expect(moved(host(root, "tabDeck")!).translateX).toBe(AWAY);
+  act(() => void browse.showDeck());
+  frame();
+  frame();
+  expect(deckPull.stage.value).toBe(PULL_STAGE.landed);
+  const standing = host(root, "pagePull")!;
+  expect(opacity(standing)).toBe(1);
+  expect((moved(standing).scale ?? 1) * SCREEN.width).toBeCloseTo(target.width, 2);
+  expect(moved(host(root, "tabDeck")!).translateX).toBe(0);
+  expect(covered(root)).toHaveLength(1);
+  expect(hosts(root, "deckCard").length).toBeGreaterThan(1);
+  await freshPictureTakesOver(root);
+  expect(snapped).toHaveBeenCalledTimes(1);
+});
+
+onIPhone("the tab view's bar is never seen without its glyphs: when the page lands too low for the deck to have taken the bar, the deck's glyphs are in place from the frame the page is handed over, before the surface changes", () => {
+  jest.spyOn(lookModule, "glassIsNative").mockImplementation(() => true);
+  reducedMotionPage();
+  const root = app();
+  act(() => pull.publishDeckStandby({ ...deckPull.target.value!, reach: 8 }));
+  frame();
+  act(() => void browse.showDeck());
+  frame();
+  frame();
+  expect(deckPull.stage.value).toBe(PULL_STAGE.landed);
+  expect(pull.usePullBar.getState().deckOwns).toBe(false);
+  expect(deckPull.barCleared.value).toBe(false);
+  expect(DECK_GLYPHS.map((glyphs) => opacity(host(root, glyphs)!))).toEqual([0, 0, 0]);
+  act(() => runOnUI(pull.handOverDeckPull)());
+  frame();
+  expect(deckPull.stage.value).toBe(PULL_STAGE.handed);
+  expect(surface()).toBe("browsing");
+  expect(DECK_GLYPHS.map((glyphs) => opacity(host(root, glyphs)!))).toEqual([1, 1, 1]);
+});
+
+const landed = () => {
+  frame();
+  frame();
+  expect(deckPull.stage.value).toBe(PULL_STAGE.landed);
+};
+
+onIPhone("a second request for the tabs while the landed page waits for its picture is ignored: the first one finishes and the old entrance never starts over it", async () => {
+  reducedMotionPage();
+  const root = app();
+  act(() => void browse.showDeck());
+  landed();
+  act(() => void browse.showDeck());
+  frame();
+  frame();
+  expect(surface()).toBe("browsing");
+  expect(browse.useBrowse.getState().deckEntrance).toBeNull();
+  expect(deckPull.stage.value).toBe(PULL_STAGE.landed);
+  await freshPictureTakesOver(root);
+});
+
+onIPhone("a pull's wait for its picture gives up only its own capture: one begun for another tab meanwhile is still held when the first pull hands over", async () => {
+  const { snapped } = reducedMotionPage();
+  const other = currentTabs().open.find((tab) => tab.id !== currentTabs().selectedId)!.id;
+  act(() => browse.pageStateChanged(other, { url: "https://site1.example/", title: "Site 1", isLoading: false, isLive: true, canGoBack: false, canGoForward: false } as never));
+  const root = app();
+  act(() => void browse.showDeck());
+  landed();
+  await promisesSettled();
+  frame();
+  expect(pictureOf(root, FRESH)).toBeDefined();
+  snapped.mockImplementation(() => new Promise(() => undefined));
+  act(() => browse.deckPullBegan(other, false));
+  act(() => pictureOf(root, FRESH)!.props.onLoad(LOADED));
+  framesUntil(() => surface() === "deck", 12);
+  expect(surface()).toBe("deck");
+  expect(browse.deckPullInFlight()).toBe(true);
+  act(() => browse.deckPullSettled(other, false));
+  expect(browse.deckPullInFlight()).toBe(false);
+});
+
+onIPhone("a pull whose picture arrives after a card has really begun to open stands down without ending that open: the card is growing on the UI thread before the stale wait is answered and still is after", async () => {
+  reducedMotionPage();
+  const root = app();
+  act(() => void browse.showDeck());
+  landed();
+  await promisesSettled();
+  frame();
+  expect(pictureOf(root, FRESH)).toBeDefined();
+  act(() => pull.endDeckPull());
+  act(() => browse.useBrowse.setState({ surface: "deck", sheet: null, deckEntrance: null, frozenOrder: null, opening: null, veiled: null, covered: null, leaving: null }));
+  frame();
+  expect(deckPull.stage.value).toBe(PULL_STAGE.idle);
+  act(() => sendDeckCommand({ kind: "openFocused" }));
+  frame();
+  frame();
+  expect(deckPull.stage.value).toBe(PULL_STAGE.growing);
+  const opening = pull.deckPullGrowing();
+  expect(opening).not.toBeNull();
+  const picture = pictureOf(root, FRESH);
+  expect(picture).toBeDefined();
+  act(() => picture!.props.onLoad(LOADED));
+  frame();
+  frame();
+  expect(deckPull.stage.value).toBe(PULL_STAGE.growing);
+  expect(pull.deckPullGrowing()).toBe(opening);
+  expect(surface()).toBe("deck");
+});
+
+onIPhone("the waits for a late picture share one deadline: a first picture that never paints and a replacement that never paints either still hand the page over about a second after the wait began, counted once", async () => {
+  const OLD = "file:///snapshots/older.jpg";
+  const { id, snapped } = reducedMotionPage();
+  const captures: ((snapshot: unknown) => void)[] = [];
+  snapped.mockImplementation(() => new Promise((resolve) => captures.push(resolve)) as never);
+  act(() => updateTabById(id, { snapshotFileName: OLD }));
+  const root = app();
+  act(() => void browse.showDeck());
+  landed();
+  await promisesSettled();
+  expect(captures.length).toBeGreaterThan(0);
+  act(() => jest.advanceTimersByTime(DECK_PULL.captureCapMs));
+  const began = Date.now();
+  expect(pictureOf(root, OLD)).toBeDefined();
+  act(() => jest.advanceTimersByTime(100));
+  await act(async () => {
+    captures.forEach((captured) => captured({ uri: FRESH, width: 600, height: 1333 }));
+    for (let turn = 0; turn < 10; turn++) await Promise.resolve();
+  });
+  act(() => jest.advanceTimersByTime(began + DECK_PULL.paintDeadlineMs - 120 - Date.now()));
+  expect(pictureOf(root, FRESH)).toBeDefined();
+  expect(surface()).toBe("browsing");
+  expect(deckPull.stage.value).toBe(PULL_STAGE.landed);
+  expect(counted).not.toHaveBeenCalledWith("deck_pictures_late");
+  act(() => jest.advanceTimersByTime(began + DECK_PULL.paintDeadlineMs + 60 - Date.now()));
+  expect(surface()).toBe("deck");
+  expect(counted.mock.calls.filter(([name]) => name === "deck_pictures_late")).toHaveLength(1);
+});
+
+onIPhone("a replacement picture that has painted by the deadline is not counted late, even when the wait that ran out was for the picture it replaced", async () => {
+  const OLD = "file:///snapshots/older.jpg";
+  const { id, snapped } = reducedMotionPage();
+  const captures: ((snapshot: unknown) => void)[] = [];
+  snapped.mockImplementation(() => new Promise((resolve) => captures.push(resolve)) as never);
+  act(() => updateTabById(id, { snapshotFileName: OLD }));
+  app();
+  act(() => void browse.showDeck());
+  landed();
+  await promisesSettled();
+  act(() => jest.advanceTimersByTime(DECK_PULL.captureCapMs));
+  const began = Date.now();
+  act(() => jest.advanceTimersByTime(DECK_PULL.paintDeadlineMs - 150));
+  expect(surface()).toBe("browsing");
+  await act(async () => {
+    captures.forEach((captured) => captured({ uri: FRESH, width: 600, height: 1333 }));
+    for (let turn = 0; turn < 10; turn++) await Promise.resolve();
+  });
+  const replacement = pictureKey(`deck:${id}`, FRESH);
+  act(() => notePicturePainted(replacement));
+  expect(surface()).toBe("browsing");
+  act(() => jest.advanceTimersByTime(began + DECK_PULL.paintDeadlineMs + 60 - Date.now()));
+  forgetPicturePainted(replacement);
+  expect(surface()).toBe("deck");
+  expect(counted).not.toHaveBeenCalledWith("deck_pictures_late");
+});
+
+onIPhone("with Reduce Motion an overtaken card open is cleared when what overtook it left it recorded: a page opened from a link while the page fades in stays in front, and no opening is left behind", () => {
+  mockMotion.reduced = true;
+  withTabs(3);
+  browse.useBrowse.setState({ surface: "deck", sheet: null, deckEntrance: null, frozenOrder: null, opening: null });
+  const root = renderSurface(<Surfaces />);
+  mounted.push(root);
+  act(() => sendDeckCommand({ kind: "openFocused" }));
+  framesUntil(() => browse.useBrowse.getState().opening !== null, 14);
+  const opened = browse.useBrowse.getState().opening!;
+  expect(landOpeningPage(root)).toBe(true);
+  framesUntil(() => deckPull.pageLive.value, 4);
+  act(() => browse.openPage("https://example.org/from-a-link", "link"));
+  const linked = currentTabs().selectedId;
+  expect(linked).not.toBe(opened);
+  expect(browse.useBrowse.getState().opening).toBe(opened);
+  act(() => jest.advanceTimersByTime(DECK_PULL.barBackMs + DECK_PULL.barBackCapMs + 100));
+  expect(currentTabs().selectedId).toBe(linked);
+  expect(surface()).toBe("browsing");
+  expect(browse.useBrowse.getState().opening).toBeNull();
+  expect(pull.deckPullGrowing()).toBeNull();
+});
+
+onIPhone("with Reduce Motion a card open that has been overtaken doesn't come back: when another tab is put in front while the page fades in, the fade's end clears the open and leaves that tab selected and in front", () => {
+  mockMotion.reduced = true;
+  withTabs(3);
+  browse.useBrowse.setState({ surface: "deck", sheet: null, deckEntrance: null, frozenOrder: null, opening: null });
+  const root = renderSurface(<Surfaces />);
+  mounted.push(root);
+  act(() => sendDeckCommand({ kind: "openFocused" }));
+  framesUntil(() => browse.useBrowse.getState().opening !== null, 14);
+  const opened = browse.useBrowse.getState().opening!;
+  expect(landOpeningPage(root)).toBe(true);
+  framesUntil(() => deckPull.pageLive.value, 4);
+  expect(deckPull.pageLive.value).toBe(true);
+  expect(surface()).toBe("deck");
+  const other = currentTabs().open.find((tab) => tab.id !== opened)!.id;
+  act(() => browse.openTab(other));
+  expect(currentTabs().selectedId).toBe(other);
+  expect(surface()).toBe("browsing");
+  act(() => jest.advanceTimersByTime(DECK_PULL.barBackMs + DECK_PULL.barBackCapMs + 100));
+  expect(currentTabs().selectedId).toBe(other);
+  expect(surface()).toBe("browsing");
+  expect(deckPull.stage.value).toBe(PULL_STAGE.idle);
+  expect(pull.deckPullGrowing()).toBeNull();
+});
+
+onIPhone("with normal motion an overtaken card open doesn't come back either: another tab put in front while the card grows, before its page is made, stays selected and in front", () => {
+  withTabs(3);
+  browse.useBrowse.setState({ surface: "deck", sheet: null, deckEntrance: null, frozenOrder: null, opening: null });
+  const root = renderSurface(<Surfaces />);
+  mounted.push(root);
+  act(() => sendDeckCommand({ kind: "openFocused" }));
+  frame();
+  frame();
+  expect(deckPull.stage.value).toBe(PULL_STAGE.growing);
+  const opened = pull.deckPullGrowing()!;
+  const other = currentTabs().open.find((tab) => tab.id !== opened)!.id;
+  act(() => browse.openTab(other));
+  expect(surface()).toBe("browsing");
+  act(() => jest.advanceTimersByTime(2000));
+  expect(currentTabs().selectedId).toBe(other);
+  expect(surface()).toBe("browsing");
+  expect(deckPull.stage.value).toBe(PULL_STAGE.idle);
+});
+
+onIPhone("the deck takes over only when the picture that is current at the handover has painted: a newer one that lands while an older one is awaited is drawn and awaited instead", async () => {
+  const OLD = "file:///snapshots/older.jpg";
+  const { id, snapped } = reducedMotionPage();
+  const captures: ((snapshot: unknown) => void)[] = [];
+  snapped.mockImplementation(() => new Promise((resolve) => captures.push(resolve)) as never);
+  act(() => updateTabById(id, { snapshotFileName: OLD }));
+  const root = app();
+  act(() => void browse.showDeck());
+  landed();
+  await promisesSettled();
+  expect(captures.length).toBeGreaterThan(0);
+  act(() => jest.advanceTimersByTime(DECK_PULL.captureCapMs + 16));
+  expect(pictureOf(root, OLD)).toBeDefined();
+  expect(surface()).toBe("browsing");
+  await act(async () => {
+    captures.forEach((captured) => captured({ uri: FRESH, width: 600, height: 1333 }));
+    for (let turn = 0; turn < 10; turn++) await Promise.resolve();
+  });
+  expect(currentTabs().open.find((tab) => tab.id === id)!.snapshotFileName).toBe(FRESH);
+  act(() => pictureOf(root, OLD)!.props.onLoad(LOADED));
+  frame();
+  frame();
+  frame();
+  expect(surface()).toBe("browsing");
+  expect(deckPull.stage.value).toBe(PULL_STAGE.landed);
+  expect(pictureOf(root, FRESH)).toBeDefined();
+  act(() => pictureOf(root, FRESH)!.props.onLoad(LOADED));
+  framesUntil(() => surface() === "deck", 12);
+  expect(surface()).toBe("deck");
+});
+
+onIPhone("a picture that hasn't painted when the paint cap runs out doesn't uncover an empty card: the live page keeps standing in the card for the longer cap, the deck takes over the moment the picture paints, and only if it never does is the page handed over and the late picture counted", async () => {
+  for (const paints of [true, false]) {
+    reducedMotionPage();
+    const root = app();
+    act(() => void browse.showDeck());
+    landed();
+    await promisesSettled();
+    frame();
+    expect(pictureOf(root, FRESH)).toBeDefined();
+    act(() => jest.advanceTimersByTime(DECK_PULL.paintCapMs + 100));
+    expect(surface()).toBe("browsing");
+    expect(deckPull.stage.value).toBe(PULL_STAGE.landed);
+    expect(opacity(host(root, "pagePull")!)).toBe(1);
+    expect(counted).not.toHaveBeenCalledWith("deck_pictures_late");
+    if (paints) act(() => pictureOf(root, FRESH)!.props.onLoad(LOADED));
+    else act(() => jest.advanceTimersByTime(DECK_PULL.paintDeadlineMs));
+    framesUntil(() => surface() === "deck", 12);
+    expect(surface()).toBe("deck");
+    expect(counted.mock.calls.filter(([name]) => name === "deck_pictures_late")).toHaveLength(paints ? 0 : 1);
+    mounted.splice(mounted.indexOf(root), 1);
+    unmount(root);
+    act(() => pull.endDeckPull());
+    act(() => jest.runOnlyPendingTimers());
+    counted.mockClear();
+    withTabs(5);
+    browse.useBrowse.setState({ surface: "browsing", sheet: null, deckEntrance: null, frozenOrder: null, opening: null, veiled: null, covered: null, leaving: null });
+  }
+});
+
+onIPhone("a request for the tabs that is still waiting for the deck is dropped when another tab comes in front, not answered over that tab; with the same page still in front it falls back to the old entrance", () => {
+  const first = currentTabs().selectedId!;
+  const other = currentTabs().open.find((tab) => tab.id !== first)!.id;
+  const root = renderSurface(<Surfaces />, { flushTimers: false });
+  mounted.push(root);
+  expect(pull.deckStandbyId()).toBeNull();
+  act(() => {
+    void browse.showDeck();
+    selectTabById(other);
+  });
+  act(() => jest.advanceTimersByTime(DECK_PULL.standbyCapMs + 100));
+  expect(surface()).toBe("browsing");
+  expect(currentTabs().selectedId).toBe(other);
+  expect(deckPull.stage.value).toBe(PULL_STAGE.idle);
+  const never = jest.spyOn(pull, "whenDeckStandby").mockImplementation((_id, then) => {
+    const cap = setTimeout(() => then(false), DECK_PULL.standbyCapMs);
+    return () => clearTimeout(cap);
+  });
+  act(() => void browse.showDeck());
+  expect(never).toHaveBeenCalledTimes(1);
+  act(() => jest.advanceTimersByTime(DECK_PULL.standbyCapMs - 50));
+  expect(surface()).toBe("browsing");
+  act(() => jest.advanceTimersByTime(100));
+  expect(surface()).toBe("deck");
+  expect(deckPull.stage.value).toBe(PULL_STAGE.idle);
+  expect(pull.peekDeckPullEntrance()).toBeNull();
+});
+
+onIPhone("with Reduce Motion a card opens as a cross-fade too: the deck holds still, can't be dragged and stays the surface, the page is made under it unseen, and once it is laid out it fades in over the cards and the deck lets go when the fade has ended", () => {
+  mockMotion.reduced = true;
+  withTabs(3);
+  browse.useBrowse.setState({ surface: "deck", sheet: null, deckEntrance: null, frozenOrder: null, opening: null });
+  const root = renderSurface(<Surfaces />);
+  mounted.push(root);
+  const placed = () => hosts(root, "deckCard").map((card) => ({ ...moved(card), opacity: opacity(card) }));
+  const before = placed();
+  expect(before.length).toBeGreaterThan(1);
+  type Detected = { toGestureArray?: () => { config: { testId?: string; enabled?: boolean } }[] };
+  const deckPanEnabled = () =>
+    root.root
+      .findAll((node) => typeof (node.props.gesture as Detected | undefined)?.toGestureArray === "function")
+      .flatMap((node) => (node.props.gesture as Required<Detected>).toGestureArray())
+      .filter((gesture) => gesture.config.testId === "deckPan")
+      .map((gesture) => gesture.config.enabled !== false)
+      .pop();
+  expect(deckPanEnabled()).toBe(true);
+  act(() => sendDeckCommand({ kind: "openFocused" }));
+  act(() => jest.advanceTimersByTime(32));
+  expect(surface()).toBe("deck");
+  expect(deckPull.stage.value).toBe(PULL_STAGE.growing);
+  expect(deckPull.steady.value).toBe(true);
+  expect(placed()).toEqual(before);
+  framesUntil(() => browse.useBrowse.getState().opening !== null, 12);
+  expect(surface()).toBe("deck");
+  expect(opacity(host(root, "pagePull")!)).toBe(0);
+  expect(placed()).toEqual(before);
+  expect(deckPanEnabled()).toBe(false);
+  const scrolls = root.root.findAll((node) => typeof node.props.onScrollAction === "function")[0]!;
+  expect(scrolls.props.canScrollForward || scrolls.props.canScrollBackward).toBe(true);
+  act(() => scrolls.props.onScrollAction(scrolls.props.canScrollBackward ? "backward" : "forward"));
+  frame();
+  frame();
+  frame();
+  expect(placed()).toEqual(before);
+  expect(landOpeningPage(root)).toBe(true);
+  framesUntil(() => deckPull.pageLive.value, 4);
+  expect(deckPull.pageLive.value).toBe(true);
+  act(() => jest.advanceTimersByTime(DECK_PULL.fadeMs / 2));
   const page = host(root, "pagePull")!;
+  expect(opacity(page)).toBeGreaterThan(0);
+  expect(opacity(page)).toBeLessThan(1);
   expect(moved(page).scale).toBe(1);
   expect(moved(page).translateY).toBe(0);
-  expect(opacity(host(root, "deckCards")!)).toBe(1);
-  act(() => jest.advanceTimersByTime(DECK_PULL.fadeMs / 2));
-  expect(opacity(host(root, "pagePull")!)).toBeGreaterThan(0);
-  expect(opacity(host(root, "pagePull")!)).toBeLessThan(1);
-  expect(moved(host(root, "pagePull")!).scale).toBe(1);
-  framesUntil(() => surface() === "deck", 120);
   expect(surface()).toBe("deck");
-  expect(counted).toHaveBeenCalledWith("deck_bar_swipes");
+  expect(placed()).toEqual(before);
+  framesUntil(() => deckPull.stage.value === PULL_STAGE.idle, 60);
+  expect(surface()).toBe("browsing");
+  expect(opacity(host(root, "pagePull")!)).toBe(1);
 });
 
 onIPhone("with Grid chosen the waiting deck holds the grid, the page's target is its own tile, and the swipe lands there", () => {
