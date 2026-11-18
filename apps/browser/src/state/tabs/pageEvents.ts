@@ -11,6 +11,7 @@ import { patchPage, pageOf, setPopover } from "./pageState";
 import { isQuitting } from "../app/quit";
 import { closeTabNow } from "./actions";
 import { closedByUnload } from "../profiles/profileUnloading";
+import { forgetRendererHang } from "../telemetry/freezes";
 
 export function leftPage(tabId: string, url: string, previousPage: string, engine: PageEngine, inPeek: boolean) {
   if (pageOf(tabId).externalApp && hostOf(url) !== hostOf(previousPage)) answerExternalApp(tabId, false);
@@ -24,6 +25,7 @@ export function leftPage(tabId: string, url: string, previousPage: string, engin
 }
 
 export function pageEnded(tabId: string) {
+  forgetRendererHang(tabId);
   if (useMedia.getState().sessions[tabId]) {
     noteMediaCardCleared();
     setNowPlaying(tabId, null);
