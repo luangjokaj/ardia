@@ -13,6 +13,7 @@ import { hostOf } from "@ardia/core";
 import { capture } from "../telemetry/client";
 import { noteMediaPositionReport, noteNowPlayingLoopRestart } from "../telemetry/mediaCardCounts";
 import { isSleeping } from "../tabs/sleepingTabs";
+import { notePictureInPictureClosed } from "../telemetry/pictureInPictureCloses";
 
 export type Session = NowPlaying & {
   playedAt: number;
@@ -39,7 +40,8 @@ const PER_TAB = Object.keys(noMedia()) as (keyof Store)[];
 
 export const useMedia = create<Store>()(noMedia);
 
-export function setPictureInPictureState(tabId: string, { kind, active, fullScreenSpaces, leftApp, leftTab }: PictureInPictureState) {
+export function setPictureInPictureState(tabId: string, { kind, active, fullScreenSpaces, leftApp, leftTab, closedBy, auto }: PictureInPictureState) {
+  if (!active && closedBy) notePictureInPictureClosed(closedBy, !!auto);
   if (active && fullScreenSpaces !== undefined) capture("pip_shown", { kind, full_screen_spaces: fullScreenSpaces, left_app: !!leftApp, left_tab: !!leftTab });
   useMedia.setState((s) => {
     if (active ? s.pipOpen[tabId] === kind : !s.pipOpen[tabId]) return s;
@@ -83,10 +85,11 @@ function applyNowPlaying(tabId: string, state: NowPlaying | null) {
 }
 
 function pausedPeers(sessions: Store["sessions"], tabId: string): string[] {
-  const tabs = useBrowser.getState().tabs;
-  const tab = tabs[tabId];
+  const s = useBrowser.getState();
+  const tab = s.tabs[tabId];
   if (!tab) return [];
-  return Object.keys(sessions).filter((id) => id !== tabId && !isPlaying(sessions[id]) && tabs[id]?.windowId === tab.windowId && tabs[id]?.profileId === tab.profileId);
+  const across = s.settings.playingNowAcrossProfiles;
+  return Object.keys(sessions).filter((id) => id !== tabId && !isPlaying(sessions[id]) && s.tabs[id]?.windowId === tab.windowId && (across || s.tabs[id]?.profileId === tab.profileId));
 }
 
 const isControllablyPlaying = (state: NowPlaying) => state.controllable && state.playbackState === "playing";
@@ -216,7 +219,8 @@ export function hasPlayer(m: Pick<Store, "sessions" | "dismissed">, tabId: strin
 
 function isHiddenPlayerTab(s: BrowserState, tabId: string): boolean {
   const tab = s.tabs[tabId];
-  return !!tab && !!s.windows[tab.windowId] && !isTabShown(s, tabId, tab.profileId);
+  const w = tab && s.windows[tab.windowId];
+  return !!w && !isTabShown(s, tabId, s.settings.playingNowAcrossProfiles ? w.profileId : tab.profileId);
 }
 
 let hiddenBefore = new Set<string>();
@@ -252,6 +256,15 @@ export function playerTabFor(m: Pick<Store, "sessions" | "dismissed">, tabIds: s
     }
   }
   return bestId;
+}
+
+const sharedPlayerTabs = new Map<string, string | undefined>();
+
+export function sidebarPlayerTabFor(m: Pick<Store, "sessions" | "dismissed">, tabIds: string[], windowId: string, own: string | undefined, acrossProfiles: boolean): string | undefined {
+  const tabId = playerTabFor(m, tabIds, acrossProfiles ? sharedPlayerTabs.get(windowId) : own);
+  if (acrossProfiles) sharedPlayerTabs.set(windowId, tabId);
+  else sharedPlayerTabs.delete(windowId);
+  return tabId;
 }
 
 const PIP_STATE = 'post("result", JSON.stringify(!!document.pictureInPictureElement || !!window.documentPictureInPicture?.window))';
@@ -324,7 +337,8 @@ const NO_HIDDEN: string[] = [];
 export function hiddenPlayerTabs(s: BrowserState, windowId: string, profileId: string, sessions: string[]): string[] {
   const w = s.windows[windowId];
   if (!sessions.length || !w) return NO_HIDDEN;
-  const ids = sessions.filter((id) => s.tabs[id]?.windowId === windowId && s.tabs[id]!.profileId === profileId && isHiddenPlayerTab(s, id));
+  const across = s.settings.playingNowAcrossProfiles;
+  const ids = sessions.filter((id) => s.tabs[id]?.windowId === windowId && (across || s.tabs[id]!.profileId === profileId) && isHiddenPlayerTab(s, id));
   return ids.length > 1 ? ids.sort((a, b) => w.tabIds.indexOf(a) - w.tabIds.indexOf(b)) : ids;
 }
 
