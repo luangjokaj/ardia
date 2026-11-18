@@ -49,9 +49,14 @@ import { pictureCaptured, pictureLanded } from "../tabs/pictures";
 import { deckOrder, findTab, isPrivateOnScreen, isPrivateTab, selectedTab, tabBefore } from "../tabs/tabsState";
 import { setHidesFromRecents } from "../../platform/links";
 import { copyText, pasteText } from "../../platform/system";
-import { noteSnapshotPageTop, noteSnapshotShown } from "../../lib/shownSnapshots";
+import { noteSnapshotPageTop, noteSnapshotShown, pictureKey, whenPicturePainted } from "../../lib/shownSnapshots";
+import { DECK_PULL } from "../../lib/deckPull";
+import { runOnUI } from "react-native-reanimated";
 import { showToast } from "../toasts/store";
 import { hideArchiveCard } from "./archiveCard";
+import { deckPullArmed, deckPullFades, deckPullGrowing, deckStandbyId, endDeckPull, fadeDeckPullFromRest, handOverDeckPull, landDeckPullFromRest, noteDeckPullEntrance, whenDeckStandby } from "./deckPull";
+import { beginInteraction, cutInteraction, INTERACTION_WINDOW_MS } from "../app/interactionPerf";
+import { refreshHiddenDeck, wantDeckStandby } from "./deckStandby";
 import { countUsage } from "../telemetry/telemetry";
 import { rememberPageTones, restorePageTones } from "../pages/toneMemory";
 import { followColorInWidgets } from "../settings/widgetColor";
@@ -301,6 +306,12 @@ export function newRegularTab() {
   presentSearch(trayOrigin(), "", was);
 }
 
+export function switchDeckIncognito() {
+  const was = useTabs.getState().incognito;
+  if (!was) countUsage("deck_incognito_switches");
+  setIncognito(!was);
+}
+
 export function toggleTrayIncognito() {
   const was = useTabs.getState().incognito;
   if (searchState().incognitoOnCancel === null) useSearch.setState({ incognitoOnCancel: was });
@@ -320,6 +331,15 @@ export function cancelSearch() {
 }
 
 export async function showDeck() {
+  const selected = currentTabs().selectedId;
+  if (useBrowse.getState().surface === "browsing" && selected && deckPullArmed() === selected && !pageCovered()) {
+    landDeckFromRest(selected);
+    return;
+  }
+  await enterDeck();
+}
+
+async function enterDeck() {
   const { surface } = useBrowse.getState();
   const selected = currentTabs().selectedId;
   const covered = pageCovered();
@@ -340,6 +360,123 @@ export async function showDeck() {
   labTrace(`PAGELAB deck shown with ${currentTabs().open.length} tabs, ${currentTabs().privates.length} private`);
   useBrowse.setState({ surface: "deck", deckEntrance: leaving, frozenOrder: null, opening: null, veiled: null, covered: null, leaving });
 }
+
+let pullCapture: { id: string; done: Promise<void> } | null = null;
+let landingFromRest: string | null = null;
+let trackedPull: string | null = null;
+
+const pullCounts = (id: string) => !useTabs.getState().incognito && !findTab(currentTabs(), id)?.isPrivate;
+
+const PULL_PERF = "deck pull";
+const PULLED_PAGE_TOP = 0;
+const PULL_LANDING_PERF = "deck pull landing";
+
+export function deckPullBegan(id: string, tracked = true) {
+  const tab = findTab(currentTabs(), id);
+  if (tab?.snapshotFileName) noteSnapshotShown(tab.snapshotFileName);
+  if (tracked) {
+    trackedPull = id;
+    beginInteraction(PULL_PERF, INTERACTION_WINDOW_MS.deckPull);
+  }
+  pullCapture = null;
+  if (!coverIsCapturable(loading.get(id) === false, pageCovered())) return;
+  const done = captureSnapshot(id, PULLED_PAGE_TOP).then(() => {
+    const fresh = findTab(currentTabs(), id)?.snapshotFileName;
+    if (fresh) noteSnapshotShown(fresh);
+  });
+  pullCapture = { id, done };
+}
+
+export function deckPullReleased(id: string, lands: boolean) {
+  cutInteraction(PULL_PERF);
+  beginInteraction(lands ? PULL_LANDING_PERF : "deck pull return", INTERACTION_WINDOW_MS.deckPullLanding);
+  if (pullCounts(id)) countUsage(lands ? "deck_bar_swipes" : "deck_bar_swipes_returned");
+}
+
+function landDeckFromRest(id: string) {
+  if (landingFromRest === id) return;
+  landingFromRest = id;
+  deckPullBegan(id, false);
+  if (deckStandbyId() !== id) {
+    labTrace("PAGELAB deck pull waits for the deck to be ready for this page");
+    refreshHiddenDeck();
+    wantDeckStandby();
+  }
+  whenDeckStandby(id, (ready) => {
+    if (landingFromRest !== id) return;
+    if (ready && useBrowse.getState().surface === "browsing" && currentTabs().selectedId === id) {
+      beginInteraction(PULL_LANDING_PERF, INTERACTION_WINDOW_MS.deckPullLanding);
+      runOnUI(deckPullFades() ? fadeDeckPullFromRest : landDeckPullFromRest)(id, deckPullSettled, deckPullRefused);
+      return;
+    }
+    landingFromRest = null;
+    pullCapture = null;
+    labTrace("PAGELAB deck pull gave up waiting, the deck opens without it");
+    void enterDeck();
+  });
+}
+
+function deckPullRefused(id: string) {
+  if (landingFromRest !== id) return;
+  landingFromRest = null;
+  if (trackedPull !== null || useBrowse.getState().surface !== "browsing" || currentTabs().selectedId !== id) return;
+  pullCapture = null;
+  labTrace("PAGELAB deck pull refused on the UI thread, the deck opens without it");
+  void enterDeck();
+}
+
+export function deckPullSettled(id: string, landed: boolean, worstFrameMs = 0) {
+  landingFromRest = null;
+  trackedPull = null;
+  if (worstFrameMs > DECK_PULL.hitchMs && pullCounts(id)) countUsage("deck_pulls_hitched");
+  const capture = pullCapture?.id === id ? pullCapture.done : null;
+  if (!landed) {
+    pullCapture = null;
+    refreshHiddenDeck();
+    return;
+  }
+  const painted = () => {
+    refreshHiddenDeck();
+    const picture = findTab(currentTabs(), id)?.snapshotFileName;
+    if (!picture) enterDeckFromPull(id);
+    else whenPicturePainted(pictureKey(`deck:${id}`, picture), DECK_PULL.paintCapMs, () => enterDeckFromPull(id));
+  };
+  if (!capture) {
+    painted();
+    return;
+  }
+  let waited = false;
+  const captured = () => {
+    if (waited) return;
+    waited = true;
+    clearTimeout(cap);
+    painted();
+  };
+  const cap = setTimeout(captured, DECK_PULL.captureCapMs);
+  void capture.then(captured);
+}
+
+function enterDeckFromPull(id: string) {
+  pullCapture = null;
+  if (useBrowse.getState().surface !== "browsing" || currentTabs().selectedId !== id) {
+    endDeckPull();
+    return;
+  }
+  runOnUI(handOverDeckPull)();
+  requestAnimationFrame(() => {
+    if (useBrowse.getState().surface !== "browsing" || currentTabs().selectedId !== id) {
+      endDeckPull();
+      return;
+    }
+    dismissSearch();
+    entranceCapture = null;
+    noteDeckPullEntrance(id);
+    labTrace(`PAGELAB deck shown with ${currentTabs().open.length} tabs, ${currentTabs().privates.length} private`);
+    useBrowse.setState({ surface: "deck", deckEntrance: null, frozenOrder: null, opening: null, veiled: null, covered: null, leaving: null });
+  });
+}
+
+export const deckPullInFlight = () => trackedPull !== null || landingFromRest !== null || pullCapture !== null;
 
 export const peekDeckEntrance = () => useBrowse.getState().deckEntrance;
 
@@ -372,6 +509,10 @@ export function leaveDeckIfEmpty() {
 export function closeTabFromDeck(id: string) {
   closeTabById(id);
   leaveDeckIfEmpty();
+}
+
+export function stayIncognito() {
+  if (!useTabs.getState().incognito) setIncognito(true);
 }
 
 export function closeAllFromDeck() {
@@ -508,10 +649,12 @@ export function captureCurrentCover() {
   void captureSnapshot(id);
 }
 
-export async function captureSnapshot(id: string) {
+export async function captureSnapshot(id: string, pageTop: number | null = null) {
   if (!snapshotAllowed(id)) return;
   const snapshot = await snapshotPage(id);
-  if (snapshot?.frame) noteSnapshotPageTop(snapshot.uri, snapshot.frame.y);
+  const top = pageTop ?? (pullCapture?.id === id || deckPullGrowing() === id ? PULLED_PAGE_TOP : null);
+  if (snapshot && top !== null) noteSnapshotPageTop(snapshot.uri, top);
+  else if (snapshot?.frame) noteSnapshotPageTop(snapshot.uri, snapshot.frame.y);
   const tab = snapshot ? findTab(currentTabs(), id) : null;
   if (!snapshot || !tab) return;
   const step = pictureCaptured(tab, snapshot.uri, snapshot.durable !== false, snapshot.generation);
