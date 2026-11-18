@@ -8,7 +8,7 @@ import { profileBadge, profileColors, profileSwitcher } from "./tokens";
 import { iconSymbol } from "../../lib/customIcon";
 import { PLATFORM_FEATURES } from "../../lib/platformFeatures";
 import { snappedToGrid } from "../../lib/interfaceScale";
-import { currentInterfaceScale } from "../../state/settings/interfaceScale";
+import { currentInterfaceScale, snappedToDevicePixels } from "../../state/settings/interfaceScale";
 
 export const PROFILE_SYMBOLS: { name: string; title: string }[] = [
   { name: "house.fill", title: "Home" },
@@ -119,7 +119,7 @@ function inkCentered(size: number, shiftX: number, inkRise: number, metrics: Lin
 
 function glyphPlacement(size: number, emoji: boolean, fontSize: number, tracking: number, metrics: LineMetrics | undefined) {
   if (!PLATFORM_FEATURES.snapsTextBaselines) {
-    const nudge = retinaSnapped(size * profileBadge.nudge);
+    const nudge = snappedToDevicePixels(size * profileBadge.nudge);
     return { holder: null, text: emoji ? { transform: [{ translateX: nudge }, { translateY: nudge }] } : { height: size, lineHeight: size, transform: [{ translateX: tracking / 2 }, { translateY: 0 }] } };
   }
   if (emoji) return { holder: inkCentered(size, EMOJI_FIT_BY_BADGE[size]?.shiftX ?? fontSize * profileBadge.emojiInkShift, fontSize * profileBadge.emojiInkRise, { ascender: fontSize * EMOJI_FONT.ascender, capHeight: fontSize * EMOJI_FONT.capHeight }), text: null };
