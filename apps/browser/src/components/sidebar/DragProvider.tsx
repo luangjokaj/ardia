@@ -1,7 +1,7 @@
 import { layout, useScopedTheme } from "../ui/theme";
 import { devRegister } from "../dev/devRegister";
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
-import { PanResponder, type View } from "react-native";
+import { Animated, PanResponder, type View } from "react-native";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { perLook, radius } from "../ui";
@@ -18,6 +18,7 @@ const dropGlowPlace = perLook(() => ({ left: 5, right: 5, top: 44, bottom: 6, bo
 
 const DragContext = createContext<DragController | null>(null);
 const DragItemsContext = createContext<DragItems | null>(null);
+export const FoldEntryContext = createContext(false);
 
 export function DragProvider({ children }: { children: (ghost: Ghost | null, controller: DragController) => ReactNode }) {
   const controller = useMemo(() => new DragController(), []);
@@ -55,7 +56,6 @@ export function DragScope({ enabled, children }: { enabled: boolean; children: R
 export const useDragController = () => useContext(DragContext) ?? undefined;
 export const useDropInto = (groupId: string) => useStore(useContext(DragContext)?.marks ?? noDragMarks, (m) => m.dropInto === groupId);
 export const useDropSplit = (key: string) => useStore(useContext(DragContext)?.marks ?? noDragMarks, (m) => (m.split?.key === key ? m.split.side : null));
-export const useDropLine = () => useStore(useContext(DragContext)?.marks ?? noDragMarks, (m) => m.line);
 export const useDropTile = () => useStore(useContext(DragContext)?.marks ?? noDragMarks, (m) => m.tile);
 export const useDropRow = () => useStore(useContext(DragContext)?.marks ?? noDragMarks, (m) => m.row);
 export const useDropPins = () => useStore(useContext(DragContext)?.marks ?? noDragMarks, (m) => m.pins);
@@ -75,7 +75,29 @@ export const usePinnedCount = (cells: string[]) =>
   useStore(useContext(DragContext)?.marks ?? noDragMarks, (m) => cells.reduce((n, cell) => n + (m.sources.has(cellKey(cell)) ? 0 : 1), 0) + m.pinCount);
 export const useFolderTarget = (key: string) => useStore(useContext(DragContext)?.marks ?? noDragMarks, (m) => m.folderTarget === key);
 export const useFolderAway = () => useStore(useContext(DragContext)?.marks ?? noDragMarks, (m) => m.folderAway);
+export const useEdgeHold = () => useStore(useContext(DragContext)?.marks ?? noDragMarks, (m) => m.edgeHold);
+export const useOverProfiles = () => useStore(useContext(DragContext)?.marks ?? noDragMarks, (m) => m.overProfiles);
+export const useProfileHold = (profileId: string) => useStore(useContext(DragContext)?.marks ?? noDragMarks, (m) => m.profileHold === profileId);
+export const useProfileTarget = (profileId: string) => {
+  const controller = useContext(DragContext);
+  return useCallback(
+    (view: View | null) => {
+      if (!controller) return;
+      if (view) controller.profiles.views.set(profileId, view);
+      else controller.profiles.views.delete(profileId);
+    },
+    [controller, profileId],
+  );
+};
+export const useDragFolded = (key: string) => useStore(useContext(DragContext)?.marks ?? noDragMarks, (m) => m.folded === key);
 export const useDragging = () => useStore(useContext(DragContext)?.marks ?? noDragMarks, (m) => m.sources.size > 0);
+
+export function useCollapsingSlot(key: string, gap: number) {
+  const controller = useContext(DragItemsContext)?.controller;
+  const source = useStore(controller?.marks ?? noDragMarks, (m) => m.sources.has(key));
+  const item = source ? controller?.items.get(key) : undefined;
+  return useMemo(() => (item && item.kind !== "tile" ? { marginBottom: -gap } : null), [item, gap]);
+}
 
 export function useDragItem(key: string, spec: ItemSpec, clip: ClipSource | null = null) {
   const items = useContext(DragItemsContext);
@@ -107,7 +129,7 @@ export function useDragItem(key: string, spec: ItemSpec, clip: ClipSource | null
         controller?.move(g.moveX, g.moveY);
       },
       onPanResponderRelease: (e, g) => controller?.end(true, Math.max(reach(g.moveX, g.moveY), reach(e.nativeEvent.pageX, e.nativeEvent.pageY)) <= TAB_CLICK_SLOP ? e : null),
-      onPanResponderTerminate: () => controller?.end(false),
+      onPanResponderTerminate: () => controller?.interrupt(),
       onPanResponderTerminationRequest: () => false,
     });
   }, [controller, key]);
@@ -129,11 +151,23 @@ export function useDragItem(key: string, spec: ItemSpec, clip: ClipSource | null
   const clipped = useClipped(clip);
   const horizontal = spec.kind === "tile";
   useScopedTheme();
-  const hidden = (source && horizontal) || landing;
-  const style = {
-    ...(spec.kind === "tail" ? restingTail() : null),
-    ...(item && hidden ? { opacity: 0 } : null),
-    ...(item && clipped && !hidden ? { marginTop: -layout.rowGap, paddingTop: layout.rowGap, overflow: "hidden" as const } : null),
-  };
+  const inFold = useContext(FoldEntryContext);
+  const rowGap = layout.rowGap;
+  const tailOffset = useMemo(() => item && Animated.add(item.gap, -rowGap), [item, rowGap]);
+  const style = item
+    ? {
+        ...(horizontal ? null : { marginTop: spec.kind === "tail" ? tailOffset! : item.gap }),
+        ...(source
+          ? horizontal
+            ? { opacity: 0 }
+            : { height: item.size, marginBottom: inFold ? 0 : -rowGap, opacity: 0, overflow: "hidden" as const }
+          : landing
+            ? { opacity: 0 }
+            : null),
+        ...(clipped && !source && !landing ? { marginTop: -rowGap, paddingTop: rowGap, overflow: "hidden" as const } : null),
+      }
+    : spec.kind === "tail"
+      ? restingTail()
+      : {};
   return { wrapper: { ref, style }, handle: responder.panHandlers, headerRef, dragging: source, gap: item?.gap };
 }
