@@ -9,7 +9,7 @@ import { countUsage } from "../../state/telemetry/telemetry";
 import { noteDeckBarTop, watchDeckBar } from "../../state/toasts/store";
 import { capsule, chromeLayout, ChromeSurface, deckChromeLayout, deckChromeMotion, font, ink, iPhoneOr, PressScale, rolesFor, startLayout, tabsCurve, tabsInk, tabsLayout, useTheme, type MenuItem, Symbol, SystemGlyph } from "../ui";
 import { MenuTrigger } from "../ui/MenuTrigger";
-import { useKeyboardHeight } from "../search/useKeyboardHeight";
+import { useKeyboardTopFromBottom } from "../search/useKeyboardHeight";
 import { FadingGlyphs, GlassPlusButton, type ChromeFade } from "./ChromeButtons";
 
 type Props = {
@@ -30,11 +30,11 @@ export function plusMenu(incognito: boolean, canReopen: boolean): MenuItem[] {
   ];
 }
 
-export function PlusMenuButton({ width, label, testID, dark, incognito = false, place, menusShown = true, onMenu, ...fade }: { width: number; label: string; testID: string; dark: boolean; incognito?: boolean; place: ViewStyle; menusShown?: boolean; onMenu?: (open: boolean) => void } & ChromeFade) {
+export function PlusMenuButton({ width, label, testID, dark, incognito = false, place, menusShown = true, frost, onMenu, ...fade }: { width: number; label: string; testID: string; dark: boolean; incognito?: boolean; place: ViewStyle; menusShown?: boolean; frost?: string | null; onMenu?: (open: boolean) => void } & ChromeFade) {
   const tabIncognito = useIncognito();
   const canReopen = useCanReopen();
   return (
-    <MenuTrigger items={plusMenu(tabIncognito, canReopen)} trigger="longPress" haptic={menuOpenedHaptic} disabled={!menusShown} onOpen={() => onMenu?.(true)} onClose={() => onMenu?.(false)} place={place} style={{ width, height: startLayout.barPlus.height }}>
+    <MenuTrigger items={plusMenu(tabIncognito, canReopen)} trigger="longPress" haptic={menuOpenedHaptic} disabled={!menusShown} frost={frost} onOpen={() => onMenu?.(true)} onClose={() => onMenu?.(false)} place={place} style={{ width, height: startLayout.barPlus.height }}>
       {({ onLongPress }) => <GlassPlusButton width={width} label={label} testID={testID} dark={dark} incognito={incognito} {...fade} onPress={newTab} onLongPress={onLongPress ?? noop} />}
     </MenuTrigger>
   );
@@ -132,7 +132,7 @@ export function DeckBottomBar({ shown, barCenterY, deckHeight, safeSide, incogni
   const search = useSearchTabs(shown, incognito, onQuery);
   const { focused } = search;
   const row = useRef<ViewInstance>(null);
-  const keyboard = useKeyboardHeight(shown);
+  const keyboard = useKeyboardTopFromBottom(shown);
   const lift = focused && keyboard > 0 ? Math.max(0, barCenterY - deckBarAboveKeyboard(deckHeight, keyboard)) : 0;
   const rise = useSharedValue(0);
   useEffect(() => {

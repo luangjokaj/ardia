@@ -4,6 +4,8 @@ import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { copy } from "../../lib/platformCopy";
 import {
   canPrintPages,
+  canSummarizePages,
+  summarizeCurrentPage,
   closePageMenu,
   copyCurrentLink,
   editPageQuery,
@@ -44,7 +46,7 @@ function openFromMenu(section: LibrarySection) {
   openLibrary(section);
 }
 
-const useAccessibilityText = () => useWindowDimensions().fontScale >= pageMenuLayout.accessibilityTextScale;
+const useAccessibilityText = () => useWindowDimensions().fontScale >= copy().menuLargeTextScale;
 
 export function PageMenuWords({ tabId, model, onTranslate }: { tabId: string; model: MenuModel; onTranslate: () => void }) {
   const large = useAccessibilityText();
@@ -62,6 +64,7 @@ export function PageMenuWords({ tabId, model, onTranslate }: { tabId: string; mo
       <View style={styles.groups}>
         <Group>
           <Row title="Find on Page" enabled={model.find} onPress={showFind} />
+          {canSummarizePages() ? <Row title="Summarize Page" enabled={model.summarize} onPress={summarizeCurrentPage} /> : null}
           {model.isWebPage && devices.length ? <SendRow devices={devices} /> : null}
           {canPrintPages() ? <Row title="Print" enabled={model.print} onPress={printCurrentPage} /> : null}
         </Group>

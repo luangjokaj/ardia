@@ -17,6 +17,8 @@ import { setUsageSharing, useUsageSharing } from "../../state/telemetry/telemetr
 import { AppearanceRow, ColorRow, MatchMyMac } from "./AppearancePage";
 import { BarButton, Group, IconTile, NavRow, PickerRow, SettingsPage, ToggleRow } from "./SettingsKit";
 import { syncOffered } from "../../state/sync/offer";
+import { browseForMeOffered, refreshChatGPTConnected, useChatGPTConnected } from "../../state/browseForMe/store";
+import { browseForMeRowValue } from "../../state/browseForMe/copy";
 
 const APP_LINKS = [
   { id: "ardia" as const, title: "Ardia" },
@@ -43,6 +45,10 @@ export function SettingsRoot() {
   const engineName = syncEnabled && synced ? syncedEngineName(synced, engines) : (engines.find((engine) => engine.id === engineId)?.name ?? "");
   const stacks = useWindowDimensions().fontScale >= settingsLayout.accessibilityFontScale;
   const redesigned = useDesign() === "redesigned";
+  const chatGPT = useChatGPTConnected();
+  useEffect(() => {
+    void refreshChatGPTConnected();
+  }, []);
   return (
     <SettingsPage title="Settings" trailing={<BarButton title="Done" emphasized onPress={closeSettings} />}>
       {syncOffered() ? (
@@ -117,6 +123,11 @@ export function SettingsRoot() {
         />
         <NavRow title={PHONE_SHARING_COPY.whatsSent} icon="info" tint={settingsTint.neutral} onPress={() => pushSettings({ page: "whatsSent" })} />
       </Group>
+      {browseForMeOffered() ? (
+        <Group header="Experimental">
+          <NavRow title="Browse for Me" icon="sparkleMagnifyingglass" tint={settingsTint.nightShade} value={browseForMeRowValue(chatGPT)} onPress={() => pushSettings({ page: "browseForMe" })} />
+        </Group>
+      ) : null}
       <Group>
         <Pressable accessibilityRole="button" onPress={showOnboardingFromSettings} style={({ pressed }) => [styles.row, pressed ? { backgroundColor: theme.rowHighlight } : null]}>
           <IconTile icon="handWave" tint={settingsTint.onboarding} />

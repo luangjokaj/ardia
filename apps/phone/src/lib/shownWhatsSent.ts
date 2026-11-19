@@ -4,7 +4,7 @@ const SYNC_ONLY_PHRASES = ["pages you pinned to your Mac, ", "tabs you sent to a
 
 const APPEARANCE_WITHOUT_SYNC = "With each launch, the Appearance you chose: Glass or Classic, and Light, Dark or System";
 
-const IPHONE_ONLY_FIELDS = ["perf_backdrop", "browse_for_me_opened"];
+const IPHONE_ONLY_FIELDS = ["perf_backdrop", "browse_for_me_opened", "page_summaries_pinched"];
 
 function shownItem(item: SentItem, offersSync: boolean): SentItem {
   if (offersSync) return item;

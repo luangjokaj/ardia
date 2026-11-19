@@ -54,7 +54,7 @@ import { DECK_PULL } from "../../lib/deckPull";
 import { runOnUI } from "react-native-reanimated";
 import { showToast } from "../toasts/store";
 import { hideArchiveCard } from "./archiveCard";
-import { cutDeckPullFromRest, deckPullArmed, deckPullFades, deckPullGrowing, deckStandbyId, endDeckPull, fadeDeckPullFromRest, handOverDeckPull, landDeckPullFromRest, noteDeckPullEntrance, whenDeckStandby } from "./deckPull";
+import { cutDeckPullFromRest, deckPull, deckPullArmed, deckPullFades, deckPullGrowing, deckStandbyId, endDeckPull, fadeDeckPullFromRest, handOverDeckPull, landDeckPullFromRest, noteDeckPullEntrance, PULL_STAGE, whenDeckStandby } from "./deckPull";
 import { beginInteraction, cutInteraction, INTERACTION_WINDOW_MS } from "../app/interactionPerf";
 import { refreshHiddenDeck, wantDeckStandby } from "./deckStandby";
 import { countUsage } from "../telemetry/telemetry";
@@ -67,9 +67,9 @@ import { syncOffered } from "../../platform/system";
 export type Surface = "start" | "browsing" | "deck";
 export type Sheet = "archive" | "spaces" | null;
 
-type BrowseState = { surface: Surface; sheet: Sheet; deckEntrance: string | null; frozenOrder: string[] | null; opening: string | null; veiled: string | null; covered: string | null; leaving: string | null };
+type BrowseState = { surface: Surface; sheet: Sheet; deckEntrance: string | null; frozenOrder: string[] | null; opening: string | null; openingCardWidth: number | null; veiled: string | null; covered: string | null; leaving: string | null };
 
-export const useBrowse = create<BrowseState>()(() => ({ surface: "start", sheet: null, deckEntrance: null, frozenOrder: null, opening: null, veiled: null, covered: null, leaving: null }));
+export const useBrowse = create<BrowseState>()(() => ({ surface: "start", sheet: null, deckEntrance: null, frozenOrder: null, opening: null, openingCardWidth: null, veiled: null, covered: null, leaving: null }));
 
 const lastVisits = new Map<string, Visit>();
 
@@ -199,11 +199,11 @@ function showSpaceOf(id: string) {
   if (space) showSpace(space);
 }
 
-export function beginOpeningTab(id: string, veiled = false) {
+export function beginOpeningTab(id: string, veiled = false, cardWidth: number | null = null) {
   showSpaceOf(id);
   setIncognito(isPrivateTab(currentTabs(), id));
   selectTabById(id);
-  useBrowse.setState({ opening: id, veiled: veiled ? id : null, covered: veiled ? id : null });
+  useBrowse.setState({ opening: id, openingCardWidth: cardWidth, veiled: veiled ? id : null, covered: veiled ? id : null });
 }
 
 export function unveilOpeningPage(id: string) {
@@ -488,6 +488,7 @@ function deckPullRefused(id: string) {
 }
 
 export function deckPullSettled(id: string, landed: boolean, worstFrameMs = 0) {
+  labTrace(`PAGELAB deck pull animation ${landed ? "landed" : "returned"}`);
   landingFromRest = null;
   handingOver = null;
   trackedPull = null;
@@ -525,6 +526,8 @@ function enterDeckFromPull(id: string) {
     useBrowse.setState({ surface: "deck", deckEntrance: null, frozenOrder: null, opening: null, veiled: null, covered: null, leaving: null });
   });
 }
+
+export const deckPullCommitted = () => deckPull.stage.value === PULL_STAGE.landing || landingFromRest !== null || handingOver !== null;
 
 export const deckPullInFlight = () => trackedPull !== null || landingFromRest !== null || handingOver !== null || pullCapture !== null;
 

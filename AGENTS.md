@@ -84,8 +84,9 @@ For the architecture and the test tooling, read `docs/agent-brief.md`.
   code. AI ships as a first-party plugin on the plugin host (#2462, #2463), off until the user enables it, and
   whatever it needs from the browser becomes a public extension point any plugin can use, never a private hook.
   Dia's AI rows in `docs/dia-feature-parity.md` stay ⏸ until the plugin ships them.
-  The one exception is the iPhone's Browse for Me (`docs/phone.md`), which runs on Apple's on-device model, or on
-  the user's own ChatGPT plan when they connect it, with no account and no server of ours.
+  The phone app has two exceptions, documented in `docs/phone.md`. Browse for Me uses the phone's model, cited
+  excerpts, or the user's connected ChatGPT plan. Pinch to Summarize on iPhone reads the open page and keeps
+  its text on the device, where Apple Intelligence or the excerpt fallback writes the summary.
 
 ## Platforms
 One browser UI (`apps/browser/src` and `packages/*/src`) runs on three platforms, each with its own native layer and
