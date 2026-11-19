@@ -159,7 +159,10 @@ Launch with `scripts/agent/ac launch <app> --data <dir> [--instance K=V] [--test
   `tabs.devPictureInPictureAction` also takes `alpha:<0–1>` (WindowServer alpha, so a hidden run's PiP window can be
   captured with `screencapture -l`), `mouse:<moved|down|dragged|up>:<x>,<y>[:<clicks>]` (top-left points; the click
   count defaults to 1), `stash` and `handle` (toggles the stash handle's hover), `skip` (JSON: the last click skip's
-  seconds, point and click count, and how many there were) and `skip:<seconds>` (the click skip's own path).
+  seconds, point and click count, and how many there were) and `skip:<seconds>` (the click skip's own path),
+  `interactive` (test instances: shows a hidden run's PiP window and lets it take the pointer, for real-pointer checks with
+  `peekaboo move`), `resizeCursor` (JSON: AppKit's resize direction at points along each edge and the cursor we'd show,
+  with counters) and `resizeCursor:<on|off>` (turns the edge resize cursor on or off, for before/after runs).
 - **`allowOcclusion`**: macOS posts no occlusion change for a window a band below normal, so minimizing and
   deminiaturizing post one for it (the page goes hidden as in a user's minimized window).
 - **The `ardia` command** (`cliHome`, `cliBinDir`, `cliUrl` (`file://` works), test `cliInstallScript`, test
