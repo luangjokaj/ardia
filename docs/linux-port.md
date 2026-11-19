@@ -1678,8 +1678,9 @@ Both are ports of the Mac's native code (`ArdiaWebView+Peek.mm`, `ArdiaWebView+T
   `focus` window event the host already sends when a browser window becomes active, which is what the shared UI
   listens for. Advertised as `ArdiaShell.resignActive`.
 - **Small windows.** `ArdiaShell.openWindow` with `kind: "small"` and no `frame` now opens at `size` (`[width,
-  height]`, 900 by 640 without one), at least 420 by 300 and at most the work area of the opener's display, centred
-  in it where the desktop has global coordinates (`RequestedSmallFrame`). A window that is small has the
+  height]`, 900 by 640 without one), at least 420 by 300 and at most 80 % of the work area of the opener's display
+  each way (as on the Mac since #2784; the minimum wins on a smaller one), centred in it where the desktop has
+  global coordinates (`RequestedSmallFrame`, and the shell's `smallWindowFrame` for older engines). A window that is small has the
   Mac's minimum size, 420 by 300, through `chromium-linux-window-minimum-size.patch`
   (`BrowserView::GetMinimumSize` asks the host). The new window's bootstrap carries `windowKind` (`"small"`,
   `"browser"`, or `"settings"`/`"import"`), and, when the opener passed a `smallWindow` object in the options (up
