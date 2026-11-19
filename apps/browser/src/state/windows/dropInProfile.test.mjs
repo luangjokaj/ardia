@@ -33,7 +33,7 @@ test("a tab dropped between two rows of another profile moves there in one updat
   const { w, id, work } = spaces();
   let updates = 0;
   const off = useBrowser.subscribe(() => updates++);
-  assert.equal(S().dropTabsInProfile([id.b], work, drop("list", id.z)), true);
+  assert.ok(S().dropTabsInProfile([id.b], work, drop("list", id.z)));
   off();
   assert.equal(updates, 1);
   assert.deepEqual(view(w, "default"), ["a", "c", "d"]);
@@ -83,7 +83,7 @@ test("the slot decides the pin: list unpins, pinned rows pin as a row, Top Apps 
     const { w, id, work } = spaces();
     S().pinTabs([id.c], true, true);
     assert.equal(pin(id.c), "row");
-    assert.equal(S().dropTabsInProfile([id.c], work, where), true);
+    assert.ok(S().dropTabsInProfile([id.c], work, where));
     assert.equal(pin(id.c), expected, JSON.stringify(where));
     assert.equal(S().tabs[id.c].profileId, work);
     assert.ok(!view(w, "default").includes("c"));
@@ -96,19 +96,19 @@ test("into another profile's group at a member; a tab already there is only plac
   S().dropTabsInProfile([id.a], work, drop("group", id.z, { groupId: g }));
   assert.deepEqual(S().groups[g].tabIds.map(host), ["y", "a", "z"]);
   const page = S().tabs[id.x].page;
-  assert.equal(S().dropTabsInProfile([id.x], work, drop("list", null)), true);
+  assert.ok(S().dropTabsInProfile([id.x], work, drop("list", null)));
   assert.equal(S().tabs[id.x].page, page, "placed, not opened again");
   assert.equal(view(w, work).at(-1), "x");
   const before = S();
-  assert.equal(S().dropTabsInProfile([id.x], work, { type: "none" }), false, "no slot and nothing to move");
+  assert.equal(S().dropTabsInProfile([id.x], work, { type: "none" }), null, "no slot and nothing to move");
   assert.equal(S(), before);
   const p = S().createWindow({ kind: "private", url: "https://p.com/" });
   const priv = S().windows[p].tabIds[0];
-  assert.equal(S().dropTabsInProfile([priv], work, drop("list", null)), false);
-  assert.equal(S().dropTabsInProfile([id.b], "nobody", drop("list", null)), false);
+  assert.equal(S().dropTabsInProfile([priv], work, drop("list", null)), null);
+  assert.equal(S().dropTabsInProfile([id.b], "nobody", drop("list", null)), null);
 });
 
-test("a Top App shared with the other profile takes its copy there instead of making a second tile", () => {
+test("a Top App shared with the other profile takes its copy there instead of making a second tile", async () => {
   S().hydrate({});
   S().updateProfile("default", { shareTopApps: true });
   const w = S().createWindow({ url: "https://mail.com/" });
@@ -120,8 +120,51 @@ test("a Top App shared with the other profile takes its copy there instead of ma
   const copy = model.viewTabIds(S(), w, work).find((t) => S().tabs[t].pinnedUrl === "https://mail.com/");
   assert.ok(copy && copy !== mail);
   S().switchProfile(w, "default");
+  const { placedCopies } = await import("./profileMoves.ts");
+  assert.deepEqual(placedCopies(S(), [mail], work), { [mail]: copy }, "the live-folder sequence takes the copy's place, not the dragged tile's");
   S().dropTabsInProfile([mail], work, drop("tiles", null));
   assert.equal(S().tabs[mail].profileId, "default");
   assert.equal(model.viewTabIds(S(), w, work).filter((t) => S().tabs[t].pinnedUrl === "https://mail.com/").length, 1);
   assert.equal(model.activeTabId(S(), w), copy);
+});
+
+test("a shared Top App dropped into another profile's pinned rows reports its copy as placed, though the copy is a row by then", async () => {
+  S().hydrate({});
+  S().updateProfile("default", { shareTopApps: true });
+  const w = S().createWindow({ url: "https://mail.com/" });
+  const [mail] = S().windows[w].tabIds;
+  S().newTab(w, { url: "https://a.com/" });
+  S().pinTabs([mail], true);
+  const work = S().createProfile({ name: "Work", shareTopApps: true, shareWith: "default" });
+  S().switchProfile(w, work);
+  const copy = model.viewTabIds(S(), w, work).find((t) => S().tabs[t].pinnedUrl === "https://mail.com/");
+  assert.ok(copy && copy !== mail);
+  S().switchProfile(w, "default");
+  const placed = S().dropTabsInProfile([mail], work, drop("pinnedRows", null, { last: true }));
+  assert.deepEqual(placed, { [mail]: copy }, "the live-folder sequence is rewritten with the copy that was placed");
+  assert.equal(pin(copy), "row", "the copy became a pinned row");
+  const { placedCopies } = await import("./profileMoves.ts");
+  assert.deepEqual(placedCopies(S(), [mail], work), { [mail]: mail }, "looked up after the drop the copy is no longer a tile, which is why the drop reports it");
+});
+
+test("a shared Top App dropped on the icon of a profile this window hasn't shown takes that profile's own copy, and each keeps one tile", async () => {
+  const { NO_DROP } = await import("../drag/drops.ts");
+  S().hydrate({});
+  S().updateProfile("default", { shareTopApps: true });
+  const w = S().createWindow({ url: "https://mail.com/" });
+  const [mail] = S().windows[w].tabIds;
+  S().newTab(w, { url: "https://a.com/" });
+  S().pinTabs([mail], true);
+  const work = S().createProfile({ name: "Work", shareTopApps: true, shareWith: "default" });
+  assert.ok(S().parkedPins[work]?.tabs.some((p) => p.pinnedUrl === "https://mail.com/" || p.url === "https://mail.com/"), "the unvisited profile holds its copy parked");
+  const mails = (p) => model.viewTabIds(S(), w, p).filter((t) => S().tabs[t].pinnedUrl === "https://mail.com/");
+  const { movesAcrossProfiles } = await import("./profileMoves.ts");
+  assert.equal(movesAcrossProfiles(S(), [mail], work), false, "showing a copy asks nothing");
+  assert.ok(S().dropTabsInProfile([mail], work, NO_DROP));
+  assert.equal(S().tabs[mail].profileId, "default", "the dragged tile stays in its profile");
+  assert.deepEqual(mails("default"), [mail]);
+  assert.equal(mails(work).length, 1, "the destination has one copy");
+  assert.notEqual(mails(work)[0], mail);
+  assert.equal(S().windows[w].profileId, work);
+  assert.equal(model.activeTabId(S(), w), mails(work)[0], "and shows it");
 });

@@ -181,19 +181,21 @@ export async function moveTabsToProfile(tabIds: string[], target: string | null)
   }
 }
 
-export async function dropTabsInProfile(tabIds: string[], target: string, drop: Drop, home: string, onIcon: boolean) {
+export async function dropTabsInProfile(tabIds: string[], target: string, drop: Drop, home: string, onIcon: boolean): Promise<Record<string, string> | null> {
   const move = tabsMove(tabIds);
-  if (!move) return;
+  if (!move) return null;
   const consent = consentToken();
   const placesOnly = !movesAcrossProfiles(store(), tabIds, target);
   const profileId = placesOnly ? target : await profileMoveTarget({ ...move, fromProfileId: home }, target);
-  if (profileId && store().dropTabsInProfile(tabIds, profileId, drop)) {
+  const placed = profileId ? store().dropTabsInProfile(tabIds, profileId, drop) : null;
+  if (placed) {
     if (stillValid(consent)) noteSidebarDrop(onIcon ? "profile_icon" : "other_profile");
-    return;
+    return placed;
   }
-  if (placesOnly && drop.type === "none") return;
+  if (placesOnly && drop.type === "none") return null;
   const w = store().windows[move.windowId];
   if (w && w.profileId !== home && store().profiles[home]) switchProfile(move.windowId, home, true);
+  return null;
 }
 
 export const moveTabToProfile = (tabId: string, target: string | null) => moveTabsToProfile([tabId], target);
