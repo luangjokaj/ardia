@@ -244,13 +244,16 @@ corner**, the corner nearest the row.
 - Show delay: the controller sleeps **0.5 s** or **0.1 s** before presenting (a flag in the hover source picks which;
   not identified) and **0** when another card is already up. A click or key down dismisses it (local event monitor).
   The leave delay comes from the hover source's dismissal behaviour; no value in the binary. Both need a recording.
-- Ours (`components/sidebar/hoverMotion.ts`): the same curve, spring and scale, anchored at the card's top-left. Unlike Dia,
+- Ardia originally used the same curve, spring and scale, anchored at the card's top-left. Unlike Dia,
   since 2026-11-14 (#1584, #1365) it opens only after the pointer rests 0.8 s on one row (Dia: 0.5 s, then 0 for every
   next row), never moves from row to row with the pointer, leaves at once when the pointer leaves away from it (up, out
   of the far edge, or onto another row) and 160 ms after a leave toward it, and never opens for rows a peeking sidebar
   brings under the pointer during its first 0.4 s; Settings › Tabs › Show tab hover menu turns it off. Measured on the native driver's own per-frame values
   (120 Hz, a hidden instance): opacity within 0.007 of Dia's curve over its 12 frames, scale within 0.001 of the spring
   (peak 1.0022 at 180 ms, settled by 340 ms); the fade out takes 12 frames.
+- Ours since 2026-11-19 (the owner's review of 0.2.47-nightly.6): the fade only, in and out on the 0.10 s curve above,
+  with no scale spring either way, for the sidebar card, the top-strip card, live items, the calendar and the mini
+  player (`sidebar/hoverMotion.ts`). The card sits at its final size and position from the first frame.
 
 ### Opening and closing tabs (owner's 2× recording, 120 fps, 2026-10-15)
 
@@ -343,9 +346,12 @@ recording: of three unpinned tabs, the two unselected close and the selected one
   text button to 0.985 on `springs.snappy`, with no overshoot. The Arc-style squish (rows to 0.975, tiles to 0.94,
   a bounce back of about 13 %) shipped in 0.2.47-nightly.6 and was removed at the owner's request: with the row
   scaling about its centre, a folder's icon slid 4 pt sideways and sprang back on every click.
-  The reload button's dip, a New Tab card's lift and a finished live item's check mark settle on `springs.snappy`
-  too. `springs.bouncy` stays for rare, larger moves: a toast, an unread or live badge appearing, import's check
-  mark, and the sidebar's edge springing back from a resize past its limit.
+  A New Tab card's lift and a finished live item's check mark settle on `springs.snappy` too. Since 2026-11-19,
+  pressing Reload highlights the toolbar plate while the glyph stays the same size. `springs.bouncy` stays for rare, larger moves: an unread or
+  live badge appearing, import's check mark, and the sidebar's edge springing back from a resize past its limit.
+- **Toast.** Fades in place: in over `duration.base` on `curve.enter`, out over `duration.slow` on `curve.exit`
+  (`ui/Toast.tsx`). Its 10 pt rise, 0.96 scale and `springs.bouncy` arrival were removed on 2026-11-19 (the owner's
+  review of 0.2.47-nightly.6).
 - **Hover.** A highlight lights in 50 ms and fades out over 200 ms, so the pointer leaves a short trail down a list:
   sidebar rows, top-strip tabs and pins, icon and text buttons, settings and list rows. The pressed colour replaces
   the hover colour at once. A row that becomes selected drops the highlight with no fade (the selected fill is
@@ -905,8 +911,8 @@ right split"; the numbers are from the pixels.
   one Chrome strip command, and the tab settles into its place on the same spring, the store moving it as it lands.
   The dragged item draws over its neighbours: React Native macOS's `zIndex` sets the layer's zPosition, which AppKit
   ignores between sibling views, so `raiseView` (packages/shell) puts its view and layer last among its siblings while
-  dragged. The sidebar's rows make room and close up on the same spring, and the dropped row's ghost settles into its
-  place before the row shows. With nothing pinned, the pin target is an overlay in room the sidebar already has (the
+  dragged. The sidebar's rows hold still instead (2026-11-19, Arc's drop marks below), and the dropped row's ghost
+  settles into its place before the row shows there. With nothing pinned, the pin target is an overlay in room the sidebar already has (the
   band above the first row, or over the address field) instead of a grid that pushed every row down ~45 pt as a drag
   began and back up as it ended.
 - **In the strip** (both layouts): an item takes its neighbour's place once its leading edge passes the neighbour's
@@ -918,6 +924,24 @@ right split"; the numbers are from the pixels.
   `performWindowDrag`. The region now ignores presses that came through a view with `mouseDownCanMoveWindow` off
   (the strip's tabs, pinned tiles, splits, group chips and buttons), and the strip's icons take no hits (an image view
   under a press in an inactive window lets AppKit move the window itself).
+
+#### Arc's sidebar drop marks (Arc, the owner's 120 fps 2x recording, 2026-11-19)
+
+Measured in pixels from 2x frames (3456 × 2234), divided by 2. Rows never move during a drag: the dragged row stays
+in its place at full strength while a translucent copy follows the pointer.
+- **Insertion line**: 2 pt (4 px, no antialiasing) near-white (238/255 over a 52/255 sidebar), at the midpoint between
+  the two rows the drop lands between. An open ring at its left end: 8 pt across, 2 pt stroke, a 4 pt hole, its left
+  edge 7 pt inside the row's left edge (the row 9 … 218.5 pt, the ring 16 … 24 pt, the favicon from 19 pt); the line
+  runs from the ring to 2 pt short of the row's right edge. It jumps between slots.
+- **Split halves**: over a row's middle a lighter rounded rect covers the half under the pointer: the row's height and
+  corner radius, 97.5 pt wide on a 209.5 pt row, its inner edge 7 pt past the row's middle (so 14 pt between the
+  halves). Ardia draws it in the row's pressed fill.
+- **Top Apps**: over the tiles the copy is a tile of the grid's tile size (the grid already reflowed for it) with the
+  icon centred, under the pointer.
+- **The ghost** is see-through, with no border: one white alpha fits it over every background it crosses (sidebar
+  59 → 88, a selected row 94 → 115, a lit half 141 → 157: white at 0.15), its text at full strength (234 against the
+  rows' 212), and a soft shadow that shows only on the page. As a tile it is white at 0.40 (26/28/60 → 117/117/138, a
+  tile 44 → 125). A lit split half alone is white at 0.42 (59 → 141).
 
 ### Menus (1.50.1, menu builder `0x10000f000`–`0x10001c8f4`)
 - View: Appearance ▸ (Automatic, Light, Dark; still there although the Appearance pane is gone), Refresh ⌘R, Force

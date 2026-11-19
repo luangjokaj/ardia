@@ -67,7 +67,7 @@ export function openPeekInSplit(windowId: string) {
   }
   const id = s.peekToTab(windowId, { activate: false });
   if (!id) return;
-  if (openSplitPane(windowId, { tabId: id, anchorTabId: peek.sourceId, side: "right" })) focusSoon(id);
+  if (openSplitPane(windowId, { tabId: id, anchorTabId: peek.sourceId, side: "right", openedForSplit: true })) focusSoon(id);
   else store().activate(id);
 }
 

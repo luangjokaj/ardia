@@ -420,12 +420,17 @@ const systemSignalsModule: Modules["ArdiaSystemSignals"] = {
 };
 
 export const pluginHost = {
-  folders: [] as { name: string; status: "ok" | "missing" | "link" | "notFile" | "tooBig" | "unreadable"; text?: string; folderId?: string }[],
+  folders: [] as { name: string; status: "ok" | "missing" | "link" | "notFile" | "tooBig" | "unreadable"; text?: string; folderId?: string; bundled?: boolean; replacesBundled?: boolean; ignoresUserFolder?: boolean }[],
   starts: [] as { name: string; run: string[]; memoryMB: number; network: boolean; folderId: string; approved: string; page: boolean }[],
   stops: [] as { name: string; run: number; graceMs: number }[],
   replies: [] as { name: string; run: number; line: string }[],
   events: [] as { name: string; run: number; line: string }[],
   removed: [] as string[],
+  links: [] as { name: string; folderId: string; approved: string; version: string | null; programs: { name: string; path: string; afterUpdate?: string[][] }[]; adopt: boolean }[],
+  unlinks: [] as { name: string; programs: string[]; remove: boolean }[],
+  sweeps: [] as string[][],
+  legacyInstalled: false,
+  linkResult: null as null | { ok: false; reason?: string; stale?: true } | { ok: true; linked: string[]; refused: Record<string, string>; binDir: string; adopted: boolean },
   startResult: null as null | { ok: false; reason: string },
   removeGate: null as null | Promise<void>,
   stopGate: null as null | Promise<void>,
@@ -456,6 +461,14 @@ const plugins: Modules["ArdiaPlugins"] = {
   event: (name, run, line) => void pluginHost.events.push({ name, run, line }),
   call: (name, run, line) => void pluginHost.events.push({ name, run, line }),
   remove: async (name) => (await pluginHost.removeGate, pluginHost.removed.push(name), (pluginHost.folders = pluginHost.folders.filter((f) => f.name !== name)), { ok: true }),
+  linkPrograms: async (spec) => {
+    pluginHost.links.push({ ...spec, programs: spec.programs.map((p) => ({ ...p })) });
+    if (pluginHost.linkResult) return pluginHost.linkResult;
+    return { ok: true, linked: spec.programs.map((p) => p.name), refused: {}, binDir: "/home/.local/bin", adopted: false };
+  },
+  unlinkPrograms: async (name, programs, remove) => (pluginHost.unlinks.push({ name, programs: [...programs], remove }), { ok: true }),
+  sweepPrograms: async (active) => void pluginHost.sweeps.push([...active]),
+  legacyProgramsInstalled: async () => pluginHost.legacyInstalled,
   revealLog: () => {},
   revealFolder: () => {},
   devSnapshotPage: async () => false,

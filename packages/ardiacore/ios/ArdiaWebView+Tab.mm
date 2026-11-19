@@ -349,7 +349,11 @@ const CFTimeInterval kHiddenNewTabLinkSeconds = 1;
 - (void)tabActivatedByChrome:(BOOL)chromes {
   if (TraceVisibility()) NSLog(@"[ardiacore-vis] %@ chrome-activated tab=%d byChrome=%d", _transferKey, _tab ? (int)_tab.tabId : -1, chromes);
   if (_standalone) return;
-  [self requestFocusRestore];
+  if (chromes && _visible && !_selected) {
+    if (TraceVisibility()) NSLog(@"[ardiacore-vis] %@ activated by Chrome in a pane that isn't selected: focus stays", _transferKey);
+  } else {
+    [self requestFocusRestore];
+  }
   if (_sent.navigationQueued) [self emitNavigation];
 }
 

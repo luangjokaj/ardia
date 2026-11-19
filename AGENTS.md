@@ -156,7 +156,7 @@ rules are for the owner's Mac.
 - **Instrument what you ship.** Every feature and fix ships with the telemetry that shows it working in the field
   and catches its regression: a use count for a feature, a counter or timing on the path a fix touched, an error
   event where it used to fail. Add it to an existing event before inventing a new one (`apps/browser/src/state/telemetry`,
-  `apps/cli/ardia_cli/telemetry.py`). It stays inside the consent model: sharing on only, counts, timings, enums and
+  `plugins/cli/ardia_cli/telemetry.py` in ardia-browser/plugins). It stays inside the consent model: sharing on only, counts, timings, enums and
   flags, never URLs, page content, titles or free text. List new events and fields in the "What's Sent" copy, and
   say in the commit and the parity row what to watch on the dashboard. Skip it only when nothing measurable exists,
   and say so.
@@ -228,7 +228,8 @@ app (`docs/windows.md`), and `apps/linux` the Linux UI with `scripts/linux` for 
 the Windows packaging, checks and engine build. The native Expo modules are in `packages/{ardiacore,shell,shaders,import,sync}`; `engine/chromium` is our Chrome-services code (the `ac_*` C calls) and `engine/ardiacore` ArdiaCore's window and tab layer
 (`engine/ardiacore-linux` on Linux),
 and `packages/core` holds the omnibox logic and its tests. `packages/demo` is the app on the web (the site's demo).
-`apps/cli` is the `ardia` command, `apps/phone` the Expo app for iPhone and Android (its native module is `packages/phone`; `docs/phone.md`) and `apps/dashboard` the telemetry and triage dashboard.
+The `ardia` command lives in ardia-browser/plugins (`plugins/cli`, its own CI and releases); this repo bundles the
+version pinned in `apps/browser/official-plugins.json` as the Command Line plugin (`docs/cli.md`, `docs/plugins.md`). `apps/phone` the Expo app for iPhone and Android (its native module is `packages/phone`; `docs/phone.md`) and `apps/dashboard` the telemetry and triage dashboard.
 `apps/site` is ardia.dev and `apps/videos` holds the Remotion videos. `infra/` holds each service's deploy setup and
 `extras/` the add-ons (the Raycast extension). Ardia's own source files are Apache-2.0; the app as distributed is
 GPL-3.0, because its engine carries Helium's patches (`NOTICE`).

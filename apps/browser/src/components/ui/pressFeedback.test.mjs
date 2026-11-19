@@ -42,3 +42,20 @@ test("a hover lights at once and fades away", () => {
   assert.ok(hoverFade.show.duration <= 60);
   assert.ok(hoverFade.hide.duration >= 3 * hoverFade.show.duration);
 });
+
+test("hover cards, toasts and reload only fade or change state, with no grow, slide or click squish", () => {
+  const hoverCard = source("../sidebar/hoverMotion.ts");
+  assert.doesNotMatch(hoverCard, /\bscale\b|Animated\.spring|translate[XY]/, "a hover card fades in and out in place");
+  assert.match(hoverCard, /duration: HOVER_CARD_FADE_MS, easing: fade/);
+  for (const file of ["../sidebar/HoverCard.tsx", "../tabstrip/StripHoverCard.tsx"]) assert.doesNotMatch(source(file), /useHoverCardPlacement|\bscale\b/, file);
+  const toast = source("./Toast.tsx");
+  assert.doesNotMatch(toast, /Animated\.spring|\bscale\b|translate[XY]|springs\./, "a toast fades in and out in place");
+  assert.match(toast, /style=\{\{ opacity: appear \}\}/);
+  const reload = source("../toolbar/NavButtons.tsx");
+  const reloadGlyph = reload.slice(reload.indexOf("const ReloadGlyph ="), reload.indexOf("export const ReloadButton"));
+  const reloadButton = reload.slice(reload.indexOf("export const ReloadButton"), reload.indexOf("export const HistoryButton"));
+  assert.ok(reloadGlyph.length > 0 && reloadButton.length > 0);
+  assert.doesNotMatch(reloadGlyph, /\bpress\b/, "the reload glyph has no click scale input");
+  assert.doesNotMatch(reloadButton, /Animated\.|pressScale|press=/, "a click on reload doesn't squish the glyph");
+  assert.doesNotMatch(source("../toolbar/tokens.ts"), /pressScale/);
+});

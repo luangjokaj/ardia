@@ -38,7 +38,6 @@
       "InlineCompletionModule",
       "TranslateModule",
       "WindowProfileModule",
-      "CliModule",
       "UserScriptsModule",
       "ConfigModule",
       "AutomationModule",
