@@ -1,6 +1,6 @@
 export const hostPillLayout = {
   glassMs: 200,
-  androidFoldMs: 180,
+  foldSettleMs: 300,
   height: 30,
   maxWidth: 240,
   sideInset: 12,

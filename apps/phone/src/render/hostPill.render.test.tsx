@@ -86,30 +86,24 @@ test("on iPhone's design, scrolling down with Collapse Bottom Bar on shrinks the
   expect(moved(host(root, "hostPillFold")!)).toEqual({ opacity: 1, translateY: 0, scale: 1 });
   const bar = moved(host(root, "floatingBarFold")!);
   expect(bar.opacity).toBe(0);
-  expect(bar.scale).toBeCloseTo(android ? 0.94 : 0.62, 3);
-  expect(bar.translateY).toBeCloseTo(android ? 10 : 24 * 0.38, 3);
+  expect(bar.scale).toBeCloseTo(0.62, 3);
+  expect(bar.translateY).toBeCloseTo(24 * 0.38, 3);
   expect(host(root, "floatingBarFold")!.props.pointerEvents).toBe("none");
   expect(host(root, "floatingBarFold")!.props.accessibilityElementsHidden).toBe(true);
   expect(moved(host(root, "pageBar")!)).toEqual({ opacity: 1, translateY: 0, scale: 1 });
   unmount(root);
 });
 
-test("Android fades a pre-mounted pill into place; iPhone grows its glass from the bar on its existing spring", () => {
+test("both phones grow the pill out of the bar on iPhone's spring; Android also fades the pill's surface, which has no glass to fade", () => {
   const root = page("redesigned");
   scrolled("down");
   act(() => jest.advanceTimersByTime(16));
   const pill = moved(host(root, "hostPillFold")!);
-  if (android) {
-    expect(pill.scale).toBeGreaterThanOrEqual(0.96);
-    expect(pill.scale).toBeLessThan(1);
-    expect(pill.opacity).toBeLessThan(1);
-  } else {
-    expect(pill.scale).toBeGreaterThan(1);
-    expect(pill.scale).toBeLessThanOrEqual(1 / 0.62 + 1e-6);
-    expect(pill.opacity).toBe(1);
-  }
-  if (android) expect(moved(host(root, "hostPillContent")!).opacity).toBe(1);
-  else expect(moved(host(root, "hostPillContent")!).opacity).toBeLessThan(1);
+  expect(pill.scale).toBeGreaterThan(1);
+  expect(pill.scale).toBeLessThanOrEqual(1 / 0.62 + 1e-6);
+  if (android) expect(pill.opacity).toBeLessThan(1);
+  else expect(pill.opacity).toBe(1);
+  expect(moved(host(root, "hostPillContent")!).opacity).toBeLessThan(1);
   settle();
   expect(moved(host(root, "hostPillFold")!).scale).toBeCloseTo(1, 3);
   unmount(root);
@@ -206,10 +200,10 @@ test("Android keeps the same pill mounted through rapid direction reversals and 
   expectPill(root, false);
   expect(moved(host(root, "floatingBarFold")!)).toEqual({ opacity: 1, translateY: 0, scale: 1 });
   scrolled("down");
-  act(() => jest.advanceTimersByTime(192));
+  settle();
   expectPill(root, true);
   act(() => showToolbar(root)!.props.onPress());
-  act(() => jest.advanceTimersByTime(192));
+  settle();
   expectPill(root, false);
   unmount(root);
 });

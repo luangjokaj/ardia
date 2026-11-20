@@ -159,7 +159,7 @@ export const BrowsingScreen = memo(function BrowsingScreen({ tab }: { tab: Brows
         <Animated.View style={[StyleSheet.absoluteFill, styles.outgoing, { backgroundColor: theme.surface }, pager.outgoing]}>
           {underBar ? null : <Animated.View testID="pageStatusStrip" style={[{ height: insets.top }, statusStyle]} />}
           <View testID="pageArea" style={[styles.page, { marginBottom: layout.pageBottom }]}>
-            <PageSurface key={tab.id} tab={tab} toneBottom={layout.toneBottom} obscured={obscured} bottomInsetTransitionMs={Platform.OS === "android" && collapse.collapses && design === "redesigned" && !fullscreen && !finding && !searching ? hostPillLayout.androidFoldMs : 0} pinsSafeArea={pulls ? true : undefined} />
+            <PageSurface key={tab.id} tab={tab} toneBottom={layout.toneBottom} obscured={obscured} bottomInsetTransitionMs={Platform.OS === "android" && collapse.collapses && design === "redesigned" && !fullscreen && !finding && !searching ? hostPillLayout.foldSettleMs : 0} pinsSafeArea={pulls ? true : undefined} />
             <PageCover key={`${tab.id}:cover`} tab={tab} />
             <PageFailureView key={`${tab.id}:failure`} tabId={tab.id} />
           </View>
@@ -227,7 +227,7 @@ export const BrowsingScreen = memo(function BrowsingScreen({ tab }: { tab: Brows
                       testID="hostPillFold"
                       collapsable={false}
                       renderToHardwareTextureAndroid={Platform.OS === "android"}
-                      style={[styles.pillPlace, collapse.fold.pill]}
+                        style={[styles.pillPlace, collapse.fold.pill]}
                       pointerEvents={collapse.collapsed ? "box-none" : "none"}
                       importantForAccessibility={collapse.collapsed ? "auto" : "no-hide-descendants"}
                       accessibilityElementsHidden={!collapse.collapsed}

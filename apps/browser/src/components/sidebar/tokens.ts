@@ -120,7 +120,10 @@ export const TAB_SWITCHER = {
   get titleSize() {
     return font.small.fontSize;
   },
-  fill: { dark: "#1C1C1EF2", light: "#2A2A2CF2" },
+} as const;
+
+const TAB_SWITCHER_DARK = {
+  fill: "#1C1C1EF2",
   focusFill: "rgba(255,255,255,0.14)",
   restRing: "rgba(255,255,255,0.12)",
   pageFill: "#FFFFFF",
@@ -128,7 +131,20 @@ export const TAB_SWITCHER = {
   onPanel: "#FFFFFFB3",
   onPage: "#000000A6",
   title: "#FFFFFF",
-} as const;
+};
+
+const TAB_SWITCHER_LIGHT: typeof TAB_SWITCHER_DARK = {
+  fill: "#F2F2F7F2",
+  focusFill: "rgba(0,0,0,0.18)",
+  restRing: "rgba(0,0,0,0.1)",
+  pageFill: "#FFFFFF",
+  blankFill: "#D1D1D6",
+  onPanel: "#000000A6",
+  onPage: "#000000A6",
+  title: "#000000D9",
+};
+
+export const tabSwitcherColors = (dark: boolean) => (dark ? TAB_SWITCHER_DARK : TAB_SWITCHER_LIGHT);
 
 export const SELECTED_ROW_SHADOW_OFFSET: [number, number] = [0, 0.5];
 

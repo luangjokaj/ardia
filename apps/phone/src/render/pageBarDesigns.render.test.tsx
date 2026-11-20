@@ -147,7 +147,7 @@ test("on Android the page's obscured bottom is the bar's current height: the pil
   const lift = follows ? 34 + 8 - 21.5 : 0;
   const root = page("redesigned", tab);
   const transition = () => root.root.findAll((node) => node.props.pageId !== undefined && node.props.obscuredInsets !== undefined)[0]!.props.bottomInsetTransitionMs;
-  expect(transition()).toBe(follows ? 180 : 0);
+  expect(transition()).toBe(follows ? 300 : 0);
   expect(bottom(root)).toBe(75 + lift);
   scrolled("down");
   expect(bottom(root)).toBe(follows ? 51.5 + lift : 75);
