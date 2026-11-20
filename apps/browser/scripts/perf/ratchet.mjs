@@ -119,6 +119,8 @@ function collect(reports) {
 
 const sorted = (xs) => [...xs].sort((a, b) => a - b);
 const lowerMedian = (xs) => sorted(xs)[(xs.length - 1) >> 1];
+const WORST_RUN = new Set(["nodeChurn.nativeNodesLeft"]);
+const judged = (key, xs) => (WORST_RUN.has(key) ? Math.max(...xs) : lowerMedian(xs));
 
 function modeOf(xs) {
   const tally = new Map();
@@ -189,7 +191,7 @@ function evaluate(ceilings, { files = [], micro = null, instr = null }) {
     const c = collect(reports);
     ran = c.ran;
     runs = c.runs;
-    counts = Object.fromEntries(Object.entries(c.values).map(([k, v]) => [k, lowerMedian(v)]));
+    counts = Object.fromEntries(Object.entries(c.values).map(([k, v]) => [k, judged(k, v)]));
     rows.push(...judge("exact", ceilings.exact, counts, ran), ...judge("noisy", ceilings.noisy, counts, ran));
   }
   if (micro) rows.push(...judge("micro", ceilings.micro, micro, null));

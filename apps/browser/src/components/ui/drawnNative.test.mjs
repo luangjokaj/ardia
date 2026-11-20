@@ -39,3 +39,10 @@ test("the sidebar divider's Clear arrow draws the native view inside a button th
   const button = divider.slice(divider.indexOf("function DividerButton"));
   assert.match(button, /const theme = useTheme\(\);/);
 });
+
+test("the new-tab row's plus draws the native view inside a row that re-renders on every theme change", () => {
+  const row = readFileSync(new URL("../sidebar/NewTabRow.tsx", import.meta.url), "utf8");
+  assert.match(row, /\{drawnSymbol\(\{ name: "plus", size: quiet \? sidebarPoints\(10\) : ROW_GLYPH\.plus, weight: "medium", color: quiet \? quietInk : tokens\.newTabIcon, style: \{ width: ROW_GLYPH\.box, height: ROW_GLYPH\.box \} \}\)\}/);
+  assert.doesNotMatch(row, /<Symbol\b/);
+  assert.match(row, /export const NewTabRow = memo\(function NewTabRow[^\n]*\n  const theme = useTheme\(\);/);
+});

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Animated, Pressable, StyleSheet, View, type ScrollView } from "react-native";
-import { watchWindowRecord } from "../../state/browser/keyedWatch";
-import { revealTab, rowsStamp, sameRows, samePillTab, selectedTabIn, selectedTabSnapshot, selectedPlaceIn, movedInPlace, watchPillTab, type PillTab, type RowsStamp, type SelectedPlace } from "../../state/sidebar/reveal";
+import { revealTab, rowsStamp, sameRows, samePillTab, selectedTabIn, selectedTabSnapshot, selectedPlaceIn, movedInPlace, watchPillTab, watchSelectedPlace, type PillTab, type RowsStamp, type SelectedPlace } from "../../state/sidebar/reveal";
 import { notePageOverlay } from "../../state/telemetry/usage";
 import { capsule, Panel, radius, reduceMotion, Symbol, Text, tintedImage } from "../ui";
 import { useTheme } from "../ui/theme";
@@ -51,14 +50,15 @@ export function useSelectedRowAway(
     let selected: string | null | undefined;
     let quietUntil = 0;
     let quiet: ReturnType<typeof setTimeout> | undefined;
-    let selectedAt: SelectedPlace = { id: null, index: -1 };
-    let unwatchTab = () => {};
+    let selectedAt: SelectedPlace = { id: null, index: -1, group: null };
+    let unwatchTab: (() => void) | null = null;
     const show = (next: PillAway) => {
-      if (samePill(next, away)) return;
+      const same = samePill(next, away);
+      if (same && (!next || unwatchTab)) return;
       away = next;
-      unwatchTab();
-      unwatchTab = away ? watchPillTab(away.tab, judge) : () => {};
-      sink?.(away);
+      unwatchTab?.();
+      unwatchTab = away ? watchPillTab(away.tab, judge) : null;
+      if (!same) sink?.(away);
     };
     const settleAfterSwitch = (tabId: string | null) => {
       if (selected !== undefined && tabId !== selected) {
@@ -124,15 +124,16 @@ export function useSelectedRowAway(
         cancelAnimationFrame(frame);
         frame = 0;
         clearTimeout(quiet);
-        unwatchTab();
-        unwatchTab = () => {};
+        ticket++;
+        unwatchTab?.();
+        unwatchTab = null;
       },
     };
   });
   useEffect(() => {
     if (!geometry) return;
     tracker.relocate();
-    const unwatch = watchWindowRecord(windowId, tracker.selectionMoved);
+    const unwatch = watchSelectedPlace(windowId, tracker.selectionMoved);
     return () => {
       unwatch();
       tracker.stop();

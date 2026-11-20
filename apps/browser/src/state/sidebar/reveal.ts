@@ -6,6 +6,8 @@ import { knownFaviconTheme, resolveFavicon } from "../favicons/favicons";
 import { iconMarks } from "./rowState";
 import { watchTabState } from "../tabs/tabStateWatch";
 import { watchFaviconOf, watchFaviconTheme } from "../favicons/faviconHooks";
+import { fieldWatch, watchWindowRecord } from "../browser/keyedWatch";
+import { groupOf } from "../pins/tabGrouping";
 
 const asked = new Map<string, Set<(tabId: string) => void>>();
 
@@ -60,15 +62,27 @@ export function watchPillTab(tab: PillTab, changed: () => void): () => void {
   return () => offs.forEach((off) => off());
 }
 
-export type SelectedPlace = { id: string | null; index: number };
+export type SelectedPlace = { id: string | null; index: number; group: string | null };
 
 export function selectedPlaceIn(windowId: string): SelectedPlace {
   const s = useBrowser.getState();
   const id = activeTabId(s, windowId) ?? null;
-  return { id, index: id ? (s.windows[windowId]?.tabIds.indexOf(id) ?? -1) : -1 };
+  return { id, index: id ? (s.windows[windowId]?.tabIds.indexOf(id) ?? -1) : -1, group: id ? (groupOf(s, id)?.id ?? null) : null };
 }
 
-export const movedInPlace = (was: SelectedPlace, now: SelectedPlace) => !!now.id && now.id === was.id && now.index !== was.index;
+export const movedInPlace = (was: SelectedPlace, now: SelectedPlace) =>
+  !!now.id && now.id === was.id && (now.index !== was.index || now.group !== was.group);
+
+const watchGroups = fieldWatch(() => useBrowser, (s) => s.groups);
+
+export function watchSelectedPlace(windowId: string, changed: () => void): () => void {
+  const offWindow = watchWindowRecord(windowId, changed);
+  const offGroups = watchGroups(windowId, changed);
+  return () => {
+    offWindow();
+    offGroups();
+  };
+}
 
 export type RowsStamp = readonly unknown[];
 

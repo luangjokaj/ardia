@@ -46,7 +46,7 @@ test("the sidebar page measures no frame for the pill and never re-renders to sh
 test("the pill reads no store while it shows: no external-store hook, no tab hooks, no store listener", () => {
   const pill = readFileSync(new URL("./SelectedRowPill.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(pill, /useSyncExternalStore|useActiveTabId|useTab\(|useBrowser|watchRowsMoved/);
-  assert.match(pill, /watchWindowRecord\(windowId, tracker\.selectionMoved\)/);
+  assert.match(pill, /watchSelectedPlace\(windowId, tracker\.selectionMoved\)/);
   assert.match(pill, /if \(frame \|\| \(!away && !movedInPlace\(was, selectedAt\)\)\) return;/, "a hidden pill rechecks only when the selected tab moved in the order");
 });
 
@@ -230,4 +230,86 @@ test("a resized sidebar page tells the pill its new height before the pill judge
   const layout = page.slice(page.indexOf("onLayout={(e) => {"), page.indexOf("onContentSizeChange"));
   assert.ok(layout.indexOf("geometry.current.viewport = page.viewport") >= 0);
   assert.ok(layout.indexOf("geometry.current.viewport = page.viewport") < layout.indexOf("selectedRow.relocate()"), "the viewport is stored before relocate reads it");
+});
+
+test("moving the hidden pill's tab out of its group, at the same window index, still brings the pill", async (t) => {
+  const { S, w, ids } = await pillWindow();
+  const last = ids[18];
+  S().createGroup(ids.slice(10, 19), { name: "G" });
+  S().activate(last);
+  const before = S().windows[w].tabIds.indexOf(last);
+  const geometry = { current: { viewport: 200, regions: { pinnedGroups: 0, list: 0 }, newTabAtTop: false, tilesFixed: false, edgeLift: 0 } };
+  let scrollY = 0;
+  const hook = mount(() => useSelectedRowAway(w, geometry, { current: null }, () => scrollY));
+  t.after(() => hook.unmount());
+  const seen = [];
+  t.after(hook.value.attach((away) => seen.push(away)));
+  const { rowSpan } = await import("../../state/sidebar/geometry.ts");
+  const { locateTab } = await import("./selectedRow.ts");
+  const top = rowSpan(S(), w, S().windows[w].profileId, last, false).top;
+  scrollY = locateTab(w, last, geometry.current, null, () => 0).y + 2 - geometry.current.viewport;
+  hook.value.relocate();
+  assert.equal(seen.at(-1) ?? null, null, "the row peeks in at the bottom edge");
+  S().moveTabBy(last, 1);
+  assert.equal(S().windows[w].tabIds.indexOf(last), before, "the move keeps the window index");
+  assert.notEqual(rowSpan(S(), w, S().windows[w].profileId, last, false).top, top, "but the row moved");
+  await frame();
+  assert.equal(seen.at(-1)?.side, "below");
+});
+
+test("coming back to a page whose pill still shows re-attaches the icon watch", async (t) => {
+  const { S, w, ids } = await pillWindow();
+  const { adoptFavicons } = await import("../../state/favicons/favicons.ts");
+  S().activate(ids[2]);
+  const geometry = { current: { viewport: 200, regions: { pinnedGroups: 0, list: 0 }, newTabAtTop: false, tilesFixed: false, edgeLift: 0 } };
+  let shownGeometry = geometry;
+  const hook = mount(() => useSelectedRowAway(w, shownGeometry, { current: null }, () => 900));
+  t.after(() => hook.unmount());
+  const seen = [];
+  t.after(hook.value.attach((away) => seen.push(away)));
+  hook.value.judge();
+  assert.equal(seen.at(-1)?.side, "above");
+  shownGeometry = undefined;
+  hook.rerender();
+  shownGeometry = geometry;
+  hook.rerender();
+  adoptFavicons(S().tabs[ids[2]].profileId, [{ page: "https://t1.com/", icon: "https://t1.com/favicon.ico", png: "BACK" }]);
+  assert.equal(seen.at(-1)?.tab.faviconUri, "data:image/png;base64,BACK");
+});
+
+test("a row measurement that lands after the tracker stops installs no watch", async (t) => {
+  const { S, w, ids } = await pillWindow();
+  const { useLive } = await import("../../state/live/store.ts");
+  const { registerRow } = await import("../../state/sidebar/sidebarUi.ts");
+  const { watchTabState } = await import("../../state/tabs/tabStateWatch.ts");
+  const profileId = S().windows[w].profileId;
+  const live = useLive.getState();
+  useLive.setState({ folderOrder: ["f"], folders: { ...live.folders, f: { ...(Object.values(live.folders)[0] ?? {}), id: "f", profileId } } });
+  t.after(() => useLive.setState({ folderOrder: live.folderOrder, folders: live.folders }));
+  S().pinTabs([ids[0]], true);
+  S().activate(ids[0]);
+  const pending = [];
+  const view = { measureInWindow: (done) => pending.push(done) };
+  registerRow(w, ids[0], view);
+  t.after(() => registerRow(w, ids[0], null));
+  const geometry = { current: { viewport: 200, regions: { pinnedGroups: 0, list: 0 }, newTabAtTop: false, tilesFixed: false, edgeLift: 0 } };
+  const list = { measureInWindow: (done) => pending.push((x, y, width, height) => done(x, y + 2000, width, height)) };
+  const hook = mount(() => useSelectedRowAway(w, geometry, { current: list }, () => 900));
+  const seen = [];
+  hook.value.attach((away) => seen.push(away));
+  hook.value.relocate();
+  assert.ok(pending.length > 0, "the row is measured natively");
+  hook.unmount();
+  let woken = 0;
+  const off = watchTabState(ids[0], () => woken++);
+  t.after(off);
+  for (let i = 0; pending.length && i < 5; i++) {
+    for (const done of pending.splice(0)) done(0, 0, 200, 34);
+    await frame();
+  }
+  assert.equal(seen.length, 1, "the late measurement shows no pill for a stopped tracker");
+  const count = seen.length;
+  S().navigate(ids[0], "https://changed.com/");
+  await frame();
+  assert.equal(seen.length, count, "the stopped tracker hears nothing from that tab");
 });

@@ -213,6 +213,7 @@ export async function savedAfterPins(flush: () => boolean, held: () => boolean, 
 export async function landHeldPins(held: () => boolean, landing: () => Promise<void> | null, saveNow: () => void): Promise<void> {
   for (let waiting = held() ? landing() : null; waiting; waiting = held() ? landing() : null) {
     await waiting;
+    if (!held()) return;
     saveNow();
   }
 }

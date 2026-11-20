@@ -514,3 +514,47 @@ test("a backup that lands after its profile was deleted still counts the pins it
     stop();
   }
 });
+
+test("a quit cancelled while a backup lands doesn't leave saving frozen: later changes still reach session.json", async () => {
+  const { stop, w, pin } = onePin();
+  try {
+    stub.heldSaves.on = true;
+    dropPins([pin]);
+    flushPersistence({ final: true });
+    const quit = finishQuitSaves(10);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await quit;
+    resumePersistence();
+    stub.heldSaves.on = false;
+    for (let i = 0; i < 4; i++) {
+      for (const land of stub.heldSaves.queue.splice(0)) land();
+      await turn();
+    }
+    S().newTab(w, { url: "https://after-cancel.com", background: true });
+    await settle();
+    assert.ok(sessionUrls().includes("https://after-cancel.com"), "saving still runs after the cancelled quit");
+  } finally {
+    stub.heldSaves.on = false;
+    stop();
+    resumePersistence();
+  }
+});
+
+test("a held session write that drops pins is counted as a real write, not a cosmetic one", async () => {
+  const { stop, pin } = onePin();
+  takeSessionWrites();
+  try {
+    stub.heldSaves.on = true;
+    dropPins([pin]);
+    flushPersistence();
+    stub.heldSaves.on = false;
+    for (const land of stub.heldSaves.queue.splice(0)) land();
+    await settle();
+    const counts = takeSessionWrites();
+    assert.equal(counts.session_writes, 1);
+    assert.equal(counts.session_cosmetic_writes, 0);
+  } finally {
+    stub.heldSaves.on = false;
+    stop();
+  }
+});

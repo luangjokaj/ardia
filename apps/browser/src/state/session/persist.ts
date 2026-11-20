@@ -354,7 +354,7 @@ export function startPersistence(overrides: LaunchOverrides = {}) {
       }
     }
     done();
-    cosmeticOnly = true;
+    if (!held) cosmeticOnly = true;
     if ([...dirty].some((d) => d.name !== SESSION_DOCUMENT || !held)) schedule(SAVE_DELAY_MS);
     if (againIn !== null) schedule(againIn);
   };
