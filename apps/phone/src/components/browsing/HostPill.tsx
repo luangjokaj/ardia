@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ComponentProps } from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Platform, Pressable, StyleSheet, Text } from "react-native";
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import { haptics } from "../../state/app/haptics";
 import type { BrowserTab } from "../../state/tabs/tabModels";
@@ -23,7 +23,7 @@ export function HostPill({ tab, dark, shown, anchors = false, contentStyle, onEx
   }, [back.centreGlass.shown]);
   return (
     <Animated.View testID="hostPillCentre" nativeID={ids?.anchor} collapsable={false} pointerEvents={back.centreShown ? "box-none" : "none"} importantForAccessibility={back.centreShown ? "auto" : "no-hide-descendants"} accessibilityElementsHidden={!back.centreShown}>
-    <ChromeSurface testID="hostPill" shape="capsule" cornerRadius={capsule(hostPillLayout.height)} incognito={tab.isPrivate} dark={dark} barShadow shown={shown && back.centreGlass.shown} shownMs={centreFlips ? back.centreGlass.shownMs : hostPillLayout.glassMs} style={styles.pill}>
+    <ChromeSurface testID="hostPill" shape="capsule" cornerRadius={capsule(hostPillLayout.height)} incognito={tab.isPrivate} dark={dark} barShadow shown={(Platform.OS === "android" || shown) && back.centreGlass.shown} shownMs={Platform.OS === "android" ? 0 : centreFlips ? back.centreGlass.shownMs : hostPillLayout.glassMs} style={styles.pill}>
       <Animated.View testID="hostPillCentreGlyphs" collapsable={false} style={back.centreGlyphs}>
       <Animated.View testID="hostPillContent" nativeID={ids?.face} collapsable={false} style={[styles.content, contentStyle]}>
       <Pressable accessibilityRole="button" accessibilityLabel="Show Toolbar" accessibilityValue={{ text: spokenAddress(address) }} onPress={onExpand} onPressIn={haptics.barPress} style={styles.hit}>
@@ -45,7 +45,8 @@ export function HostPill({ tab, dark, shown, anchors = false, contentStyle, onEx
 }
 
 export function useBarFold(collapsed: boolean, reduceMotion: boolean) {
-  const presence = usePresence(collapsed);
+  const android = Platform.OS === "android";
+  const presence = usePresence(android || collapsed);
   const fold = useSharedValue(collapsed ? 1 : 0);
   const unmountPill = presence.hidden;
   useEffect(() => {
@@ -54,19 +55,25 @@ export function useBarFold(collapsed: boolean, reduceMotion: boolean) {
       "worklet";
       if (finished && target === 0) runOnJS(unmountPill)();
     };
+    if (android) {
+      fold.value = withTiming(target, { duration: reduceMotion ? 0 : hostPillLayout.androidFoldMs, easing: EASE_OUT });
+      return;
+    }
     fold.value = reduceMotion ? withTiming(target, { duration: tabsMotion.barCollapseReduced, easing: EASE_OUT }, settled) : withSpring(target, tabsMotion.barCollapse, settled);
   }, [collapsed, reduceMotion]);
   const shrink = reduceMotion ? 1 : hostPillLayout.collapsedScale;
   const bar = useAnimatedStyle(() => {
+    if (android) return { opacity: 1 - fold.value, transform: [{ translateY: reduceMotion ? 0 : 10 * fold.value }, { scale: reduceMotion ? 1 : 1 - 0.06 * fold.value }] };
     const scale = 1 + (shrink - 1) * fold.value;
     return { opacity: 1 - fold.value, transform: [{ translateY: (floatingBarLayout.control / 2) * (1 - scale) }, { scale }] };
-  }, [shrink]);
+  }, [shrink, reduceMotion]);
   const pill = useAnimatedStyle(() => {
+    if (android) return { opacity: fold.value, transform: [{ translateY: reduceMotion ? 0 : 4 * (1 - fold.value) }, { scale: reduceMotion ? 1 : 0.96 + 0.04 * fold.value }] };
     const scale = 1 / shrink + (1 - 1 / shrink) * fold.value;
     return { transform: [{ translateY: (hostPillLayout.height / 2) * (1 - scale) }, { scale }] };
-  }, [shrink]);
-  const pillContent = useAnimatedStyle(() => ({ opacity: fold.value }));
-  return { bar, pill, pillContent, pillMounted: presence.mounted };
+  }, [shrink, reduceMotion]);
+  const pillContent = useAnimatedStyle(() => ({ opacity: android ? 1 : fold.value }));
+  return { bar, pill, pillContent, pillMounted: android || presence.mounted };
 }
 
 const styles = StyleSheet.create({

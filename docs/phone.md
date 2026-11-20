@@ -1134,7 +1134,8 @@ The owner's reference is Safari's swipe up on its bottom bar (#2607; the measure
     does, rather than iPhone's fixed one;
   - the page view doesn't pin its insets: `pinsSafeArea` is iPhone's alone, because an Android view's window insets
     don't change when it is transformed, so the page and its picture already agree;
-  - the bar is Android's solid chrome rather than glass, and the glyphs cross-fade on that surface;
+  - on Android's solid chrome, the browsing bar keeps its place through the pull and cross-fades to the deck's
+    glyphs. It holds those glyphs until the deck takes over, so there is no intermediate swap to an empty bar;
   - the deck's bar, and the start page's, sit exactly where the browsing bar does (`floatingBarCenter` in
     `lib/deckGeometry.ts`, one place for all three): 21.5 dp above the screen's bottom over a gesture handle, or 8 dp
     above a 3-button bar, so the bar doesn't move during the pull. iPhone's deck bar keeps its place over the home
@@ -1423,6 +1424,18 @@ JavaScript is shared; it turns on wherever the native module is registered.
 Pinch to Summarize is a standalone iPhone page action inspired by Arc Search. The card summarizes the open page
 and appears over it. The phone reads the text from the live tab and processes it locally.
 
+- **Off until turned on.** A switch in Settings › Experimental (the Pinch to Summarize page on Android) turns it on.
+  It is off on fresh and older installs. The native layer keeps the switch (`PageSummarySwitch` in ArdiaKit's
+  `ArdiaBrowser/Research`, `pageSummaries.enabled` in `UserDefaults`, `PageSummarySwitchTests`; Android's
+  `PageSummaryChoice`, `enabled` in `ardia-page-summary`, `PageSummaryChoiceTest`) and gates both the pinch and
+  `summarizePage` on it. While it is off the pinch watcher never starts, so it never measures the viewport or reads
+  the page. Ordinary pinch zoom is unaffected. JavaScript reads it with `pageSummariesEnabled` into
+  `state/pageSummary/enabled.ts` at startup and whenever Settings mounts. A failed read counts as off, and a read that
+  started before a change never overwrites it. The page menu's Summarize Page row shows only while it is on.
+  Turning it off resets every pinch watcher, closes any card and cancels a summary in flight. Each change moves a
+  revision that a session and the Android watcher's delayed checks compare, so work from before an off and on again
+  stays dead. The writer choice on Android is stored separately and survives the switch.
+
 - **Where it starts.** Pinch in on a web page at its minimum zoom or choose Summarize Page under Find on Page.
   Both wait for the page to finish loading. WebKit handles ordinary page zoom alongside the summary's
   `PagePinchWatcher` in `packages/phone/ios/PageSummary.swift`. The decision is `PagePinch` in ArdiaKit's `ArdiaBrowser/Web`
@@ -1436,7 +1449,8 @@ and appears over it. The phone reads the text from the live tab and processes it
   excerpt and sentence logic.
 - **Who writes it.** Apple Intelligence on the phone (`SystemLanguageModel.default`) summarizes the extracted text
   and can retry with half the text budget. If it is unavailable or fails, the card explains why and shows up to
-  four key lines from the page description and the opening sentences of its paragraphs.
+  four key lines from the page description and the opening sentences of its paragraphs. Android never shows key
+  lines (below).
 - **The card.** A compact glass card at the bottom of the page (`PageSummaryLayer`, hosted inside `PageView` above the
   WKWebView), clear of the bottom bar. The page around the card still accepts touch input.
   It closes with its × button, a swipe down on its header, VoiceOver's escape, a navigation, a tab switch, the deck, the
@@ -1463,19 +1477,25 @@ The same action, card and menu row, with a choice of writer in Settings › Expe
 - **What it reads and who writes it.** `Page.readableContent()`, the Reader's extraction on the live page, then
   `PageSummaryDigest` in `com.ardia.research` (`PageSummaryDigestTest`). `PageSummaryWriting` (`PageSummaryWritingTest`)
   picks the writer from the saved choice (`PageSummaryChoice`, `ardia-page-summary` preferences): On This Phone (the
-  default) is Gemini Nano through `OnDeviceWriter`, halved once on failure, or the page's key lines; it never fails
-  over to ChatGPT. ChatGPT sends the extracted text with `PageSummaryDigest`'s prompt through Browse for Me's
-  `ChatGPTAccount` (`BrowseForMeHost.account`, the same connection, model and Thinking choice), straight to OpenAI.
-  If it fails, the phone writes the summary and the note gives the reason; if the account isn't connected, that run
-  stays on the phone with a reconnect note and the saved choice is kept. A disconnect while ChatGPT writes rewrites the
-  summary on the phone. The choice applies to every page, Incognito included, as Browse for Me's connected account does.
+  default) is Gemini Nano through `OnDeviceWriter`, halved once on failure; it never fails over to ChatGPT. ChatGPT
+  sends the extracted text with `PageSummaryDigest`'s prompt through Browse for Me's `ChatGPTAccount`
+  (`BrowseForMeHost.account`, the same connection, model and Thinking choice), straight to OpenAI. If it fails or
+  answers nothing, Gemini Nano writes the summary and the note gives the reason; if the account isn't connected, that
+  run stays on the phone with a reconnect note and the saved choice is kept. A disconnect while ChatGPT writes
+  rewrites the summary on the phone. The choice applies to every page, Incognito included, as Browse for Me's
+  connected account does.
+- **No key lines.** Android never quotes the page. When no writer succeeds the card says so plainly and the outcome
+  is `failed` (`PageSummaryWriting.Unwritten`): "Gemini Nano is unavailable on this phone.", "Gemini Nano is still
+  downloading. Try again when it's ready." or "Gemini Nano couldn't summarize this page.", after ChatGPT's reason
+  when ChatGPT was chosen.
 - **The card.** A Compose card (`PageSummaryCard.kt`) in a `ComposeView` laid out inside `PageView` above the WebView,
   above the bottom bar's `toneInsets`. Touches on the card skip the page's swipes and the pinch watcher. It closes
   with its ×, a swipe down on its header, TalkBack's Close Summary action, a new document, the view being hidden or
   leaving its window, an unbind, and JavaScript's `dismissPageSummaries` on a tab switch, the deck or another surface.
 - **Settings.** `components/settings/PageSummaryPage.tsx` (`state/pageSummary`), offered where the module has
-  `setPageSummaryProvider`. Choosing ChatGPT without an account signs in first and saves the choice only after it
-  connects; nothing is summarized by the sign-in.
+  `setPageSummaryProvider`. The Settings row reads Off until the switch is on; the writer choice shows only while it
+  is on. Choosing ChatGPT without an account signs in first and saves the choice only after it connects; nothing is
+  summarized by the sign-in. On iPhone the switch is a row in Settings › Experimental (`ExpoSettingsRoot.tsx`).
 - **Testing.** ChatGPT's endpoints are fixed on Android, so the ChatGPT path is covered by `PageSummaryWritingTest`'s
   injected writers, not a fake server.
 
@@ -1494,7 +1514,7 @@ Events (service `ardia-phone`, `$lib` `ardia-phone-telemetry`, tags `app: phone`
 | `perf_launch` | `launch_ms`, `js_ms` | each launch, once the module gives the process start (`ArdiaPhoneSystem.processStartedAt()`, epoch ms) |
 | `perf_backdrop` | `backdrop_ms` | each launch on iPhone, once the native launch backdrop has shown (`system.launchBackdropShownAt()`, epoch ms on the process start's clock) |
 | `perf_launch_tray` | `tray_ms` | each launch with Auto-Open Keyboard on, once the launch tray is up (process start on `ArdiaPhoneSystem.processStartedAt()`'s clock) |
-| `usage_counts` | `tabs_opened`, `searches`, `pins_to_mac`, `tabs_sent`, `page_processes_gone`, `links_given_up` (a link whose handling passed its 8 s deadline), `pages_reloaded_online` (a failed page reloaded when the phone came back online), `find_opened_system` and `find_opened_bar` (Find on Page opened in WebKit's own panel, or in the app's find bar), `spaces_swiped` (a swipe in Spaces or on the start page that changed the profile), `tray_hidden_rows_opened` (a tray row opened while it peeked or sat under the keyboard), `deck_pictures_late` (a deck opened from a page whose picture hadn't painted within 250 ms, so it shrank without waiting), `search_tabs_opened` (the deck's Search Tabs field focused, in the redesign), `spaces_picked` (a space picked from the deck's switcher menu, or by a VoiceOver adjustment of the start page's dots, that changed the profile, in the redesign), `tabs_moved_to_space` (a tab moved to another space with the deck card menu's Move to Space, in the redesign), `pages_printed` (a page printed from the page menu's Print, counted when the print sheet opened, in the redesign), `pages_translated` (a page sent to Google Translate from the page menu's Translate, never from an Incognito tab), `pinned_tabs_refound` (a pinned site's tile or row switched to the tab it had opened after that tab had left the pinned address, where it used to open a second copy), `site_permissions_revoked` (a site's camera, microphone or location access revoked from Site Settings, by swipe or by its dialog, on iPhone's Expo UI Settings), `tray_back_swiped` (a search tray closed with Android's predictive back swipe), `card_opens_waited` (a card opened from the deck whose growth landed before its page had laid out and its picture painted, so the page waited up to 250 ms to take over), `native_menus_opened` (a menu opened as the system's own: a deck card's long press, the deck's ···, the space switchers, the + menus, Reader's Text Appearance, the page menu's Send to Device, the tabs button's recent tabs, on iPhone), `drawn_menus_opened` (a menu or confirmation card the app draws itself opened: every menu and confirmation card on Android, and on iPhone the few that have no system counterpart, such as a page link's long press; neither menu count is taken on the deck's Incognito side, on an Incognito page or for an Incognito card), `library_opened` (History, Bookmarks or Downloads opened in the system sheet from the page menu, on iPhone), `deck_grid_shown` (Grid picked for the deck in Settings › Appearance › Tabs, on iPhone), `landscape_shown` (a launch in which the phone was turned to landscape at least once, counted once a launch), `duo_layout_shown` (a launch that used the column, wide or split layout at least once, counted once a launch, on iPhone), `list_sheets_late` (an Archive or History sheet whose rows were drawn more than 400 ms after it was asked for, on iPhone), `list_pages_added` (Archive or History adding its next 200 rows as you scroll, on iPhone), `search_reveals_late` (a search panel opened whose content had not laid out within 250 ms, so the stage revealed it on its deadline, on iPhone), `address_field_scrolled` (a long address in the search field scrolled sideways with a swipe, on iPhone), `deck_bar_swipes` (the deck opened by swiping up on the browsing bar, the second way in beside the tabs button), `tabs_swiped_closed` and `tabs_swiped_reopened` (a back swipe on a page with no history that closed its tab, and a forward swipe with no forward history that reopened the last closed tab), `page_menu_tapped_away` (the page menu closed by a tap on the page above it, on iPhone), `new_tab_search_opened` (search opened on a new tab in the iPhone's full-height search panel), `deck_incognito_switches` (a tap on the deck bar's Incognito switch that went from the normal tabs to the Incognito tabs, on iPhone), `deck_bar_swipes_returned` (a swipe up on the browsing bar let go before its commit point, so the page grew back), `deck_pulls_hitched` (a swipe up or a tabs tap during whose shrink into the deck two UI-thread frames were more than 50 ms apart), `browse_for_me_opened` (Browse for Me opened from the tray, voice search or a launch argument), `browse_answers_chatgpt`, `browse_answers_on_device`, `browse_answers_excerpts` and `browse_answers_failed` (a Browse for Me answer by who wrote it, or a page that found or read nothing), `browse_chatgpt_fallbacks` (a ChatGPT answer that failed, so Apple Intelligence, Gemini Nano or the excerpts wrote it instead), `page_summaries_pinched` and `page_summaries_from_menu` (a page summary opened by pinching in or from the page menu's Summarize Page), `page_summaries_chatgpt`, `page_summaries_on_device`, `page_summaries_excerpts` and `page_summaries_failed` (a page summary by who wrote it, or a page it couldn't read or summarize; ChatGPT on Android only), `page_summaries_chatgpt_fallbacks` (a ChatGPT summary that failed, so Gemini Nano or the page's key lines wrote it instead, on Android), `paste_and_go_links`, `paste_and_go_texts` and `paste_and_go_unread` (a Paste and Go tap with a link, with text, or that read nothing because the paste prompt was refused or the clipboard emptied; never counted while browsing privately), `search_tile_taps`, `voice_tile_taps` and `incognito_tile_taps` (Ardia opened from its Quick Settings tiles, on Android, counted on the phone and sent with the next day's counts) | at most once a day, for the last UTC day the app was used before today, when anything was counted; private tabs are never counted |
+| `usage_counts` | `tabs_opened`, `searches`, `pins_to_mac`, `tabs_sent`, `page_processes_gone`, `links_given_up` (a link whose handling passed its 8 s deadline), `pages_reloaded_online` (a failed page reloaded when the phone came back online), `find_opened_system` and `find_opened_bar` (Find on Page opened in WebKit's own panel, or in the app's find bar), `spaces_swiped` (a swipe in Spaces or on the start page that changed the profile), `tray_hidden_rows_opened` (a tray row opened while it peeked or sat under the keyboard), `deck_pictures_late` (a deck opened from a page whose picture hadn't painted within 250 ms, so it shrank without waiting), `search_tabs_opened` (the deck's Search Tabs field focused, in the redesign), `spaces_picked` (a space picked from the deck's switcher menu, or by a VoiceOver adjustment of the start page's dots, that changed the profile, in the redesign), `tabs_moved_to_space` (a tab moved to another space with the deck card menu's Move to Space, in the redesign), `pages_printed` (a page printed from the page menu's Print, counted when the print sheet opened, in the redesign), `pages_translated` (a page sent to Google Translate from the page menu's Translate, never from an Incognito tab), `pinned_tabs_refound` (a pinned site's tile or row switched to the tab it had opened after that tab had left the pinned address, where it used to open a second copy), `site_permissions_revoked` (a site's camera, microphone or location access revoked from Site Settings, by swipe or by its dialog, on iPhone's Expo UI Settings), `tray_back_swiped` (a search tray closed with Android's predictive back swipe), `card_opens_waited` (a card opened from the deck whose growth landed before its page had laid out and its picture painted, so the page waited up to 250 ms to take over), `native_menus_opened` (a menu opened as the system's own: a deck card's long press, the deck's ···, the space switchers, the + menus, Reader's Text Appearance, the page menu's Send to Device, the tabs button's recent tabs, on iPhone), `drawn_menus_opened` (a menu or confirmation card the app draws itself opened: every menu and confirmation card on Android, and on iPhone the few that have no system counterpart, such as a page link's long press; neither menu count is taken on the deck's Incognito side, on an Incognito page or for an Incognito card), `library_opened` (History, Bookmarks or Downloads opened from the page menu), `deck_grid_shown` (Grid picked for the deck in Settings › Appearance › Tabs, on iPhone), `landscape_shown` (a launch in which the phone was turned to landscape at least once, counted once a launch), `duo_layout_shown` (a launch that used the column, wide or split layout at least once, counted once a launch, on iPhone), `list_sheets_late` (an Archive or History sheet whose rows were drawn more than 400 ms after it was asked for, on iPhone), `list_pages_added` (Archive or History adding its next 200 rows as you scroll, on iPhone), `search_reveals_late` (a search panel opened whose content had not laid out within 250 ms, so the stage revealed it on its deadline, on iPhone), `address_field_scrolled` (a long address in the search field scrolled sideways with a swipe, on iPhone), `deck_bar_swipes` (the deck opened by swiping up on the browsing bar, the second way in beside the tabs button), `tabs_swiped_closed` and `tabs_swiped_reopened` (a back swipe on a page with no history that closed its tab, and a forward swipe with no forward history that reopened the last closed tab), `page_menu_tapped_away` (the page menu closed by a tap on the page above it, on iPhone), `new_tab_search_opened` (search opened on a new tab in the iPhone's full-height search panel), `deck_incognito_switches` (a tap on the deck bar's Incognito switch that went from the normal tabs to the Incognito tabs, on iPhone), `deck_bar_swipes_returned` (a swipe up on the browsing bar let go before its commit point, so the page grew back), `deck_pulls_hitched` (a swipe up or a tabs tap during whose shrink into the deck two UI-thread frames were more than 50 ms apart), `browse_for_me_opened` (Browse for Me opened from the tray, voice search or a launch argument), `browse_answers_chatgpt`, `browse_answers_on_device`, `browse_answers_excerpts` and `browse_answers_failed` (a Browse for Me answer by who wrote it, or a page that found or read nothing), `browse_chatgpt_fallbacks` (a ChatGPT answer that failed, so Apple Intelligence, Gemini Nano or the excerpts wrote it instead), `page_summaries_pinched` and `page_summaries_from_menu` (a page summary opened by pinching in or from the page menu's Summarize Page), `page_summaries_chatgpt`, `page_summaries_on_device`, `page_summaries_excerpts` and `page_summaries_failed` (a page summary by who wrote it, or a page it couldn't read or summarize; ChatGPT on Android only), `page_summaries_chatgpt_fallbacks` (a ChatGPT summary that failed, so Gemini Nano wrote it instead, on Android), `paste_and_go_links`, `paste_and_go_texts` and `paste_and_go_unread` (a Paste and Go tap with a link, with text, or that read nothing because the paste prompt was refused or the clipboard emptied; never counted while browsing privately), `search_tile_taps`, `voice_tile_taps` and `incognito_tile_taps` (Ardia opened from its Quick Settings tiles, on Android, counted on the phone and sent with the next day's counts) | at most once a day, for the last UTC day the app was used before today, when anything was counted; private tabs are never counted |
 
 On the dashboard they are kept out of every Mac section by source and lib (`PHONE_APP_SOURCE` in `apps/dashboard/src/server/sql.ts`).
 
@@ -1521,7 +1541,7 @@ Every count and timing the phone can send, for the owner to read as one set and 
 | `tray_hidden_rows_opened` | f5071fd5f | Whether rows past the keyboard are reached; near the line: zero would argue for a scrolling list, otherwise strike it |
 | `native_menus_opened` | the menus sweep | Whether the system's own menus open where the drawn ones did; a drop against `tabs_opened` after a release means a native menu stopped opening |
 | `drawn_menus_opened` | Android's drawn menus (the owner, 2026-11-19) | Whether people open menus on Android, where every menu and confirmation is drawn; split by `platform`. Read it against `tabs_opened`: a drop after a release means a drawn menu stopped opening |
-| `library_opened` | the Library sheets on Expo UI | Whether people reach History, Bookmarks and Downloads from the page menu on iPhone; zero across testers after a release means the rows or the sheet stopped opening |
+| `library_opened` | the Library sheet on both phones | Watch History, Bookmarks and Downloads opens from the page menu by platform. A drop to zero can indicate the rows or sheet stopped opening |
 | `deck_grid_shown` | the deck's grid on iPhone, picked in Settings › Appearance › Tabs since the owner's tabs pass | Whether people use main's grid view now that it lives in Settings; zero across testers after a release means the Tabs rows stopped switching |
 | `deck_bar_swipes` | the owner's tabs pass (the swipe up on the bar, beside the tabs button) | Whether people use the swipe as well as the button; zero across testers after a release means the swipe stopped opening the deck |
 | `deck_bar_swipes_returned` | the swipe that follows the finger (#2607; on Android too since the deck parity of 2026-11-19) | How often a swipe up is let go early. Read it against `deck_bar_swipes`: a share above about a third after a release means the commit point sits too far, or the swipe is caught by people who only meant to touch the bar |
@@ -1540,9 +1560,9 @@ Every count and timing the phone can send, for the owner to read as one set and 
 | `deck_incognito_switches` | the deck bar's Incognito switch on iPhone (build 16 feedback) | Whether people switch the deck to Incognito from its bar; zero across testers after a release means the switch stopped showing or stopped switching. Taps back to the normal tabs are not counted, since they start in Incognito |
 | `browse_for_me_opened` | Browse for Me on Expo | Whether people use Browse for Me at all; zero across testers after a release means the tray row or the voice button stopped opening it |
 | `browse_answers_chatgpt`, `browse_answers_on_device`, `browse_answers_excerpts`, `browse_answers_failed` | Browse for Me on Expo | Who writes the answers: a share of `excerpts` that grows on phones with Apple Intelligence means the model path broke, and a growing `failed` share against `browse_for_me_opened` means search or page reading broke (DuckDuckGo's page changing is the likely cause) |
-| `page_summaries_pinched`, `page_summaries_from_menu` | Pinch to Summarize on iPhone and Android | A drop in pinch opens alongside steady menu opens can point to a gesture regression. A rise in pinch opens relative to `tabs_opened` can indicate accidental summaries |
+| `page_summaries_pinched`, `page_summaries_from_menu` | Pinch to Summarize on iPhone and Android | It is off by default, so opens count only people who turned it on. A drop in pinch opens alongside steady menu opens can point to a gesture regression. A rise in pinch opens relative to `tabs_opened` can indicate accidental summaries |
 | `page_summaries_on_device`, `page_summaries_excerpts`, `page_summaries_failed` | Pinch to Summarize on iPhone | A rising excerpt share can point to problems with Apple Intelligence. A rising failure share can point to problems reading pages |
-| `page_summaries_chatgpt`, `page_summaries_chatgpt_fallbacks` | Pinch to Summarize on Android | How many summaries the opt-in ChatGPT choice writes; fallbacks rising against `page_summaries_chatgpt` mean the Responses call or the token refresh broke. On Android, pinch opens against menu opens show the passive pinch watcher working, and zero pinch opens after a release with steady menu opens mean it stopped |
+| `page_summaries_chatgpt`, `page_summaries_chatgpt_fallbacks` | Pinch to Summarize on Android | Android has no excerpts, so `page_summaries_failed` against `page_summaries_on_device` is the share of phones without a ready Gemini Nano. How many summaries the opt-in ChatGPT choice writes; fallbacks rising against `page_summaries_chatgpt` mean the Responses call or the token refresh broke. On Android, pinch opens against menu opens show the passive pinch watcher working, and zero pinch opens after a release with steady menu opens mean it stopped |
 | `paste_and_go_links`, `paste_and_go_texts`, `paste_and_go_unread` | Paste and Go, now on iPhone too | iPhone taps should appear beside Android's. A high unread share on iPhone means people refuse the paste prompt, or the row shows when nothing can be pasted |
 | `search_tile_taps`, `voice_tile_taps`, `incognito_tile_taps` | Android's Quick Settings tiles | Voice and Incognito should appear once the release is out; a tile that stays at zero while Search counts can point to a broken tile |
 | `browse_chatgpt_fallbacks` | Browse for Me on Expo | How often a connected ChatGPT plan fails to answer; a jump after a release, or against `browse_answers_chatgpt`, means the Responses call or the token refresh broke |
@@ -1586,7 +1606,24 @@ iPhone follows the SwiftUI app on main since the merge of main (8203d0b3c, 2026-
   - a swipe between tabs shows the space's own surface behind the pages (`PagerBackdrop`), where Android drew black. The dim over the leaving page stays black on both phones, and a history swipe inside a page already takes the profile's surface (`surfaceColor` on the page view);
   - a top pull on a page still refreshes it; nothing native changed.
 
-### Decided by the owner (2026-11-15)
+### Android motion and menu follow-up
+
+- Android Settings subpages change instantly on push and Back. The top-level Settings sheet opens and dismisses
+  with its own motion.
+- Without a connected Mac, Android's redesigned start page shows the Ardia logo. Tap it to open Search. Sync
+  setup is available in Settings. Watch `start_logo_taps` in `usage_counts` for how often people use the logo to
+  start a search. Incognito taps are excluded.
+- The deck's ··· menu has one row height throughout on Android, including when sync and recently closed tabs add
+  actions. iPhone keeps its native menu sections.
+- After an Android swipe into the deck, the landing or return takes 300 ms on the UI thread. The live page still
+  follows the finger and remains visible until its card can take over.
+- Android Settings uses the same General, Search, Tabs, Privacy, Experimental and About groups as iPhone.
+  The page menu opens History, Bookmarks and Downloads in Android's Library sheet using the same entries
+  and file actions as iPhone. Android still uses its default-browser role and summary provider choices.
+- Watch Android's `deck_pulls_hitched` alongside swipe opens and returns, and `library_opened` for access to
+  the new Library destinations.
+
+
 
 - One design on both phones: Android takes main's iPhone redesign too ("the same look on Android and iPhone … keep one design, not two"). Plan: flip Android to the redesign, run both suites and an Android phone pass, then delete the classic design and its tests in one commit, so there is never a third state. Where a platform has a native element it uses its own: on iPhone the system context menus with lift and blur and the action sheets, behind one JavaScript component. Android draws its menus instead ("Decided by the owner (2026-11-19)"). Android's native needs for the redesign are with the Android agent:
   - Done: Print (7b4330166), the sync-cycle flag (c095acaec), and the site permissions kept, listed and revoked (91d934628).
@@ -2130,6 +2167,15 @@ Not audited at all: Compose's `SyncSetupContent` internals inside onboarding.
   - **Main** shows the words (`BarControls.swift`). Arc's own indicator hasn't been measured here; the capture from
     Arc Search on the F4 decides whether shape, size, colour or position change.
 
+- Collapse Bottom Bar on Android is enabled when no valid saved choice exists. Explicit on and off values,
+  including imported values, win. iPhone keeps its existing default and spring. Android keeps the 30 dp host pill
+  mounted but hidden from touch and accessibility while expanded. Collapse and expand retarget one Reanimated
+  value over 180 ms with transform and opacity changes. Remove animations snaps to the endpoint. The page's
+  direction update no longer waits for a second effect to choose the toolbar state. Tapping the pill expands it;
+  the next upward then downward scroll can collapse it again. The deck keeps its own motion settings.
+  Watch the consent-gated `usage_counts.bottom_bar_collapses` count, never recorded in Incognito. This measures
+  collapse use, not frame smoothness. Smoothness and viewport resize counts still need real-device captures.
+
 - The page under the bar (the owner's decision, 2026-11-16).
   - **iPhone:** the page runs full screen under the glass bar, and WebKit gets the covered edges as
     `obscuredContentInsets`, so fixed footers and the page's last lines stay above the bar.
@@ -2142,7 +2188,13 @@ Not audited at all: Compose's `SyncSetupContent` internals inside onboarding.
     `obscuredInsets` and `toneInsets` on both. It also passes `obscuredColors`, the colours its own bars use: the
     page's remembered tone, or the theme's surface before it has one.
   - **What Android's page view does with them** (`PageView`, `PageBands`):
-    - it lays the WebView out between the bands and paints the bands in those colours, in the same commit as the bars;
+    - it lays the WebView out between the bands and paints the bands in those colours;
+    - a collapse or expand changes only transforms and opacity while scrolling. A bottom-only viewport change
+      waits for the 180 ms toolbar transition and 120 ms without WebView scroll movement, including a fling,
+      with no finger still on the page. Only the latest endpoint is applied, once. Fixed footers and the page's
+      end then fit above the settled bar or pill. Top insets, view size changes, Find, search, full-screen video
+      and turning collapse off apply their viewport clearance immediately. A pending change belongs to its
+      page and WebView, and is cancelled when either is replaced or detached;
     - it samples the tone at the WebView's own edge;
     - it composes deck snapshots with the bands, so a card is the page as shown.
   - **Revisit** if Android's WebView gains an equivalent of `obscuredContentInsets`, or a way to keep fixed and
