@@ -4,6 +4,8 @@ import { revealTargets, type RevealTargets } from "./revealTargets";
 import { useLive } from "../live/store";
 import { knownFaviconTheme, resolveFavicon } from "../favicons/favicons";
 import { iconMarks } from "./rowState";
+import { watchTabState } from "../tabs/tabStateWatch";
+import { watchFaviconOf, watchFaviconTheme } from "../favicons/faviconHooks";
 
 const asked = new Map<string, Set<(tabId: string) => void>>();
 
@@ -41,6 +43,32 @@ export function selectedTabSnapshot(windowId: string): PillTab | null {
   const theme = faviconUri ? knownFaviconTheme(faviconUri) : null;
   return { id, url: tab.url, favicon: tab.favicon ?? null, icon: tab.customIcon ?? null, profileId: tab.profileId, faviconUri, template: theme?.kind === "template" && !!theme.stroke, marks: iconMarks(s, id) };
 }
+
+export const samePillTab = (a: PillTab, b: PillTab) =>
+  a.id === b.id &&
+  a.url === b.url &&
+  a.favicon === b.favicon &&
+  a.icon === b.icon &&
+  a.profileId === b.profileId &&
+  a.faviconUri === b.faviconUri &&
+  a.template === b.template &&
+  a.marks === b.marks;
+
+export function watchPillTab(tab: PillTab, changed: () => void): () => void {
+  const offs = [watchTabState(tab.id, changed), watchFaviconOf(tab.url, tab.favicon, changed)];
+  if (tab.faviconUri) offs.push(watchFaviconTheme(tab.faviconUri, changed));
+  return () => offs.forEach((off) => off());
+}
+
+export type SelectedPlace = { id: string | null; index: number };
+
+export function selectedPlaceIn(windowId: string): SelectedPlace {
+  const s = useBrowser.getState();
+  const id = activeTabId(s, windowId) ?? null;
+  return { id, index: id ? (s.windows[windowId]?.tabIds.indexOf(id) ?? -1) : -1 };
+}
+
+export const movedInPlace = (was: SelectedPlace, now: SelectedPlace) => !!now.id && now.id === was.id && now.index !== was.index;
 
 export type RowsStamp = readonly unknown[];
 

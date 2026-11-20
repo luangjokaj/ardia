@@ -3,8 +3,7 @@ import { Animated, ScrollView, View, type LayoutChangeEvent, type NativeScrollEv
 import { switchOn } from "../../state/app/switches";
 import { ContextMenuArea, space, WindowDragRegion } from "../ui";
 import { layout } from "../ui/theme";
-import { TintInk } from "../ui/TintInk";
-import { SidebarTextScope } from "./SidebarTextScope";
+import { SidebarInk } from "./SidebarTextScope";
 import { ThemeScope } from "../window/ThemeScope";
 import { PageProfileContext, useSettings, useWindowId } from "../../state/browser/hooks";
 import { newTab } from "../../state/tabs/actions";
@@ -109,6 +108,7 @@ export const SidebarPage = memo(function SidebarPage({ profileId, slot, paging, 
     if (geometry) geometry.current.tilesFixed = dockFixed;
   }, [geometry, dockFixed]);
   const scrollEdge = useScrollEdge();
+  const edgeGap = fixedTiles.length ? SCROLL_EDGE.gap : topGap - SCROLL_EDGE.inset - SCROLL_EDGE.line;
   const edgeLift = useToolbarEdgeLift(fixedTiles.length === 0 && topGap === listTopGap(false));
   useLayoutEffect(() => {
     if (geometry) geometry.current.edgeLift = edgeLift;
@@ -153,6 +153,7 @@ export const SidebarPage = memo(function SidebarPage({ profileId, slot, paging, 
   );
   const edge = useMemo(() => scrollY.interpolate({ inputRange: [0, 1], outputRange: [0, GLOW_ROOM - edgeLift], extrapolate: "clamp" }), [scrollY, edgeLift]);
   const unedge = useMemo(() => Animated.multiply(edge, -1), [edge]);
+  const clipUnedged = useMemo(() => Animated.add(unedge, playerMotion.listClip), [unedge, playerMotion.listClip]);
   const slack = useRef<number | null>(null);
   const applySlack = () => {
     if (resting || !canDock || height <= 0 || slack.current === null) return;
@@ -175,10 +176,9 @@ export const SidebarPage = memo(function SidebarPage({ profileId, slot, paging, 
     >
       <PageProfileContext.Provider value={profileId}>
         <ThemeScope page>
-          <TintInk>
-            <SidebarTextScope>
+          <SidebarInk>
             <DragPage live={current}>
-              <View style={{ paddingTop: GLOW_ROOM, paddingBottom: edgeLift, zIndex: fixedTiles.length ? 1 : 0 }}>
+              <View style={{ paddingTop: GLOW_ROOM, paddingBottom: edgeGap + SCROLL_EDGE.line, zIndex: fixedTiles.length ? 1 : 0 }}>
                 {dockFixed ? (
                   <Animated.View style={[{ paddingHorizontal: layout.sidebarInset }, capped ? { maxHeight: topGap + dockRoom, overflow: "hidden" } : null, sharedTiles]}>
                     <DragScope enabled={current}>
@@ -186,25 +186,22 @@ export const SidebarPage = memo(function SidebarPage({ profileId, slot, paging, 
                     </DragScope>
                   </Animated.View>
                 ) : null}
-                <ScrollEdgeLine opacity={scrollEdge.opacity} style={{ marginTop: (fixedTiles.length ? SCROLL_EDGE.gap : topGap - SCROLL_EDGE.inset - SCROLL_EDGE.line) - edgeLift }} />
+                <ScrollEdgeLine edge={scrollEdge} opacity={scrollEdge.opacity} style={{ position: "absolute", left: 0, right: 0, bottom: edgeLift }} />
               </View>
               <Animated.View
                 style={{ flex: 1, marginTop: -GLOW_ROOM, overflow: "hidden", transform: [{ translateY: edge }] }}
               >
-                <Animated.View style={{ flex: 1, transform: [{ translateY: unedge }] }}>
-                  <Animated.View style={{ flex: 1, overflow: "hidden", transform: [{ translateY: playerMotion.listClip }] }}>
-                    <Animated.View style={{ flex: 1, transform: [{ translateY: playerMotion.listUnclip }] }}>
+                <Animated.View style={{ flex: 1, overflow: "hidden", transform: [{ translateY: clipUnedged }] }}>
                       <Animated.ScrollView
                         ref={scrollView}
                         onLayout={(e) => {
                           page.viewport = e.nativeEvent.layout.height;
                           scrollEdgeBelow.measure({ viewport: page.viewport });
+                          if (geometry) geometry.current.viewport = page.viewport;
                           selectedRow.relocate();
-                          if (!geometry) return;
-                          geometry.current.viewport = page.viewport;
-                          geometry.current.laidOut?.();
+                          geometry?.current.laidOut?.();
                         }}
-                        style={{ flex: 1 }}
+                        style={{ flex: 1, transform: [{ translateY: playerMotion.listUnclip }] }}
                         showsVerticalScrollIndicator={false}
                         scrollEventThrottle={16}
                         onScroll={onScroll}
@@ -236,12 +233,10 @@ export const SidebarPage = memo(function SidebarPage({ profileId, slot, paging, 
                           </ContextMenuArea>
                         </View>
                       </Animated.ScrollView>
-                    </Animated.View>
-                  </Animated.View>
-                  {geometry ? <SelectedRowPill windowId={windowId} tracker={selectedRow} lift={edgeLift} bottomShift={playerMotion.listClip} /> : null}
                 </Animated.View>
+                {geometry ? <SelectedRowPill windowId={windowId} tracker={selectedRow} lift={edgeLift} unedge={unedge} bottomShift={playerMotion.listClip} /> : null}
               </Animated.View>
-              <ScrollEdgeLine opacity={scrollEdgeBelow.opacity} style={{ marginTop: -SCROLL_EDGE.line, zIndex: 1, transform: [{ translateY: playerMotion.listClip }] }} />
+              <ScrollEdgeLine edge={scrollEdgeBelow} opacity={scrollEdgeBelow.opacity} style={{ marginTop: -SCROLL_EDGE.line, zIndex: 1, transform: [{ translateY: playerMotion.listClip }] }} />
               {playerTab ? (
                 <View style={{ paddingHorizontal: layout.sidebarInset, paddingTop: docked ? space.m : 0, paddingBottom: docked ? 0 : space.m }}>
                   <SidebarPlayer tabId={playerTab} motion={playerMotion} docked={docked} />
@@ -253,8 +248,7 @@ export const SidebarPage = memo(function SidebarPage({ profileId, slot, paging, 
                 </View>
               ) : null}
             </DragPage>
-            </SidebarTextScope>
-          </TintInk>
+          </SidebarInk>
         </ThemeScope>
       </PageProfileContext.Provider>
     </Animated.View>

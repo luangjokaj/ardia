@@ -153,7 +153,8 @@ export const noteWindowCloseTabsKept = (n: number) => void (counts.windowCloseTa
 
 export const noteSelectionClosedByKey = (tabs: number) => void ((counts.selectionCloseKeys += 1), (counts.selectionCloseKeyTabs += tabs));
 
-export const noteSharePicked = (kind: "tab" | "window" | "screen", withController = false) => void (counts[kind === "tab" ? "sharesPickedTab" : kind === "window" ? "sharesPickedWindow" : "sharesPickedScreen"]++, withController && counts.sharesWithCaptureController++);
+export const noteSharePicked = (kind: "tab" | "window" | "screen", withController = false, consent?: ConsentToken | null) =>
+  bump(consentOrNow(consent), { [kind === "tab" ? "sharesPickedTab" : kind === "window" ? "sharesPickedWindow" : "sharesPickedScreen"]: 1, sharesWithCaptureController: withController ? 1 : 0 });
 
 export const noteScreenRecordingMissing = () => counts.screenRecordingMissing++;
 export const noteScreenRecordingAsked = () => counts.screenRecordingAsked++;

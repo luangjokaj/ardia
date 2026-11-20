@@ -235,22 +235,19 @@ export const HistoryButton = memo(function HistoryButton({
   });
   const onMiddleClick = useStableHandler((e: ClickModifiers) => !disabled && void onPress({ ...e, middle: true }));
   const face = useMemo(
-    () => (
-      <View style={ICON_CENTER}>
-        {handingOff ? (
-          <>
-            <Animated.View pointerEvents="none" style={[ICON_LAYER, { opacity: handoff.fadeOut, transform: [{ translateX: handoff.outX }] }]}>
-              {drawnSymbol({ name: icon, size: HISTORY_GLYPH.size, weight: HISTORY_GLYPH.weight, color: iconColor, style: SYMBOL_FRAME })}
-            </Animated.View>
-            <Animated.View pointerEvents="none" style={[ICON_LAYER, { opacity: handoff.fadeIn, transform: [{ translateX: handoff.inX }] }]}>
-              {drawnSymbol({ name: icon, size: HISTORY_GLYPH.size, weight: HISTORY_GLYPH.weight, color: iconColor, style: SYMBOL_FRAME })}
-            </Animated.View>
-          </>
-        ) : (
-          drawnSymbol({ name: icon, size: HISTORY_GLYPH.size, weight: HISTORY_GLYPH.weight, color: iconColor, style: SYMBOL_FRAME })
-        )}
-      </View>
-    ),
+    () =>
+      handingOff ? (
+        <View style={ICON_CENTER}>
+          <Animated.View pointerEvents="none" style={[ICON_LAYER, { opacity: handoff.fadeOut, transform: [{ translateX: handoff.outX }] }]}>
+            {drawnSymbol({ name: icon, size: HISTORY_GLYPH.size, weight: HISTORY_GLYPH.weight, color: iconColor, style: SYMBOL_FRAME })}
+          </Animated.View>
+          <Animated.View pointerEvents="none" style={[ICON_LAYER, { opacity: handoff.fadeIn, transform: [{ translateX: handoff.inX }] }]}>
+            {drawnSymbol({ name: icon, size: HISTORY_GLYPH.size, weight: HISTORY_GLYPH.weight, color: iconColor, style: SYMBOL_FRAME })}
+          </Animated.View>
+        </View>
+      ) : (
+        drawnSymbol({ name: icon, size: HISTORY_GLYPH.size, weight: HISTORY_GLYPH.weight, color: iconColor, style: SYMBOL_FRAME })
+      ),
     [handingOff, handoff, icon, iconColor],
   );
   return (

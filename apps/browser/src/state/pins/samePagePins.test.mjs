@@ -77,6 +77,9 @@ test("reopening a closed copy of a pin whose pin is parked brings that pin back,
   S().restoreClosed(entry.id, null);
   const live = Object.values(S().tabs).filter((t) => t.profileId === profileId && t.pin);
   assert.deepEqual(live.map((t) => t.pinKey ?? t.id), [pin], "the parked pin itself is back");
+  assert.equal(entry.restoreFrom, undefined, "the closed copy had no separate restore source");
+  const back = live[0].page;
+  assert.equal(back.adopt ?? back.wake, `restore:${copy}`, "its page comes back from the closed copy's history");
   for (const w of Object.values(S().windows).filter((x) => x.profileId === profileId)) S().closeWindow(w.id);
   assert.deepEqual(S().parkedPins[profileId]?.tabs.map((t) => t.id), [pin], "and parks again as one pin");
 });

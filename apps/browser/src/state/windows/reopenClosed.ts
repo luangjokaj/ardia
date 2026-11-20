@@ -77,7 +77,7 @@ export function restoreTab(s: BrowserState, entry: ClosedTab, requested?: string
     }
     next = adoptParkedPins(next, windowId, owner);
     const adopted = next.windows[windowId]!.tabIds.find((id) => next.tabs[id]?.profileId === owner && next.tabs[id]!.pin && pinKeyOf(next.tabs[id]!) === key);
-    if (adopted) return restoreTab(next, { ...entry, tabId: adopted, pinKey: undefined }, windowId);
+    if (adopted) return restoreTab(next, { ...entry, tabId: adopted, restoreFrom: entry.restoreFrom ?? entry.tabId, pinKey: undefined }, windowId);
   }
   const closedTabs = s.closedTabs.filter((c) => c.id !== entry.id);
   if (entry.small && !isIncognitoProfile(entry.tab.profileId)) {

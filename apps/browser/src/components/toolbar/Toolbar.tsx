@@ -11,7 +11,7 @@ import { toggleSidebar } from "../../state/windows/actions";
 import { openBarFromAddress } from "../../state/omnibox/barState";
 import { useIsBookmarked, useSettings, useTab, useTabLive, useTabsPlace, useTabsShown } from "../../state/browser/hooks";
 import type { Tab } from "../../state/browser/types";
-import { Button, ContextMenuArea, Divider, FadeLabel, ink, monoFace, sidebarFont, sidebarPoints, space, Symbol, Text, useHover, WindowDragRegion } from "../ui";
+import { Button, ContextMenuArea, Divider, FadeLabel, ink, monoFace, sidebarFont, sidebarPoints, drawnSymbol, space, Text, useHover, WindowDragRegion } from "../ui";
 import { type ToolbarGeometry } from "../window/geometry";
 import { usePage, usePages, type PageState } from "../../state/tabs/pageState";
 import { togglePopover } from "../../state/tabs/popoverDismiss";
@@ -33,7 +33,7 @@ import { TranslateButton } from "../site/TranslateControls";
 import { ReaderButton, useReaderButtonShown } from "../site/ReaderControls";
 import { ZoomIndicator } from "../site/ZoomControls";
 import { NAV_HINTS, useShortcutHint, useShortcutHints, withShortcut } from "../../state/commands/commandShortcuts";
-import { buttonMotion, curve, usePressScaleMotion } from "../ui/motion";
+import { curve } from "../ui/motion";
 import { FieldLoadFill } from "./FieldLoadFill";
 import { fieldButtonsShown, sidebarFieldButtons } from "./fieldButtons";
 import { useFieldExtensionsHeld } from "../../state/extensions/store";
@@ -207,8 +207,6 @@ export const ToolbarUrlField = memo(function ToolbarUrlField({ tab, palette, win
   const { insecure, hovered, buttonsShown, popover, toggleSiteControls } = field;
   const openSplit = useStableHandler(() => openSplitPane(windowId, { anchorTabId: tab.id }));
   const glass = useGlass();
-  const lockPress = usePressScaleMotion(!!insecure, buttonMotion.iconPressScale);
-  const lockScaleStyle = lockPress.scale ? { transform: [{ scale: lockPress.scale }] } : undefined;
 
   return (
     <View {...field.hoverProps} style={[style, { flexDirection: "row", alignItems: "center", height: row.field, borderRadius: row.fieldRadius, backgroundColor: hovered && !glass ? palette.pill : undefined }]}>
@@ -217,17 +215,13 @@ export const ToolbarUrlField = memo(function ToolbarUrlField({ tab, palette, win
       ) : null}
       {loadFill && <FieldLoadFill tabId={tab.id} color={loadFillColor(palette, theme.accent)} height={row.field} radius={row.fieldRadius} />}
       {insecure && (
-        <Pressable onPress={toggleSiteControls} onPressIn={lockPress.onPressIn} onPressOut={lockPress.onPressOut} style={{ paddingLeft: LOCK.left }} tooltip="Connection is not secure">
-          <View style={{ width: LOCK.width, height: row.field, alignItems: "center", justifyContent: "center" }}>
-            <Animated.View pointerEvents="none" style={lockScaleStyle}>
-              <Symbol
-                name="lock.open.trianglebadge.exclamationmark.fill"
-                size={12}
-                color={insecure === "certificateError" ? theme.destructive : palette.secondary}
-                style={{ width: LOCK.width, height: 18 }}
-              />
-            </Animated.View>
-          </View>
+        <Pressable onPress={toggleSiteControls} style={{ paddingLeft: LOCK.left }} tooltip="Connection is not secure">
+          {drawnSymbol({
+            name: "lock.open.trianglebadge.exclamationmark.fill",
+            size: 12,
+            color: insecure === "certificateError" ? theme.destructive : palette.secondary,
+            style: { width: LOCK.width, height: row.field },
+          })}
         </Pressable>
       )}
       <ContextMenuArea style={{ flex: 1 }} onContextMenu={() => void showUrlBarMenu(tab)}>

@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { descendants, insideApp, launchedTree, orphansSince, parseTable, processTable, signalIfSame, stopTree, survivors } from "./processes.mjs";
+import { descendants, insideApp, launchedTree, parseTable, processTable, quitTargets, signalIfSame, stopTree, survivors } from "./processes.mjs";
 
 const APP = "/x/Bench.app";
 const T = 1_700_000_000_000;
@@ -45,10 +45,17 @@ test("survivors are tree members with the same start and command, so a reused pi
   assert.equal(signalIfSame(table[0], 0, later), false);
 });
 
-test("after a browser crash its reparented helpers are found as orphans started since its launch, never an older instance", () => {
-  const crashed = [{ ...table[1], ppid: 1 }, { ...table[2], ppid: 1 }, ...table.slice(3)];
-  assert.deepEqual(orphansSince(APP, T + 400, crashed).map((p) => p.pid), [11, 12]);
-  assert.deepEqual(orphansSince(APP, T + 1400, [{ ...table[5] }]), []);
+test("quit signals only the confirmed browser's recorded tree, never an untracked process of the same app copy", () => {
+  const tracked = launchedTree(10, APP, table);
+  const afterCrash = [
+    { ...table[1], ppid: 1 },
+    { pid: 12, ppid: 1, started: T + 5000, command: table[2].command },
+    { pid: 77, ppid: 1, started: T, command: `${APP}/Contents/Frameworks/Helper --type=renderer` },
+    ...table.slice(3),
+  ];
+  assert.deepEqual(quitTargets({ tracked, confirmed: true }, APP, afterCrash).map((p) => p.pid), [11]);
+  assert.deepEqual(quitTargets({ tracked, confirmed: false }, APP, afterCrash), []);
+  assert.deepEqual(quitTargets({ tracked: [], confirmed: true }, APP, afterCrash), []);
 });
 
 async function until(check, what, deadlineMs = 10_000) {

@@ -11,9 +11,9 @@ test("back and forward answer on the press without moving their glyph", () => {
 });
 
 test("the glyph handoff's two animated layers mount only while it runs, inside the memoised face", () => {
-  assert.match(history, /\{handingOff \? \(/);
+  assert.match(history, /handingOff \? \(\n\s*<View style=\{ICON_CENTER\}>/);
   assert.match(history, /setHandingOff\(true\);/);
   assert.match(history, /handoffMotion\.setValue\(0\);\n      setHandingOff\(false\);/);
   assert.match(history, /\[handingOff, handoff, icon, iconColor\],/);
-  assert.equal((history.match(/<Animated\.View/g) ?? []).length, 2, "the resting glyph sits in a plain View");
+  assert.equal((history.match(/<Animated\.View/g) ?? []).length, 2, "the resting glyph sits straight in the button's plate");
 });

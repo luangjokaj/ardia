@@ -105,6 +105,12 @@ const scrolls = await import("./sidebarScrollCounts.ts");
 const cli = await import("./cliCounts.ts");
 const drags = await import("./stuckDrags.ts");
 const track = await import("./track.ts");
+const heard = (msAgo = 0) => {
+  const key = track.newOmniboxKey();
+  track.omniboxKeyHeard(key);
+  key.at -= msAgo;
+  return key;
+};
 const relayModule = await import("./relay.ts");
 
 test("presses, scrolls and imports made while sharing is off are never sent after sharing turns on", async () => {
@@ -142,7 +148,7 @@ test("the first scroll after a consent change starts a new sequence, and a keyst
   sharing(true);
   scrolls.takeSidebarScrollCounts();
   scrolls.noteSidebarScrolled(50_000);
-  const key = track.omniboxKeyHeard();
+  const key = heard();
   sharing(false);
   sharing(true);
   scrolls.takeSidebarScrollCounts();
@@ -150,8 +156,11 @@ test("the first scroll after a consent change starts a new sequence, and a keyst
   const counted = scrolls.takeSidebarScrollCounts();
   assert.deepEqual([counted.sidebar_scrolls, counted.sidebar_scroll_stalls], [1, 0]);
   track.takeOmniboxLatency();
-  for (let i = 0; i < 10; i++) track.sampleOmniboxLatency(key);
-  assert.deepEqual(track.takeOmniboxLatency(), []);
+  for (let i = 0; i < 4; i++) track.sampleOmniboxLatency(heard());
+  track.sampleOmniboxLatency(key);
+  assert.deepEqual(track.takeOmniboxLatency(), [], "the stale key would have been the fifth sample");
+  track.sampleOmniboxLatency(heard());
+  assert.equal(track.takeOmniboxLatency().length, 1, "a fresh fifth key still samples");
 });
 
 test("the local copy's hourly meters start from zero at a consent change", () => {
@@ -213,9 +222,9 @@ test("a stale CLI reply after a consent change neither counts nor uses up the ne
 test("the omnibox's every-fifth sampling starts over at a consent change", () => {
   sharing(true);
   track.takeOmniboxLatency();
-  for (let i = 0; i < 4; i++) track.sampleOmniboxLatency(track.omniboxKeyHeard());
+  for (let i = 0; i < 4; i++) track.sampleOmniboxLatency(heard());
   sharing(false);
   sharing(true);
-  track.sampleOmniboxLatency(track.omniboxKeyHeard());
+  track.sampleOmniboxLatency(heard());
   assert.deepEqual(track.takeOmniboxLatency(), []);
 });

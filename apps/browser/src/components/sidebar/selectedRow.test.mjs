@@ -47,7 +47,7 @@ test("the pill reads no store while it shows: no external-store hook, no tab hoo
   const pill = readFileSync(new URL("./SelectedRowPill.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(pill, /useSyncExternalStore|useActiveTabId|useTab\(|useBrowser|watchRowsMoved/);
   assert.match(pill, /watchWindowRecord\(windowId, tracker\.selectionMoved\)/);
-  assert.match(pill, /if \(!away \|\| frame\) return;/, "a window change waits a frame only while the pill shows");
+  assert.match(pill, /if \(frame \|\| \(!away && !movedInPlace\(was, selectedAt\)\)\) return;/, "a hidden pill rechecks only when the selected tab moved in the order");
 });
 
 test("the pill's icon keeps what the row's icon shows: the engine badge, the faded look, a tint only through tintedImage", () => {
@@ -126,4 +126,108 @@ test("the pill animates its value only while it is on screen, and builds its mot
   sink(null);
   pill.value;
   assert.equal(animations, settled, "hiding an already hidden pill animates nothing");
+});
+
+const pillWindow = async () => {
+  await import("../../test-native/index.ts");
+  const { useBrowser } = await import("../../state/browser/store.ts");
+  const S = () => useBrowser.getState();
+  S().hydrate({});
+  const w = S().createWindow({ url: "https://a.com/" });
+  const ids = [S().windows[w].tabIds[0]];
+  for (let i = 0; i < 30; i++) ids.push(S().newTab(w, { url: `https://t${i}.com/` }));
+  return { S, w, ids };
+};
+const frame = () => new Promise((resolve) => setTimeout(resolve, 5));
+
+test("moving the hidden pill's tab out of view shows the pill without waiting for a scroll", async (t) => {
+  const { S, w, ids } = await pillWindow();
+  S().activate(ids[0]);
+  const geometry = { current: { viewport: 200, regions: { pinnedGroups: 0, list: 0 }, newTabAtTop: false, tilesFixed: false, edgeLift: 0 } };
+  const hook = mount(() => useSelectedRowAway(w, geometry, { current: null }, () => 0));
+  t.after(() => hook.unmount());
+  const seen = [];
+  const detach = hook.value.attach((away) => seen.push(away));
+  t.after(detach);
+  hook.value.judge();
+  assert.equal(seen.at(-1), null);
+  S().moveTab(ids[0], 30);
+  await frame();
+  assert.equal(seen.at(-1)?.side, "below", "the reorder alone brings the pill");
+  const shownAt = seen.length;
+  S().activate(ids[1]);
+  S().activate(ids[0]);
+  await frame();
+  assert.ok(seen.length - shownAt <= 1);
+});
+
+test("a hidden pill hears nothing from a tab switch that leaves the order alone", async (t) => {
+  const { S, w, ids } = await pillWindow();
+  S().activate(ids[0]);
+  const geometry = { current: { viewport: 2000, regions: { pinnedGroups: 0, list: 0 }, newTabAtTop: false, tilesFixed: false, edgeLift: 0 } };
+  const hook = mount(() => useSelectedRowAway(w, geometry, { current: null }, () => 0));
+  t.after(() => hook.unmount());
+  hook.value.attach(() => {});
+  const raf = globalThis.requestAnimationFrame;
+  let frames = 0;
+  globalThis.requestAnimationFrame = (run) => (frames++, raf(run));
+  t.after(() => (globalThis.requestAnimationFrame = raf));
+  S().activate(ids[3]);
+  await frame();
+  assert.equal(frames, 0, "a switch with the pill hidden schedules no recheck");
+  const opened = S().newTab(w, { url: "https://new.com/" });
+  await frame();
+  S().closeTab(opened);
+  await frame();
+  S().activate(ids[5]);
+  await frame();
+  assert.equal(frames, 0, "opening, closing and switching again schedule no recheck either");
+});
+
+test("a shown pill takes the favicon once it resolves, and the template tint learnt after", async (t) => {
+  const { S, w, ids } = await pillWindow();
+  const { adoptFavicons } = await import("../../state/favicons/favicons.ts");
+  S().activate(ids[0]);
+  const geometry = { current: { viewport: 200, regions: { pinnedGroups: 0, list: 0 }, newTabAtTop: false, tilesFixed: false, edgeLift: 0 } };
+  const hook = mount(() => useSelectedRowAway(w, geometry, { current: null }, () => 900));
+  t.after(() => hook.unmount());
+  const seen = [];
+  t.after(hook.value.attach((away) => seen.push(away)));
+  hook.value.judge();
+  assert.equal(seen.at(-1)?.tab.faviconUri, null);
+  adoptFavicons(S().tabs[ids[0]].profileId, [{ page: "https://a.com/", icon: "https://a.com/favicon.ico", png: "iVBOR" }]);
+  assert.equal(seen.at(-1)?.tab.faviconUri, "data:image/png;base64,iVBOR", "the resolved icon reaches the pill with no scroll");
+  const shown = seen.length;
+  hook.value.judge();
+  assert.equal(seen.length, shown, "a scroll after that changes nothing");
+  const { useFavicons } = await import("../../state/favicons/favicons.ts");
+  useFavicons.setState((f) => ({ themes: { ...f.themes, "data:image/png;base64,iVBOR": { kind: "template", stroke: "#000" } } }));
+  assert.equal(seen.at(-1)?.tab.template, true, "a template icon learnt while the pill shows takes the tint");
+});
+
+test("a scroll after the favicon resolves gives the pill the resolved icon, not the fallback it showed", async (t) => {
+  const { S, w, ids } = await pillWindow();
+  const { useFavicons } = await import("../../state/favicons/favicons.ts");
+  S().activate(ids[1]);
+  const geometry = { current: { viewport: 50, regions: { pinnedGroups: 0, list: 0 }, newTabAtTop: false, tilesFixed: false, edgeLift: 0 } };
+  const hook = mount(() => useSelectedRowAway(w, geometry, { current: null }, () => 0));
+  t.after(() => hook.unmount());
+  const seen = [];
+  t.after(hook.value.attach((away) => seen.push(away)));
+  hook.value.judge();
+  assert.equal(seen.at(-1)?.tab.faviconUri, null);
+  const key = Object.keys(useFavicons.getState().profiles)[0] ?? S().tabs[ids[1]].profileId;
+  useFavicons.setState((f) => {
+    const icons = f.profiles[key] ?? { pages: {}, srcs: {}, appearances: {} };
+    return { profiles: { ...f.profiles, [key]: { ...icons, pages: { ...icons.pages, "https://t0.com/": "data:image/png;base64,T0" } } } };
+  });
+  hook.value.judge();
+  assert.equal(seen.at(-1)?.tab.faviconUri, "data:image/png;base64,T0");
+});
+
+test("a resized sidebar page tells the pill its new height before the pill judges", () => {
+  const page = readFileSync(new URL("./SidebarPage.tsx", import.meta.url), "utf8");
+  const layout = page.slice(page.indexOf("onLayout={(e) => {"), page.indexOf("onContentSizeChange"));
+  assert.ok(layout.indexOf("geometry.current.viewport = page.viewport") >= 0);
+  assert.ok(layout.indexOf("geometry.current.viewport = page.viewport") < layout.indexOf("selectedRow.relocate()"), "the viewport is stored before relocate reads it");
 });

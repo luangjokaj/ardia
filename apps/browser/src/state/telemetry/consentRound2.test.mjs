@@ -15,6 +15,12 @@ const profileSwap = await import("./profileSwap.ts");
 const defaults = await import("./defaultBrowserCounts.ts");
 const passwords = await import("./passwordSaves.ts");
 const track = await import("./track.ts");
+const heard = (msAgo = 0) => {
+  const key = track.newOmniboxKey();
+  track.omniboxKeyHeard(key);
+  key.at -= msAgo;
+  return key;
+};
 const stuck = await import("./stuckDrags.ts");
 const localReport = await import("./localStoreReport.ts");
 const failures = await import("./webNotificationFailures.ts");
@@ -469,7 +475,7 @@ test("PRRT 4607475653 search-suggestion counts from before a consent change are 
   track.noteSearchSuggest("ok", client.consentToken());
   track.noteSearchSuggest("failed", client.consentToken());
   client.replaceInstallId();
-  for (let i = 0; i < 5; i++) track.sampleOmniboxLatency(track.omniboxKeyHeard() - 12);
+  for (let i = 0; i < 5; i++) track.sampleOmniboxLatency(heard(12));
   await usage.devHourly();
   const sent = await queued("perf_omnibox");
   assert.ok(sent.length > 0, "the hour sent its omnibox sample");
@@ -516,7 +522,7 @@ test("PRRT 4608136987 search-suggestion counts from a normal report with no late
   track.noteSearchSuggest("ok", client.consentToken());
   track.noteSearchSuggest("blocked", client.consentToken());
   usage.emitWindowUsage(client.consentNow());
-  for (let i = 0; i < 5; i++) track.sampleOmniboxLatency(track.omniboxKeyHeard() - 12);
+  for (let i = 0; i < 5; i++) track.sampleOmniboxLatency(heard(12));
   usage.emitWindowUsage(client.consentNow());
   const sent = await queued("perf_omnibox");
   assert.equal(sent.reduce((n, p) => n + (p.search_suggest_ok ?? 0), 0), 1, JSON.stringify(sent));
@@ -538,7 +544,7 @@ test("Codex 6.2 #4 with sharing on throughout, suggestion counts wait for the ne
   track.takeOmniboxLatency();
   track.noteSearchSuggest("ok", client.consentToken());
   usage.sessionEnding();
-  for (let i = 0; i < 5; i++) track.sampleOmniboxLatency(track.omniboxKeyHeard() - 9);
+  for (let i = 0; i < 5; i++) track.sampleOmniboxLatency(heard(9));
   usage.sessionEnding();
   assert.equal((await queued("perf_omnibox")).at(-1)?.search_suggest_ok, 1);
 });
