@@ -82,49 +82,15 @@ final class SymbolView: ExpoView {
   }
 
   private func centredImageRect() -> NSRect? {
-    guard let image, bounds.width > 0, bounds.height > 0, image.size.width > 0, image.size.height > 0 else { return nil }
-    let fit = min(1, bounds.width / image.size.width, bounds.height / image.size.height)
-    let size = NSSize(width: image.size.width * fit, height: image.size.height * fit)
-    let nudge = centresInk ? inkOffset(of: image) : .zero
-    let up = isFlipped ? -nudge.dy : nudge.dy
-    return NSRect(
-      x: bounds.midX - size.width / 2 + nudge.dx * fit, y: bounds.midY - size.height / 2 + up * fit, width: size.width,
-      height: size.height)
+    guard let image else { return nil }
+    return SymbolInk.centredRect(image.size, in: bounds, offset: centresInk ? inkOffset(of: image) : .zero, flipped: isFlipped)
   }
 
   private func inkOffset(of image: NSImage) -> CGVector {
     let density = max(1, backingDensity)
     let key = "\(name) \(pointSize) \(weight) \(density)"
     if let known = Self.inkOffsets[key] { return known }
-    let wide = Int((image.size.width * density).rounded(.up)), high = Int((image.size.height * density).rounded(.up))
-    guard wide > 0, high > 0,
-      let rep = NSBitmapImageRep(
-        bitmapDataPlanes: nil, pixelsWide: wide, pixelsHigh: high, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
-        isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
-      let context = NSGraphicsContext(bitmapImageRep: rep)
-    else { return .zero }
-    NSGraphicsContext.saveGraphicsState()
-    NSGraphicsContext.current = context
-    context.cgContext.scaleBy(x: CGFloat(wide) / image.size.width, y: CGFloat(high) / image.size.height)
-    image.draw(in: NSRect(origin: .zero, size: image.size), from: .zero, operation: .sourceOver, fraction: 1)
-    NSGraphicsContext.restoreGraphicsState()
-    guard let pixels = rep.bitmapData else { return .zero }
-    var columns = [CGFloat](repeating: 0, count: wide), rows = [CGFloat](repeating: 0, count: high)
-    for y in 0..<high {
-      for x in 0..<wide {
-        let alpha = CGFloat(pixels[y * rep.bytesPerRow + x * 4 + 3]) / 255
-        columns[x] = max(columns[x], alpha)
-        rows[y] = max(rows[y], alpha)
-      }
-    }
-    guard let left = columns.firstIndex(where: { $0 > 0 }), let right = columns.lastIndex(where: { $0 > 0 }),
-      let top = rows.firstIndex(where: { $0 > 0 }), let bottom = rows.lastIndex(where: { $0 > 0 })
-    else { return .zero }
-    let inkLeft = CGFloat(left) + 1 - columns[left], inkRight = CGFloat(wide) - CGFloat(right) - columns[right]
-    let inkTop = CGFloat(top) + 1 - rows[top], inkBottom = CGFloat(high) - CGFloat(bottom) - rows[bottom]
-    let offset = CGVector(
-      dx: (inkRight - inkLeft) / 2 * image.size.width / CGFloat(wide),
-      dy: (inkTop - inkBottom) / 2 * image.size.height / CGFloat(high))
+    let offset = SymbolInk.offset(of: image, density: density)
     Self.inkOffsets[key] = offset
     return offset
   }
