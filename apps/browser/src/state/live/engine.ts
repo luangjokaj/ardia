@@ -17,7 +17,7 @@ import { warnFor } from "../telemetry/logs";
 import { isPlaying, useMedia } from "../media/media";
 import { usePages } from "../tabs/pageState";
 import { liveOf, onLiveChange } from "../tabs/tabLive";
-import type { MediaAccess } from "../../platform/tabs";
+import { capturing, whenCaptureEndsUnderHiddenCompleted } from "./captureEnds";
 import { during } from "../app/jobActivity";
 
 const INTERVAL_MS: Record<LiveFolderKind, number> = { pullRequests: 3 * 60_000, documents: 10 * 60_000 };
@@ -309,7 +309,6 @@ function markCompletedTabs(folderId: string, gone: Record<string, CompletionStat
   closeCompletedTabs();
 }
 
-const capturing = (access: MediaAccess | null | undefined) => !!access && (access.camera || access.microphone || access.screen);
 
 const inUse = (s: BrowserState, id: string) => {
   const media = useMedia.getState();
@@ -379,9 +378,7 @@ export function startLiveEngine() {
   onLiveChange((id, now, was) => {
     if (was.playingAudio && !now.playingAudio && useBrowser.getState().tabs[id]) closeCompletedTabs();
   });
-  usePages.subscribe((p, prev) => {
-    if (p.pages !== prev.pages && Object.keys(prev.pages).some((id) => capturing(prev.pages[id]?.mediaAccess) && !capturing(p.pages[id]?.mediaAccess))) closeCompletedTabs();
-  });
+  whenCaptureEndsUnderHiddenCompleted(closeCompletedTabs);
   useMedia.subscribe((m, prev) => {
     if (m.pipOpen !== prev.pipOpen || m.sessions !== prev.sessions || m.tabShares !== prev.tabShares) closeCompletedTabs();
   });
