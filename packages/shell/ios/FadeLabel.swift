@@ -33,8 +33,8 @@ final class FadeLabel: ExpoView {
   }
   @MainActor private static var fonts: [FontKey: NSFont] = [:]
 
-  static func opticalLift(_ font: NSFont, scale: CGFloat) -> CGFloat {
-    guard scale > 0 else { return 0 }
+  static func opticalLift(_ font: NSFont, scale: CGFloat, text: String) -> CGFloat {
+    guard scale > 0, text.contains(where: \.isLowercase) else { return 0 }
     return max(0, ((font.capHeight - font.xHeight) * 0.375 * scale).rounded()) / scale
   }
 
@@ -125,7 +125,7 @@ final class FadeLabel: ExpoView {
     let scale = backingDensity
     guard scale != ink.contentsScale else { return }
     ink.contentsScale = scale
-    lift = Self.opticalLift(font, scale: scale)
+    lift = Self.opticalLift(font, scale: scale, text: text)
     ink.setNeedsDisplay()
     relayout()
   }
@@ -146,7 +146,7 @@ final class FadeLabel: ExpoView {
 
   private func update() {
     font = Self.resolvedFont(family: fontFamily, weight: weight, size: fontSize)
-    lift = Self.opticalLift(font, scale: ink.contentsScale)
+    lift = Self.opticalLift(font, scale: ink.contentsScale, text: text)
     let field = Self.field
     load(field)
     fitting = field.frame(forAlignmentRect: NSRect(origin: .zero, size: field.intrinsicContentSize)).size
