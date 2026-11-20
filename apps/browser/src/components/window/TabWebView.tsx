@@ -12,7 +12,7 @@ import { restoredThemeColor } from "../../state/windows/launchLook";
 import { noteTabReady } from "../../state/app/cliControl";
 import { isQuitting } from "../../state/app/quit";
 import { useProfileTheme } from "./ThemeScope";
-import { prePaintColor } from "../ui/opaqueCard";
+import { opaqueCard } from "../ui/opaqueCard";
 import { handOff, takeHandOff, wantsPage } from "../../state/tabs/tabPages";
 import { noteDiscarded, noteGone, noteReady } from "../../state/tabs/tabLifecycle";
 import { noteWebKitPage, offerWebKit, persistEngine } from "../../state/engines/actions";
@@ -80,7 +80,7 @@ function EngineWebView({ tabId, visible, selected = true, warm, peekOf, engine }
   const autoPictureInPicture = useAutoPictureInPicture(tabId, visible);
   const pageColor = useProfilesValue(profileId, (profiles) => (isIncognitoProfile(profileId) ? "incognito" : (profiles[profileId]?.color ?? "plum")));
   const theme = useProfileTheme(profileId);
-  const backdrop = useMemo(() => prePaintColor(theme), [theme]);
+  const backdrop = useMemo(() => opaqueCard(theme), [theme.card, theme.windowTint[0], theme.windowTint[1]]);
 
   const lastPage = useRef<string | null>(null);
   const restore = useRef<string | null>(null);

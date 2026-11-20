@@ -2,7 +2,7 @@
 
 What Riangle Ardia changes on top of [ardia-browser/ardia](https://github.com/ardia-browser/ardia)'s `main`, newest first. Changes pulled in from the original project are in its [release notes](https://ardia.dev/release-notes).
 
-The changelog has two parts. **Only in this fork** lists what the original project's `main` doesn't have yet; new changes land there. **Merged into the original project** lists what has since been merged into its `main`, so those changes now arrive from the original and are no longer patches of this fork. Last checked against the original's `main` on 2026-11-17.
+The changelog has two parts. **Only in this fork** lists what the original project's `main` doesn't have yet; new changes land there. **Merged into the original project** lists what has since been merged into its `main`, so those changes now arrive from the original and are no longer patches of this fork. Last checked against the original's `main` on 2026-11-20.
 
 ## Only in this fork
 
@@ -12,15 +12,17 @@ Each is merged into `riangle` from its branch here. When the original project me
 
 None right now.
 
+### 2026-11-20
+
+#### Removed
+
+- **Tabs:** the fork's own pre-paint color (`prePaintColor`, a neutral estimate of the active window) is gone, so a page that still hasn't drawn after the 4 s hold shows the original project's color again. It came from this fork's first fix for the color step on an unloaded tab (fork #22), which the original's first-paint hold ([#2446](https://github.com/ardia-browser/ardia/pull/2446)) replaced; it only still mattered for pages slower than 4 s.
+
 ### 2026-11-17
 
 #### Removed
 
 - **iPhone app:** the `ARDIA_IOS_BUNDLE_ID` patch and the README's iPhone build steps are gone. The original project replaced the SwiftUI iPhone app in `apps/ios` with its Expo app in `apps/phone`, which this patch never covered, so the iPhone app now builds with the original's own bundle IDs.
-
-#### Changed
-
-- **Tabs:** a page that still hasn't drawn after the 4 s hold shows the New Tab card over a neutral estimate of the active window (`prePaintColor`) instead of the original's warmer inactive tint, so it stays closer to the New Tab background. The hold itself is now the original project's ([#2446](https://github.com/ardia-browser/ardia/pull/2446)). ([fork #22](https://github.com/luangjokaj/ardia/pull/22))
 
 ### 2026-11-13
 
@@ -51,6 +53,15 @@ None right now.
 - README: a note that this fork's default branch is `riangle`, how to keep it up to date and how to build it. ([afd790a](https://github.com/luangjokaj/ardia/commit/afd790a7f27dea7a9d712e2dc11d1e6bb83709ff))
 
 ## Merged into the original project
+
+### 2026-11-20
+
+#### Fixed
+
+Both merged by the original project on 2026-11-20.
+
+- **Text:** letter tiles, profile badge letters and all-caps titles sit on their center again, and tab titles sit where Dia's do, capitals on the row's center. The optical text lift from [6a16416](https://github.com/ardia-browser/ardia/commit/6a164162db1d83e0ed89bcfa0f9b82c3ce7979d3) applies only to text that has lowercase, and not to tab titles. ([#2877](https://github.com/ardia-browser/ardia/pull/2877), [#2876](https://github.com/ardia-browser/ardia/issues/2876))
+- **Sidebar:** a folder without a group color takes the profile's color instead of a fixed purple. ([#2886](https://github.com/ardia-browser/ardia/pull/2886), [#2885](https://github.com/ardia-browser/ardia/issues/2885))
 
 ### 2026-11-17
 
