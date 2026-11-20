@@ -339,6 +339,12 @@ legacy files gone, then copied per run), read big-seed launch numbers as "launch
 Launch rows count from just before `open -g -n`. Command rows count from `Date.now()` in the app's JS as the
 command starts.
 
+Every run starts from a copy of one template, made by a seeding launch that also waits until uBlock Origin has saved
+its compiled engine (the three `cache/selfie/static*` keys in its `chrome.storage.local`) and its storage has gone quiet
+(`ubo-cache.mjs`, 90 s deadline). Without that wait every run was uBO's first launch with a stale cache: about 7 s in,
+uBO wrote a 26 MB engine through the browser process, which peaked about 200 MB higher for under a second and, in a
+third to half of runs, kept 60 to 70 MB until quit, so the memory rows swung by that much from run to run.
+
 | Row | Measures |
 |---|---|
 | launch → window shown | The first on-screen window of at least 300×200 with alpha > 0 (CGWindowList) |
