@@ -85,7 +85,7 @@ export const useGroup = <T>(groupId: string | null | undefined, select: (g: TabG
 
 const inert = () => () => {};
 
-function watchShownLive(tabId: string, listener: () => void): () => void {
+export function watchShownLive(tabId: string, listener: () => void): () => void {
   const offLive = watchLive(tabId, listener);
   const offTab = watchTabRecord(tabId, listener);
   return () => {
@@ -126,6 +126,8 @@ export const useAppDark = (): boolean => useKeyed(watchAppDark, ALL, () => useBr
 export const useTabLayout = (windowId?: string | null): "sidebar" | "top" => useBrowser((s) => tabLayoutOf(s, windowId));
 
 export const useSidebarSide = (windowId?: string | null): SidebarSide => useBrowser((s) => sidebarSideOf(s, windowId));
+
+export const useTabsPlace = (windowId: string): "top" | SidebarSide => useWindowSettings(windowId, (s) => (tabLayoutOf(s, windowId) === "top" ? "top" : sidebarSideOf(s, windowId)));
 
 export const useWindowFullScreen = (windowId?: string | null): boolean => useBrowser((s) => !!windowId && !!s.windows[windowId]?.fullScreen);
 
