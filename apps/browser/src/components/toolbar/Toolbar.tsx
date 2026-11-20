@@ -30,7 +30,7 @@ import { showUrlBarMenu } from "../../state/omnibox/paste";
 import { ToolbarExtensions, useToolbarExtensionsWidth } from "../extensions/ToolbarExtensions";
 import { GlassFill, useGlass } from "../ui/Glass";
 import { TranslateButton } from "../site/TranslateControls";
-import { ReaderButton } from "../site/ReaderControls";
+import { ReaderButton, useReaderButtonShown } from "../site/ReaderControls";
 import { ZoomIndicator } from "../site/ZoomControls";
 import { NAV_HINTS, useShortcutHint, useShortcutHints, withShortcut } from "../../state/commands/commandShortcuts";
 import { buttonMotion, curve, usePressScaleMotion } from "../ui/motion";
@@ -233,16 +233,16 @@ export const ToolbarUrlField = memo(function ToolbarUrlField({ tab, palette, win
       <ContextMenuArea style={{ flex: 1 }} onContextMenu={() => void showUrlBarMenu(tab)}>
         <Pressable onPress={field.openPanel} style={{ flex: 1, height: row.field, justifyContent: "center", paddingLeft: insecure ? LOCK.gap : urlTextLeft(false) }}>
           {field.developerMode ? (
-            <Text numberOfLines={1} ellipsizeMode="middle" color={palette.text} style={monoFace()}>
+            <Text numberOfLines={1} ellipsizeMode="middle" color={palette.text} ardiaCentersCapitals style={monoFace()}>
               {withoutUserInfo(tab.url)}
             </Text>
           ) : (
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text numberOfLines={1} ellipsizeMode="head" weight="medium" color={palette.text} style={HOST_FULL}>
+              <Text numberOfLines={1} ellipsizeMode="head" weight="medium" color={palette.text} ardiaCentersCapitals style={HOST_FULL}>
                 {field.host}
               </Text>
               {field.trail ? (
-                <Text numberOfLines={1} color={palette.secondary} style={SHRINK}>
+                <Text numberOfLines={1} color={palette.secondary} ardiaCentersCapitals style={SHRINK}>
                   {field.trail}
                 </Text>
               ) : null}
@@ -300,7 +300,7 @@ export const SidebarUrlField = memo(function SidebarUrlField({ tab, palette, win
       <ContextMenuArea style={{ flex: 1 }} onContextMenu={() => void showUrlBarMenu(tab)}>
         <Pressable onPress={field.openPanel} style={{ flex: 1, height, justifyContent: "center", paddingLeft: shown.leading ? SIDEBAR_TEXT_GAP : SIDEBAR_TEXT_ALONE }}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Text numberOfLines={1} ellipsizeMode="head" weight="medium" color={palette.text} style={SHRINK}>
+            <Text numberOfLines={1} ellipsizeMode="head" weight="medium" color={palette.text} ardiaCentersCapitals style={SHRINK}>
               {field.host}
             </Text>
             <FadeLabel text={field.trail} fontSize={sidebarFont.body.fontSize} color={palette.secondary} fadeWidth={14} style={{ flex: 1, height: sidebarPoints(18), marginLeft: -space.xxs }} />
@@ -360,11 +360,12 @@ function FieldButtons({
 }) {
   const popups = usePage(tab.id, (p) => p.popups.length);
   const capture = usePage(tab.id, (p) => p.mediaAccess);
+  const reader = useReaderButtonShown(tab.id, quiet);
   return (
     <View style={{ flexDirection: "row", alignItems: "center", paddingRight: space.xs }}>
       {children}
       {capture && <CaptureIndicator camera={capture.camera} microphone={capture.microphone} screen={capture.screen} onPress={toggleSiteControls} />}
-      <ReaderButton tabId={tab.id} palette={palette} onFocus={onFocus} quiet={quiet} />
+      {reader && <ReaderButton tabId={tab.id} palette={palette} onFocus={onFocus} quiet={quiet} />}
       <TranslateButton tabId={tab.id} palette={palette} onFocus={onFocus} quiet={quiet} />
       <ZoomIndicator tabId={tab.id} zoom={tab.zoom} palette={palette} onFocus={onFocus} quiet={quiet} />
       {popups > 0 && (

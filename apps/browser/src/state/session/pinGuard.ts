@@ -63,7 +63,7 @@ export function pinsOf(s: PinState, profileIds: string[]): Record<string, Parked
   const wanted = new Set(profileIds);
   const profilesIn = (w: PinState["windows"][string]) => w.tabIds.some((id) => wanted.has(s.tabs[id]?.profileId ?? ""));
   let live: Record<string, ParkedPins> = {};
-  for (const w of Object.values(s.windows)) if (isRegularWindow(w) && profilesIn(w)) live = parkWindowPins(live, w, { ...s, windows: { [w.id]: w } }, { keepSamePage: true });
+  for (const w of Object.values(s.windows)) if (isRegularWindow(w) && profilesIn(w)) live = parkWindowPins(live, w, { ...s, windows: { [w.id]: w } });
   const pins: Record<string, ParkedPins> = {};
   for (const profileId of wanted) {
     const own = live[profileId] ?? { tabs: [], groups: [] };
