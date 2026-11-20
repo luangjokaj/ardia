@@ -121,7 +121,7 @@ UI update still happens.
   bytes; anything else is refused up front with `bad_request` and `"id": null` (`automationMethods.ts`). The native
   fallback in `ControlOutput.swift` echoes exactly the ids JS accepts and `null` for the rest (`true`, `1.5`, `2^53`,
   a lone surrogate), so no reply can overflow a line because of its id.
-- **Big lists page, and the bound comes first.** `history.search`, `bookmarks.search` and `downloads.list` take `limit`
+- **Big lists page, and the bound comes first.** `history.search`, `bookmarks.search`, `downloads.list` and `live.items` take `limit`
   (default 100, at most 1000) and `offset`, and answer `{ items, total, nextOffset }`; only the page is built. A page
   also stops once it reaches 512 KiB, with `nextOffset` where it stopped, and a string field over 32,768 characters is
   cut there and named in the row's `clipped` list, so any page fits on one line. A clipped value is never a key:
@@ -217,7 +217,7 @@ changes it today, 🔍 read only, 🗺️ designed below, ⛔ deliberately not e
 | Windows | kind, profile shown, frame, maximized, full screen, tab layout, auto-hide, sidebar, focus order | `session.json` (`windows`, `windowOrder`), `launch-layout.json` | ✅ `windows`, `windows.*`; 🗺️ frame, maximize, full screen |
 | Tabs | url, title, custom title and icon, pin, muted, zoom, page state, opener, created, last active | `session.json` (`tabs`), Chrome's tab restore | ✅ `apply` ops, `tabs.*` |
 | Groups and folders | name, icon, colour, collapsed, pinned, nesting, members | `session.json` (`groups`), sync (`groupLooks`) | ✅ `apply` `group.*`, `workspace` |
-| Pinned (Top Apps tiles, pinned rows, tile folders) | pin kind, pinned URL, tile folders, Top Apps sharing | `session.json` (`pinChoices`, `pinSync`, `parkedPins`), sync | ✅ `apply` `tab.pin`/`tab.unpin`, `tabs.setPinnedUrl`, `tabs.returnToPinnedUrl`; 🗺️ tile folders |
+| Pinned (Top Apps tiles, pinned rows, tile folders) | pin kind, pinned URL, tile folders, Top Apps sharing | `session.json` (`pinChoices`, `pinSync`, `parkedPins`), sync | ✅ `apply` `tab.pin`/`tab.unpin`, `tabs.setPinnedUrl`, `tabs.returnToPinnedUrl`, `pins.*` (tile folders) |
 | Spaces (profiles) | name, colour, icon, theme, shared data, Top Apps sharing, open-tab sync, order, default | `session.json` (`profiles`, `profileOrder`, `settings.defaultProfileId`), Chrome profile dirs | ✅ `profiles.*` |
 | Splits | panes, orientation, sizes, stacks | `session.json` (`splits`) | ✅ `splits.*` |
 | Peek | the page peeked from each tab | memory | ✅ `peek.*` |
@@ -237,15 +237,15 @@ changes it today, 🔍 read only, 🗺️ designed below, ⛔ deliberately not e
 | Saved passwords | origin, username, password | Chrome's Login Data (keychain-sealed) | 🔍 `passwords.list` (no passwords); ⛔ reveal, see Secrets |
 | Autofill | addresses, cards | Chrome's Web Data | 🔍 `autofill.list` (no card numbers); ⛔ card numbers |
 | Cookies and site data | cookies, storage per origin | Chrome's Cookies and storage | ✅ `sites.clearData`; ⛔ cookie values |
-| Favicons | icon per page | Chrome's Favicons database, app cache | 🗺️ `favicons.get` |
-| Shared folders | groups backed by a folder, their identities | `shared-folders.json`, `.ardia-folder.json` | 🗺️ `sharedFolders.*` |
-| Live folders | GitHub, calendar and document sources | `live.json` | 🗺️ `live.*` |
+| Favicons | icon per page | Chrome's Favicons database, app cache | 🔍 `favicons.get` |
+| Shared folders | groups backed by a folder, their identities | `shared-folders.json`, `.ardia-folder.json` | 🔍 `sharedFolders.list`; 🗺️ share, add, sync, stop |
+| Live folders | pull request and document folders, their items, hidden and read state, connected accounts | `live.json` | ✅ `live.*`; ⛔ account tokens |
 | Sidebar layout | width, side, pinned collapsed, auto-hide | `settings` (`sidebarWidth`, `sidebarSide`, `autoHideTabs`), profiles (`pinnedCollapsed`) | ✅ through `settings.set`, `profiles.update`, `windows.setLayout` |
-| Presets and themes | setup codes, profile looks, theme files | `settings`, `themes/*.json`, profiles (`theme`) | ✅ `profiles.setLook`; 🗺️ `presets.apply` |
+| Presets and themes | setup codes, profile looks, theme files | `settings`, `themes/*.json`, profiles (`theme`) | ✅ `profiles.setLook`, `presets.apply`, `presets.describe` |
 | Omnibox | providers, bangs state, approvals | `settings.omniboxProviders`, `bangs-state.json`, `automation-approvals.json` | ✅ providers through `settings.set`; 🗺️ bangs |
 | Session and restore | the whole workspace | `session.json` | ✅ through the areas above; ⛔ the raw document |
 | Reader | text size, font | `settings` (`readerTextSize`, `readerFont`) | ✅ `settings.set` |
-| Air traffic (link routing rules) | rules per source app | `air-traffic.json` | 🗺️ `airTraffic.*` |
+| Air traffic (link routing rules) | rules per source app, Everything Else | `air-traffic.json` | ✅ `airTraffic.*` |
 | Hooks, config, approvals | hook rules, config.json, approvals | `hooks.json`, `config.json`, `automation-approvals.json` | files the user edits; ⛔ approvals |
 | Telemetry, reports, onboarding, release notes | the app's own bookkeeping | their documents | ⛔ not profile data |
 
@@ -291,6 +291,12 @@ changes it today, 🔍 read only, 🗺️ designed below, ⛔ deliberately not e
 | media | `media.list` | `media.control {tab, action, seconds?}` |
 | sync | `sync.status` | none yet |
 | passwords, autofill | `passwords.list {profile?}`, `autofill.list {profile?}` | `passwords.remove {origin, username}` |
+| pins (tile folders) | `pins.folders {window?}` | `pins.createFolder {tabs, name?}`, `pins.renameFolder {folder, name}`, `pins.removeFolder {folder}`, `pins.addToFolder {folder, tabs}`, `pins.removeFromFolder {tabs}` |
+| favicons | `favicons.get {url, profile?}` | none |
+| sharedFolders | `sharedFolders.list` | none yet; `share`, `add`, `sync` and `stop` are designed under Next |
+| live | `live.list {profile?}`, `live.items {folder, limit?, offset?}` | `live.create {kind, profile?, sources?, name?}`, `live.update`, `live.remove`, `live.refresh`, `live.hide {folder, items}`, `live.unhide`, `live.markRead {folder, items?}`, `live.setRepoHidden {folder, repo, hidden}`, `live.open {folder, item, window?}` |
+| presets | `presets.describe {code}` | `presets.apply {code, window?}` |
+| airTraffic | `airTraffic.rules`, `airTraffic.test {url, from?}` | `airTraffic.addRule`, `airTraffic.updateRule {id, …}`, `airTraffic.removeRule {id}`, `airTraffic.moveRule {id, index}`, `airTraffic.setFallback {open, profile?, group?}` |
 
 `settings.set` takes the same keys and values `config.json` does (`state/settings/configAllowlist.ts`, checked by
 `checkedSettings`), applied with `updateSettings`, so a value the Settings UI can choose is a value the command can set.
@@ -300,6 +306,90 @@ command can't switch control itself on or off), and so does `allowJavaScriptFrom
 AppleScript run script in every page). `pageEngine`, `websiteEngines`, `protectedVideoInWebKit`, `newTabUrl`,
 `customSearchUrl` and `extensionSearchEngines` are refused in this first round, as `run` refuses `changesEngine`; they are
 listed under Next.
+
+### Tile folders, icons, shared and live folders, presets, Air Traffic
+
+Each area is its own file: `socketPins.ts`, `socketFavicons.ts`, `socketSharedFolders.ts`, `socketLive.ts`,
+`socketPresets.ts`, `socketAirTraffic.ts`, and counts in its own family (`pins`, `favicons`, `shared_folders`, `live`,
+`presets`, `air_traffic`). A method that awaits gets the request's control generation (`SocketCall` in
+`socketCatalog.ts`) and checks it before each change that follows an await, so switching control off stops it there.
+
+- **Tile folders** (`state/pins/tileFolders.ts`, the same transforms the sidebar's drag and Rename/Remove Folder menu
+  apply). A folder lives in one window's Top Apps for the profile the window shows, so `pins.folders` takes a window;
+  `pins.createFolder` pins its tabs as tiles, and every tab must be in one main window and its profile. Removing a
+  folder, or a tab from it, leaves the tabs pinned as tiles, as the menu does; a folder left with one tab dissolves.
+  `createFolder` and `addToFolder` refuse a split's pane (its panes pin together as rows, so the sidebar's folder drop
+  leaves them out) and the last tab of a shared sidebar folder, with apply's own checks, before anything changes.
+- **Favicons.** `favicons.get` answers from the app's icon cache (`resolveFavicon`) and otherwise from the profile's
+  icon database (`faviconsFor`), with `{found, mime, data}` (base64). It never fetches from the network, so reading
+  icons can't tell a site the page is open.
+- **Shared folders** (`state/sharedFolders`). `sharedFolders.list` reads the sidebar's folders backed by a folder on
+  disk, with each one's path, file URL, groups, link count and sync state; nothing over the socket writes to a shared
+  folder yet (see Next). The sidebar's own sync goes through the native layer (`SharedFolderDirectory.swift`), which
+  opens the root once with `O_NOFOLLOW`, checks its device and inode, and does every scan, read, write, rename, mkdir
+  and unlink relative to folder descriptors it holds while descending (`openat`, `fstatat`, `renameatx_np`,
+  `unlinkat`), so a root or subfolder swapped after the check is never followed. Binding is compare-and-set: whichever
+  finishes making a folder second keeps the first one's binding and removes its own.
+  A group bound to a shared folder syncs to disk whenever it changes, so the socket leaves it alone, with one
+  choke point (`socketSharedChokePoint.ts`). Every request for a method the catalogue marks as changing something
+  (`mutates`; every method declares it, and a test fails if one doesn't), `run` and plugin methods included, runs in a
+  socket-origin context. Its first synchronous stretch, and each stretch that resumes after an await and re-checks
+  control through `stillOn` before it changes anything, is checked when the stretch ends, in the next microtask. The check
+  compares the synced projection of every bound group and everything inside it, which is exactly what the
+  shared-folder engine would write: each link's name and URL, their order, and nested groups. If it changed, only the
+  bound groups' trees go back: their groups, member tabs, the splits those tabs are in, and their places and the active
+  tab in their windows. Everything else stays as it is now. The request then answers `refused` ("shared folder groups
+  change only from the sidebar"). A write that isn't the socket's and can land while a check is open goes through a hook that ends the open check
+  first (refusing the request if the socket had already changed the projection), makes the write, then opens the
+  check again on the result: the shared-folder engine's merge (`syncWriteHooks`), and the sidebar's and other UI writes
+  that follow an await, such as a close confirmed in a sheet, a rename typed into a prompt, or a profile picked from a
+  menu, and a finished download's move (`foreignWriteHooks`). So neither is undone or blamed on the socket, and neither
+  absorbs the socket's own change. Commands a person runs (the menu bar, shortcuts, the app menu, the command bar and
+  launch actions) pass no guard to `runCommand`, so their writes after an await go through `foreignWriteHooks` too;
+  only the socket's `run` passes its guard. A stretch of another request starting while a check is open ends that check first, so each check covers one
+  request. A guard called after its request has answered (a live refresh that goes on, the guards handed to
+  `goBackAsking` and `closeWindowAsked`) only checks control and opens no check. Read-only requests open none either.
+  Muting, sleeping, activating, colour, icon and collapsing don't touch the projection, so they still work, and so do
+  closing or parking a window that shows the folder. A socket-reachable action that awaits before it writes the store
+  takes the request's guard and calls it after each await, or, when the write is a person's answer to a sheet, menu,
+  prompt or picker, makes it through `foreignWriteHooks`. `scripts/socketGuardLint.mjs` checks this with the TypeScript
+  compiler. It starts from every function in `state/automation` and `run`'s command table and follows calls, plain
+  wrappers of async helpers, store actions reached through helpers, destructuring or an alias of the store hook, and
+  every nested function: `.then`/`.catch`/`.finally` and timer, microtask and listener callbacks as running later,
+  array callbacks and hook wrappers in place, up to five calls deep. It fails on any store write after an await that
+  isn't preceded by a guard call, and on `foreignWriteHooks.around` or `syncWriteHooks.around` reached in the socket's
+  own stretch, which would close its open check before the socket's write (`socketGuardLint.test.mjs`, which names the
+  one known-safe site and why). `run` answers synchronously, so a guard called after an await inside one of its
+  commands opens no check: `run` `closeTab` and `closeTabGroup` on a shared folder's tree are protected by the
+  up-front refusal below, not by the check. Earlier, more specific refusals remain where they read better or where a rollback
+  can't reach, because the action reaches a page or the engine before any check runs:
+  - `apply`'s per-op check (`workspaceSharedGuard.ts`);
+  - `pins.createFolder` and `pins.addToFolder` for a member;
+  - `tabs.navigate`, `tabs.back`, `tabs.forward` and `run` `back`/`forward` on a member with no pinned home;
+  - `run` `closeTab` and `closeTabGroup` when the tab or its group is in a shared folder's tree;
+  - `profiles.delete` of a profile that has a shared folder;
+  - `airTraffic.addRule`/`updateRule` for a group in a shared folder's tree.
+- **Live folders** (`state/live`). `create` refuses a source that isn't connected (connecting asks for tokens and a
+  browser sign-in, so it stays in Settings › Automations); `remove` is Delete Live Folder and closes its tabs, as the
+  menu does. Account tokens are never read. `create` checks the name and sources before saving anything, and with no
+  `sources` takes the connected ones of its kind, refusing when none is. A refresh asked for while one runs with other
+  sources or filters fetches again after it, and a pass whose sources or filters changed under it drops its results.
+  A socket refresh joins only a pass started by the same request; otherwise it waits for the running pass and then
+  fetches for itself, so a refresh after control went off and on never returns a revoked pass's old state. A pass checks
+  control before it claims the refresh (the Linux document client's claim fences out other writers), before it fetches
+  and before it commits, so a pass whose control was revoked claims and supersedes nothing, and the follow-up a settings change queues keeps the guard of the
+  pass that queued it, so its results never land once control is off. `live.items` lists the folder's listed, then hidden, then recently completed items as
+  `{item, shown, unread, completed}`, each item once (an item still animating out counts as completed), a page at a
+  time, building rows only for the page. An item over 256 KiB of JSON is sent as `{id, source, oversized: true}`, so
+  one huge item never turns its page into an error; open it with `live.open`.
+- **Presets.** `presets.apply` is Settings › Apply a setup code (`applySetupCode`): the code's settings, and its colour
+  and pinned apps on the given or focused main window's profile. `presets.describe` decodes a code without applying it.
+- **Air Traffic Control** (`state/airTraffic/store.ts`). Rules are `{from, when, profile, open, group}`: `from` an app
+  (`{name, bundleId?}`, any app when null), `when` a condition (`any`, `site` with `host`, `pattern`, `contains` or
+  `equals` with `text`) checked as the Settings pane checks it, `profile` null for the profile used last, `group` a key
+  from `airTraffic.rules` and only with `open: "tab"`. `moveRule` takes the new index and saves the new order in one
+  write; `setFallback {open: null}`
+  puts Everything Else back to Ardia's usual choice; `test` is the pane's link tester.
 
 ### Events
 
@@ -357,18 +447,15 @@ same rule: a profile whose passwords a plugin keeps answers `password_manager_pl
 
 Designed, not built in this round, each in its own file under `state/automation/socket<Area>.ts`:
 
+- **Shared folder writes:** `sharedFolders.share {group, parent?}`, `sharedFolders.add {path, window?}`,
+  `sharedFolders.sync {group}` and `sharedFolders.stop {group}`, in #2836 (`full-control/app-socket-2a-shared`), which is
+  parked: review found data-loss bugs in the shared-folder sync engine and its native layer, and fixing them changes the
+  sidebar's own shared-folder sync, so they need their own focused PR first. The open findings are listed at the top of
+  #2836.
 - **Window geometry:** `windows.setFrame {window, frame}`, `windows.setMaximized`, `windows.setFullScreen`. The store's
   `frame`, `maximized` and `fullScreen` follow the native window (`windows/windowSync.ts`), so these need a native
   call that moves the window (`ArdiaWindows`), which doesn't exist yet; `run` covers full screen through its command.
 
-- **Tile folders:** `pins.folders {profile?}`, `pins.createFolder {tabs, name}`, `pins.renameFolder`, `pins.removeFolder`
-  through `state/pins/tileFolders.ts`.
-- **Favicons:** `favicons.get {url, profile?}` → the cached PNG as base64, through `resolveFavicon`.
-- **Shared folders:** `sharedFolders.list`, `sharedFolders.share {group}`, `sharedFolders.stop {group}` through
-  `state/sharedFolders/actions.ts`.
-- **Live folders:** `live.list`, `live.refresh {folder}`, `live.hide {folder, item}` through `state/live`.
-- **Presets:** `presets.apply {code}` through `applySetupCode`.
-- **Air traffic:** `airTraffic.rules`, `airTraffic.setRule {app, route}` through `state/airTraffic/rules.ts`.
 - **Sync:** `sync.now`, `sync.setType {type, on}`, `sync.setProfile {profile, on}`, `sync.sendTab {tab, device}`
   through `state/sync/engine.ts`.
 - **Extensions:** `extensions.install {webStoreId}` (opens the install prompt the user confirms), `extensions.configure`.

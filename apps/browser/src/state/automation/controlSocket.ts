@@ -1,3 +1,6 @@
+import { guardedBySocketOrigin, type SocketOrigin } from "./socketSharedChokePoint";
+import { commandTarget } from "../commands/commandTarget";
+import { refuseSharedRunCommand } from "./workspaceSharedGuard";
 import { create } from "zustand";
 import {
   broadcastOnControlSocket,
@@ -171,12 +174,18 @@ export async function windowsWithTargets(windows: AutomationWindow[]): Promise<A
   }));
 }
 
-export function runMethod(params: Record<string, unknown>, background = backgroundInstance): Body {
+export function runMethod(params: Record<string, unknown>, background = backgroundInstance, stillOn: () => boolean = () => true): Body {
   if (background) return failure("refused", "run isn't available in background instances; use the dedicated methods (apply, tabs.*, windows.*, closed.restore, …).");
   const plan = planRun(useBrowser.getState(), params);
   if ("error" in plan) return plan;
+  const target = commandTarget(useBrowser.getState(), plan.command, plan.windowId, plan.tabId);
   try {
-    runCommand({ command: plan.command, arg: plan.arg, windowId: plan.windowId }, { strictWindow: plan.windowId !== null, tabId: plan.tabId });
+    refuseSharedRunCommand(plan.command, target.kind === "window" ? target.tabId : null, target.kind === "window" && !!target.targeted);
+  } catch (error) {
+    return failure("refused", errorText(error));
+  }
+  try {
+    runCommand({ command: plan.command, arg: plan.arg, windowId: plan.windowId }, { strictWindow: plan.windowId !== null, tabId: plan.tabId, mayWrite: stillOn });
   } catch (error) {
     if (error instanceof NoCommandWindowError) return failure("no_window", error.message);
     throw error;
@@ -199,6 +208,10 @@ function subscribe(connection: number, params: Record<string, unknown>): Body {
 const connectionAccess = (_connection: number): ConnectionAccess => "owner";
 
 function answer(connection: number, method: string, given: Record<string, unknown>): Body | Promise<Body> {
+  return guardedBySocketOrigin(methodSpec(method)?.mutates ?? true, (origin) => answerAs(origin, connection, method, given), (message) => failure("refused", message));
+}
+
+function answerAs(origin: Pick<SocketOrigin, "segment">, connection: number, method: string, given: Record<string, unknown>): Body | Promise<Body> {
   const spec = methodSpec(method);
   if (!spec) return failure("unknown_method", `There's no method ${method}.`);
   const refused = accessProblem(connectionAccess(connection), spec);
@@ -207,7 +220,7 @@ function answer(connection: number, method: string, given: Record<string, unknow
   if (!("params" in checked)) return checked;
   const { params } = checked;
   const serving = generation;
-  const stillOn = () => generation === serving && controlOn() && openConnections.has(connection);
+  const stillOn = () => (origin.segment(), generation === serving && controlOn() && openConnections.has(connection));
   switch (method) {
     case "hello": {
       const tooOld = clientProtocolProblem(params, systemInfo().appVersion);
@@ -240,7 +253,7 @@ function answer(connection: number, method: string, given: Record<string, unknow
       return "error" in answered ? failure("bad_request", answered.error) : { result: answered };
     }
     case "run":
-      return runMethod(params);
+      return runMethod(params, backgroundInstance, stillOn);
   }
   const area = runSpec(spec, params, servingWhile(stillOn, connection));
   if (area) return area;

@@ -25,7 +25,7 @@ export type ConnectionAccess = "owner" | "plugin";
 
 export const PLUGIN_SESSION_METHODS: ReadonlySet<string> = new Set(["hello", "methods"]);
 
-export const SOCKET_FAMILIES = ["core", "workspace", "tabs", "windows", "profiles", "splits", "peek", "bookmarks", "history", "downloads", "settings", "sites", "extensions", "plugins", "media", "sync", "secrets"] as const;
+export const SOCKET_FAMILIES = ["core", "workspace", "tabs", "windows", "profiles", "splits", "peek", "bookmarks", "history", "downloads", "settings", "sites", "extensions", "plugins", "media", "sync", "secrets", "pins", "favicons", "shared_folders", "live", "presets", "air_traffic"] as const;
 export type SocketFamily = (typeof SOCKET_FAMILIES)[number];
 
 const FAMILY_OF_AREA: Record<string, SocketFamily> = {
@@ -52,6 +52,12 @@ const FAMILY_OF_AREA: Record<string, SocketFamily> = {
   sync: "sync",
   passwords: "secrets",
   autofill: "secrets",
+  pins: "pins",
+  favicons: "favicons",
+  sharedFolders: "shared_folders",
+  live: "live",
+  presets: "presets",
+  airTraffic: "air_traffic",
 };
 
 export const areaOf = (name: string) => name.split(".")[0]!;

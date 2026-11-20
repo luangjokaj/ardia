@@ -1,3 +1,4 @@
+import { foreignWriteHooks } from "../browser/foreignWriteHooks";
 import {
   chooseExtensionFolder,
   configureExtension,
@@ -325,7 +326,7 @@ export async function showExtensionMenu(windowId: string, ext: InstalledExtensio
   const profile = extensionProfile(useBrowser.getState(), windowId);
   const panel = useExtensions.getState().sidePanels[windowId];
   const choice = await showMenu(extensionMenuItems(ext, panel?.extensionId === ext.id && !panel.hidden));
-  if (choice === "options") openOptions(windowId, ext);
+  if (choice === "options") foreignWriteHooks.around(() => openOptions(windowId, ext));
   if (choice === "pin") void setPinned(profile, ext.id, !ext.pinned);
   if (choice === "enable") void setEnabled(profile, ext.id, !ext.enabled);
   if (choice === "remove") void removeExtension(profile, ext, windowId);
