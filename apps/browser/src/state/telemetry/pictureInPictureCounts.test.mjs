@@ -15,18 +15,18 @@ async function sentUsageCounts() {
   const saved = JSON.parse(stub.docs.get("telemetry-queue.json") ?? '{"events":[]}');
   return saved.events
     .filter((e) => e.event === "usage_counts")
-    .map((e) => ({ chromium: e.properties.pip_back_to_tab, webkit: e.properties.pip_back_to_tab_webkit }));
+    .map((e) => ({ chromium: e.properties.pip_back_to_tab, webkit: e.properties.pip_back_to_tab_webkit, fromOtherApp: e.properties.pip_back_to_tab_from_other_app }));
 }
 
-test("going back to a tab from its Picture in Picture window is counted per engine, sent on its own, then starts again from zero", async () => {
+test("going back to a tab from its Picture in Picture window is counted per engine and from another app, sent on its own, then starts again from zero", async () => {
   client.loadChoice();
   client.setSharing(true, "onboarding");
 
   pipCounts.notePictureInPictureBackToTab("webkit");
-  pipCounts.notePictureInPictureBackToTab("webkit");
-  pipCounts.notePictureInPictureBackToTab("chromium");
+  pipCounts.notePictureInPictureBackToTab("webkit", true);
+  pipCounts.notePictureInPictureBackToTab("chromium", true);
   usage.sessionEnding();
-  assert.deepEqual(await sentUsageCounts(), [{ chromium: 1, webkit: 2 }]);
+  assert.deepEqual(await sentUsageCounts(), [{ chromium: 1, webkit: 2, fromOtherApp: 2 }]);
 
   usage.sessionEnding();
   assert.equal((await sentUsageCounts()).length, 1);

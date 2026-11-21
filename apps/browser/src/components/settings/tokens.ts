@@ -46,7 +46,6 @@ export const settingsInk = {
   onAccentSecondary: "rgba(255,255,255,0.8)",
   knobOutline: "rgba(0,0,0,0.25)",
   thumbBorder: "rgba(0,0,0,0.2)",
-  customSwatch: "#8E8E93",
 } as const;
 
 export const settingsType = {

@@ -259,8 +259,9 @@ BOOL TracingPictureInPicture() {
 }
 
 - (void)tab:(ArdiaCoreTab *)tab requestsActivation:(NSString *)reason {
-  ardia_pip::TabRequestedActivation(self);
-  [self emit:@"activateRequest" payload:@{@"reason" : reason ?: @"page"}];
+  BOOL fromOtherApp = NO;
+  const BOOL backToTab = ardia_pip::TabRequestedActivation(self, &fromOtherApp);
+  [self emit:@"activateRequest" payload:@{@"reason" : backToTab ? @"pictureInPicture" : reason ?: @"page", @"fromOtherApp" : @(fromOtherApp)}];
 }
 
 @end

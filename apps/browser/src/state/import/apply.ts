@@ -12,6 +12,7 @@ import {
   type SpaceSuggestion,
 } from "../../platform/importModule";
 import { passwordImportTally } from "../telemetry/passwordSaves";
+import { withPresetChosen } from "../../lib/presetLook";
 import { noteHistoryImport } from "../telemetry/importRuns";
 import { reloadEngineHistory } from "../history/engineSync";
 import type { ConsentToken } from "../telemetry/choice";
@@ -212,7 +213,8 @@ export function adoptSpaceIdentity(profileId: string, space: Pick<SpaceSuggestio
   if (!profile || !untouched || !name || s.profileOrder.length !== 1) return false;
   s.updateProfile(profileId, { name, icon: space.emoji ?? null });
   const color = profileColorFor(space.color);
-  if (color) s.setProfileLook(profileId, { color });
+  const chosen = color && s.profiles[profileId] ? withPresetChosen(s.profiles[profileId]!, color) : null;
+  if (chosen) s.setProfileLook(profileId, chosen);
   return true;
 }
 

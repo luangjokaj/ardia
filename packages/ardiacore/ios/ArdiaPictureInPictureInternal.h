@@ -190,7 +190,7 @@ BOOL PreventsActivation(NSWindow *window);
 extern NSInteger gActivations;
 void MarkBackToTabActivation();
 BOOL ConsumeBackToTabActivation();
-void ActivateApp(NSString *why);
+BOOL ActivateApp(NSString *why);
 BOOL ThrowEnabled();
 NSPoint PointerOf(NSEvent *event);
 ardia_pip_throw::Rect ThrowRect(NSRect r);

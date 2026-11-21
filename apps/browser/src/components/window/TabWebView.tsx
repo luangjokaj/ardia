@@ -325,10 +325,10 @@ function EngineWebView({ tabId, visible, selected = true, warm, peekOf, engine }
         noteDiscarded(tabId, reason);
         noteUnreadPageEnded(tabId);
       }}
-      onActivateRequest={({ reason }) => {
+      onActivateRequest={({ reason, fromOtherApp }) => {
         const t = tab();
         if (!t) return;
-        if (reason === "pictureInPicture") notePictureInPictureBackToTab(engine);
+        if (reason === "pictureInPicture") notePictureInPictureBackToTab(engine, fromOtherApp === true);
         switchToTab(tabId);
         focus(t.windowId);
       }}

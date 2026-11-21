@@ -129,7 +129,7 @@ export type PictureInPictureResize = { inside: boolean; cursorShown: boolean; ep
 export type AutoPictureInPictureHold = "onScreen" | "appSwitch" | "nothingPlaying";
 export type MediaFault = { reason: string; muted?: boolean; blockerActive?: boolean };
 export type ControlPress = { clickAt: number; control: number };
-export type ActivateRequest = { reason: "pictureInPicture" };
+export type ActivateRequest = { reason: "pictureInPicture" | "page" | "window"; fromOtherApp?: boolean };
 export type DisplayMediaSource = {
   id: string;
   kind: "screen" | "window";
