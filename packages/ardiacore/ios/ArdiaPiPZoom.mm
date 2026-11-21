@@ -166,6 +166,8 @@ static __weak NSWindow *gZoomGesture;
     @"gapMsP90" : @(at(0.9)),
     @"gapMsMax" : @(at(1)),
     @"standIn" : @(zoom->_standIn != nil),
+    @"alpha" : @(window.alphaValue),
+    @"restingAlpha" : @(zoom->_standIn ? zoom->_hiddenAlpha : window.alphaValue),
     @"frame" : NSStringFromRect(window.frame),
     @"shown" : NSStringFromRect(zoom->_shown),
   };
@@ -317,7 +319,7 @@ static __weak ArdiaPiPZoom *gEdgeResizing;
   [self place:_shown];
   [panel orderWindow:NSWindowAbove relativeTo:window.windowNumber];
   _hiddenAlpha = window.alphaValue;
-  window.alphaValue = 0;
+  window.alphaValue = MIN(_hiddenAlpha, ardia_pip_zoom::kHittableHiddenAlpha);
   _tickedAt = 0;
   _link = [content displayLinkWithTarget:self selector:@selector(tick:)];
   [_link addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];

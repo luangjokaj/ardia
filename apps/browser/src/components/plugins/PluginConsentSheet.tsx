@@ -19,7 +19,7 @@ export function PluginConsentSheet({ request, onCancel, onConfirm, onClosed }: {
   const m = listing?.manifest;
   const controlOff = useControlTurnedOff();
   const movesProfiles = useNeverChosenCount();
-  const install = isAlwaysOn(listing);
+  const install = isAlwaysOn(listing) || !!m?.official;
   const [selected, setSelected] = useState<ConsentButton | null>(null);
   const keyState = useRef(FRESH_CONSENT_KEYS);
   const keys = useRef<View>(null);

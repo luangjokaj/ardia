@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 const stub = await import("../../test-native/index.ts");
 globalThis.fetch = async () => ({ status: 503 });
@@ -108,40 +109,35 @@ test("official plugin counts are a fixed set of fields, sent with the hourly cou
   assert.ok(WHATS_SENT.some((group) => group.items.some((item) => item.includes("official plugin") && item.includes("onboarding") && item.includes("Settings"))));
 });
 
-test("a built-in plugin with an off switch offers Turn On, and once on shows On with its switch; an always-on one still installs", () => {
-  const switchable = (state) => ({ ...plugin(state, "passwords"), switchable: true });
-  const off = officialView(switchable("available"), undefined, null);
-  assert.deepEqual([off.action, off.note, off.toggle], ["turnOn", null, false]);
-  const on = officialView(switchable("installed"), undefined, null);
-  assert.deepEqual([on.note, on.toggle, on.action, on.firstCommand], ["on", true, null, null]);
-  const cli = officialView({ ...plugin("available"), switchable: false }, undefined, null);
-  assert.deepEqual([cli.action, cli.toggle], ["install", false]);
-  assert.equal(officialView({ ...plugin("installed"), switchable: false }, LINKED, null).note, "installed");
+test("every official plugin offers the same Install and, once installed, the same Installed row with no switch", () => {
+  for (const name of ["cli", "passwords"]) {
+    const off = officialView(plugin("available", name), undefined, null);
+    assert.deepEqual([off.action, off.note], ["install", null], name);
+    assert.equal("toggle" in off, false, name);
+    const on = officialView(plugin("installed", name), undefined, null);
+    assert.deepEqual([on.note, on.action], ["installed", null], name);
+  }
+  assert.equal(officialView(plugin("installed"), LINKED, null).note, "installed");
 });
 
-test("a switchable plugin that is on keeps its program-link failure and Try Again next to its switch", () => {
-  const switchable = { ...plugin("installed", "passwords"), switchable: true };
-  const failed = officialView(switchable, { state: "failed", reason: "no bin dir" }, null);
-  assert.deepEqual([failed.note, failed.toggle, failed.failed, failed.action, failed.status], ["on", true, true, "again", "Not on your PATH: no bin dir"]);
-  const refused = officialView(switchable, { ...LINKED, refused: { ardia: "taken" } }, null);
-  assert.deepEqual([refused.note, refused.toggle, refused.failed, refused.action], ["on", true, true, "again"]);
-  const linking = officialView(switchable, { state: "linking" }, null);
-  assert.deepEqual([linking.note, linking.toggle, linking.busy], ["on", true, true]);
+test("an installed official plugin keeps its program-link failure and Try Again", () => {
+  const installed = plugin("installed", "passwords");
+  const failed = officialView(installed, { state: "failed", reason: "no bin dir" }, null);
+  assert.deepEqual([failed.note, failed.failed, failed.action, failed.status], ["installed", true, "again", "Not on your PATH: no bin dir"]);
+  const refused = officialView(installed, { ...LINKED, refused: { ardia: "taken" } }, null);
+  assert.deepEqual([refused.note, refused.failed, refused.action], ["installed", true, "again"]);
+  const linking = officialView(installed, { state: "linking" }, null);
+  assert.deepEqual([linking.note, linking.busy], ["installed", true]);
 });
 
-test("the seam marks a built-in plugin switchable unless it's always on", async () => {
-  const manifest = (name, extra) => JSON.stringify({ manifest: 1, name, title: name, version: "1.0.0", official: true, icon: "key.fill", ...extra });
-  const listed = (name, extra) => ({ name, status: "ok", text: manifest(name, extra), folderId: "bundled", bundled: true });
-  useBrowser.getState().hydrate({});
-  startPlugins();
-  stub.pluginHost.folders = [listed("switchy", {}), listed("stays", { alwaysOn: true })];
-  await lifecycle.rescanPlugins(null);
-  const byName = Object.fromEntries(officialPlugins(usePlugins.getState(), true).map((p) => [p.name, p]));
-  assert.equal(byName.switchy?.switchable, true);
-  assert.equal(byName.stays?.switchable, false);
-  stub.pluginHost.folders = [];
-  await lifecycle.rescanPlugins(null);
+test("the Settings row and the consent sheet say Install for every official plugin, and the row has no switch", () => {
+  const row = readFileSync(new URL("../../components/settings/panes/OfficialPlugins.tsx", import.meta.url), "utf8");
+  const sheet = readFileSync(new URL("../../components/plugins/PluginConsentSheet.tsx", import.meta.url), "utf8");
+  assert.match(row, /<Button title="Install…"/);
+  assert.doesNotMatch(row, /Turn On|<Toggle/);
+  assert.match(sheet, /const install = isAlwaysOn\(listing\) \|\| !!m\?\.official;/);
 });
+
 
 test("every pinned or coming-soon plugin is counted by name, a dash becoming an underscore, and cli and ai keep their field names", () => {
   assert.deepEqual([...OFFICIAL_COUNTED_NAMES].sort(), ["ai", "apple-passwords", "cli"]);

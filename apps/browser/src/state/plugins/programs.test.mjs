@@ -72,8 +72,8 @@ test("a profile that never installed the command line has it offered and nothing
   assert.deepEqual(launch.sweeps, [[]], "at launch every command of a plugin that isn't installed comes off PATH");
   assert.equal(S().settings.cliControl, false);
   assert.deepEqual(officialPlugins(P(), true, hidden), [
-    { name: "cli", title: "Command Line", blurb: "Drive Ardia from your terminal or an agent.", icon: "terminal.fill", version: "0.3.0", example: "ardia tabs", switchable: false, state: "available" },
-    { name: "apple-passwords", title: "Apple Passwords", blurb: "Fill logins and verification codes from the Passwords app on every site.", icon: "key.fill", version: null, example: null, switchable: false, state: "unsupported" },
+    { name: "cli", title: "Command Line", blurb: "Drive Ardia from your terminal or an agent.", icon: "terminal.fill", version: "0.3.0", example: "ardia tabs", state: "available" },
+    { name: "apple-passwords", title: "Apple Passwords", blurb: "Fill logins and verification codes from the Passwords app on every site.", icon: "key.fill", version: null, example: null, state: "unsupported" },
   ]);
   assert.deepEqual(pluginSocketMethod("plugins.official", {}), { result: officialPlugins(P()) });
 });
@@ -84,7 +84,7 @@ test("the seam: unsupported where plugins aren't, coming soon only behind its fl
     ["unsupported", "unsupported"],
   );
   const shown = officialPlugins(P(), true, (flag) => flag === "officialPluginsAi");
-  assert.deepEqual(shown.at(-1), { name: "ai", title: "AI", blurb: shown.at(-1).blurb, icon: "sparkles", version: null, example: null, switchable: false, state: "comingSoon" });
+  assert.deepEqual(shown.at(-1), { name: "ai", title: "AI", blurb: shown.at(-1).blurb, icon: "sparkles", version: null, example: null, state: "comingSoon" });
   assert.equal(officialPlugins(P(), false, () => true).at(-1).state, "unsupported");
   assert.deepEqual(await installOfficialPlugin("other", { showSheet: false }), { ok: false, reason: "Not an official plugin." });
   assert.deepEqual(await installOfficialPlugin("ai", { showSheet: false }), { ok: false, reason: "Not an official plugin." });

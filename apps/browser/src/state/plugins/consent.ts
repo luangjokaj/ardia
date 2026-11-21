@@ -18,7 +18,6 @@ function passwordManagerLines(m: PluginManifest, context: ConsentContext): Conse
   const fields = pm.fields.map((f) => FIELD_WORDS[f]).join(" and ");
   lines.push({ icon: "key", text: `Shows a key in ${fields} fields on every site. It opens macOS's Passwords panel there, which fills the field; the plugin never sees what's filled` });
   if (pm.verificationCodeSetup) lines.push({ icon: "qrcode", text: "Offers to set up two-factor codes a page shows in the app macOS uses for them" });
-  if (pm.passkeys) lines.push({ icon: "person.badge.key", text: `Shows whether Ardia may use passkeys saved on this ${PLATFORM_TERMS.computer}, and can ask macOS for access` });
   return lines;
 }
 

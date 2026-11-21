@@ -21,6 +21,7 @@ constexpr double kPerPoint = 0.004, kPerLine = 0.08;
 constexpr double kDockSlop = 64;
 constexpr double kPinchFollow = 0.05;
 constexpr double kHandOffLinger = 0.25, kHandOffTimeout = 0.6;
+constexpr double kHittableHiddenAlpha = 0.01;
 
 inline double ScrollFactor(double deltaY, bool precise) {
   return std::exp((precise ? kPerPoint : kPerLine) * deltaY);

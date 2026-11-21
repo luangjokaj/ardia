@@ -628,8 +628,7 @@ declare one, and each group of profiles that shares browser data picks at most o
   page with a text field (a setup page asks for a code to confirm it), at most 12 decodes per page until the provider
   set changes. A setup step that shows its QR code before any text field gets no offer for it. The URL, which holds the code's secret, stays in native code: the page script, JS and the prompt see
   an opaque token, single use, bound to the tab, frame, document, profile, provider generation and handler app.
-- `passkeys` (`system`): the plugin's Settings page shows whether Ardia may use the passkeys saved on this Mac, with
-  macOS's access request. It's the same row as Settings › Engines › Passkeys, and says plainly when the build lacks Apple's browser passkey entitlement (a local build; release builds carry it).
+- `passkeys` (`system`): accepted for older manifests and ignored. It used to draw Ardia's passkey access row on the plugin's page, but the plugin can't use passkeys: access to the passkeys saved on this Mac is Ardia's own, through Apple's browser passkey entitlement, in Settings › Engines › Passkeys.
 
 The plugin never sees a secret and never runs code in a page: the key, field detection and code detection are Ardia's
 own page script, switched on per profile from the manifest.

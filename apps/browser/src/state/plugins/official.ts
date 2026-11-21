@@ -13,8 +13,8 @@ import { activeManifest, currentPlugins, isAlwaysOn, isInstalled, usePlugins, ty
 export { COMING_SOON, OFFICIAL_CATALOGUE, OFFICIAL_NAMES, PRESELECTED_PLUGINS, officialCatalogue } from "./officialPin";
 
 export type OfficialPluginState = "available" | "installed" | "comingSoon" | "unsupported";
-export type OfficialPlugin = { name: string; title: string; blurb: string; icon: string; version: string | null; example: string | null; switchable: boolean; state: OfficialPluginState };
-type Entry = Omit<OfficialPlugin, "state" | "version" | "switchable" | "example">;
+export type OfficialPlugin = { name: string; title: string; blurb: string; icon: string; version: string | null; example: string | null; state: OfficialPluginState };
+type Entry = Omit<OfficialPlugin, "state" | "version" | "example">;
 type ComingSoon = (typeof COMING_SOON)[number];
 
 const officialListing = (s: Pick<PluginsStore, "listings">, name: string): PluginListing | undefined => {
@@ -36,13 +36,13 @@ export function officialPlugins(
   const out: OfficialPlugin[] = entries.map((entry) => {
     const listing = officialListing(s, entry.name);
     const m = listing?.manifest;
-    const shown = { name: entry.name, title: m?.title ?? entry.title, blurb: m?.description || entry.blurb, icon: m?.icon ?? m?.page?.icon ?? (entry.icon || "puzzlepiece"), version: m?.version ?? null, example: m?.programs.find((p) => p.example)?.example ?? (listing && Object.hasOwn(OFFICIAL_EXAMPLES, entry.name) ? OFFICIAL_EXAMPLES[entry.name]! : null), switchable: !!listing && !isAlwaysOn(listing) };
+    const shown = { name: entry.name, title: m?.title ?? entry.title, blurb: m?.description || entry.blurb, icon: m?.icon ?? m?.page?.icon ?? (entry.icon || "puzzlepiece"), version: m?.version ?? null, example: m?.programs.find((p) => p.example)?.example ?? (listing && Object.hasOwn(OFFICIAL_EXAMPLES, entry.name) ? OFFICIAL_EXAMPLES[entry.name]! : null) };
     if (!supported || !listing) return { ...shown, state: "unsupported" };
     return { ...shown, state: installedOf(s, listing) ? "installed" : "available" };
   });
   for (const soon of COMING_SOON) {
     if (!showComingSoon(soon.experiment) || out.some((o) => o.name === soon.name)) continue;
-    out.push({ name: soon.name, title: soon.title, blurb: soon.blurb, icon: soon.icon, version: null, example: null, switchable: false, state: supported ? "comingSoon" : "unsupported" });
+    out.push({ name: soon.name, title: soon.title, blurb: soon.blurb, icon: soon.icon, version: null, example: null, state: supported ? "comingSoon" : "unsupported" });
   }
   return out;
 }

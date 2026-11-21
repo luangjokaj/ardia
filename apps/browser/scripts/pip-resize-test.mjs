@@ -3,7 +3,7 @@ const HELP = `Resizing the video Picture in Picture window, end to end in a hidd
 edge moves a stand-in that mirrors the live video every display frame instead of waiting ~33 ms for Chromium at
 each step: a 2 s pinch moves the stand-in on every frame while the real window keeps its size, then the real window
 takes the final size and the stand-in goes; two quick pinches share one stand-in; edge and corner drags keep the
-aspect ratio and the opposite edge or corner; a pinch right after a mouse resize grows the window (it once divided by
+aspect ratio and the opposite edge or corner; the real window stays able to take the rest of the gesture under the stand-in; a pinch right after a mouse resize grows the window (it once divided by
 a stale zero aspect and crashed); and each gesture sends one pictureInPictureStandIn or pictureInPictureResized event.
 
   node apps/browser/scripts/pip-resize-test.mjs <Debug app> [--out DIR] [--keep]
@@ -133,12 +133,15 @@ try {
       await sleep(500);
       const standIn = await pip("standIn");
       const middle = await state();
+      const during = JSON.parse(await pip("pinchStats"));
       await until("the hand-off", async () => !(await pip("standIn")), 5000);
       const stats = JSON.parse(await pip("pinchStats"));
       const after = await state();
       const problems = [];
       if (!standIn) problems.push("no stand-in during the pinch");
       if (middle.width !== before.width) problems.push(`the real window resized mid-pinch (${size(middle)})`);
+      if (during.alpha !== Math.min(during.restingAlpha, 0.01)) problems.push(`the real window went to alpha ${during.alpha} under the stand-in, where the rest of the pinch can't reach it`);
+      if (stats.alpha !== during.restingAlpha) problems.push(`the real window came back at alpha ${stats.alpha}, not ${during.restingAlpha}`);
       const fps = stats.fps || 60;
       if (stats.applied < fps * 2 * 0.8 || stats.gapMsMedian > (1000 / fps) * 1.5)
         problems.push(`the stand-in moved ${stats.applied} times, median ${stats.gapMsMedian} ms apart, on a ${fps} Hz display`);
