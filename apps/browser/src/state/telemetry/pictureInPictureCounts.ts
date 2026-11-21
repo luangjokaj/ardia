@@ -1,4 +1,4 @@
-import type { PictureInPictureDrag, PictureInPictureResize, PictureInPictureSkip, PictureInPictureUnstash } from "../../platform/media";
+import type { PictureInPictureDrag, PictureInPictureResize, PictureInPictureSkip, PictureInPictureStandIn, PictureInPictureUnstash } from "../../platform/media";
 import type { PageEngine } from "../engines/engines";
 import { counted } from "./client";
 import { nativeConsent } from "./nativeConsent";
@@ -11,6 +11,8 @@ const clickSkips = { back: 0, ahead: 0 };
 const noResizes = () => ({ started: 0, withoutCursor: 0 });
 let resizes = noResizes();
 let handleUnstashes = 0;
+const noStandIns = () => ({ pinches: 0, timeouts: 0 });
+let standIns = noStandIns();
 
 export function noteAutoPictureInPictureNothingPlaying() {
   nothingPlaying++;
@@ -59,8 +61,20 @@ export function notePictureInPictureHandleUnstash(unstash: PictureInPictureUnsta
   );
 }
 
+export function notePictureInPictureStandIn(standIn: PictureInPictureStandIn) {
+  const { pinch, timedOut } = standIn;
+  counted(
+    nativeConsent(standIn),
+    () => {
+      if (pinch) standIns.pinches++;
+      if (timedOut) standIns.timeouts++;
+    },
+  );
+}
+
 export function takePictureInPictureCounts() {
-  const taken = { nothingPlaying, backToTab: { ...backToTab }, drags, resizes, clickSkips: { ...clickSkips }, handleUnstashes };
+  const taken = { nothingPlaying, backToTab: { ...backToTab }, drags, resizes, clickSkips: { ...clickSkips }, handleUnstashes, standIns };
+  standIns = noStandIns();
   nothingPlaying = 0;
   handleUnstashes = 0;
   drags = noDrags();

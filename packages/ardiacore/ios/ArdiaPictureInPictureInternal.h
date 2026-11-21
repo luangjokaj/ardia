@@ -167,6 +167,11 @@ typedef NS_ENUM(NSInteger, ArdiaPiPEdge) { ArdiaPiPEdgeNone = 0, ArdiaPiPEdgeLef
 
 @interface ArdiaPiPZoom : NSObject
 + (BOOL)handle:(NSEvent *)event;
++ (BOOL)beginEdgeResize:(NSWindow *)window event:(NSEvent *)event;
++ (BOOL)continueEdgeResize:(NSEvent *)event;
++ (void)devPinch:(NSWindow *)window args:(NSArray<NSString *> *)args;
++ (NSDictionary *)devPinchStats:(NSWindow *)window;
++ (NSString *)devStandInWindow:(NSWindow *)window;
 @end
 
 namespace ardia_pip {

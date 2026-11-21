@@ -4,7 +4,7 @@ import type { PageEngine } from "../../state/engines/engines";
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet } from "react-native";
 import { focus, switchToTab } from "../../state/browser/actions";
-import { notePictureInPictureBackToTab, notePictureInPictureClickSkip, notePictureInPictureDragged, notePictureInPictureHandleUnstash, notePictureInPictureResized } from "../../state/telemetry/pictureInPictureCounts";
+import { notePictureInPictureBackToTab, notePictureInPictureClickSkip, notePictureInPictureDragged, notePictureInPictureHandleUnstash, notePictureInPictureResized, notePictureInPictureStandIn } from "../../state/telemetry/pictureInPictureCounts";
 import { noteRendererResponsive, noteRendererUnresponsive } from "../../state/telemetry/freezes";
 import { noteFavicon } from "../../state/favicons/favicons";
 import { adoptIconPage, dropOutlivedFavicon, noteIconPage } from "../../state/favicons/iconPage";
@@ -251,6 +251,7 @@ function EngineWebView({ tabId, visible, selected = true, warm, peekOf, engine }
       onPictureInPictureResized={notePictureInPictureResized}
       onPictureInPictureSkip={notePictureInPictureClickSkip}
       onPictureInPictureUnstashed={notePictureInPictureHandleUnstash}
+      onPictureInPictureStandIn={notePictureInPictureStandIn}
       onMediaFault={noteWebKitMediaFault}
       onDisplayMediaRequest={(request) => requestDisplayMedia(tabId, request)}
       onOpenWindow={onOpenWindow}
