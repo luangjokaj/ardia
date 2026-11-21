@@ -77,3 +77,28 @@ test("clicks on a tucked Picture in Picture window's arrow are counted, sent wit
   usage.sessionEnding();
   assert.equal((await unstashesSent()).length, before + 1);
 });
+
+test("pinches on a Picture in Picture window and resizes that ended before Chromium caught up are counted, then start again from zero", async () => {
+  client.loadChoice();
+  client.setSharing(true, "onboarding");
+  const sentCounts = async () => {
+    await client.saveQueueNow();
+    const saved = JSON.parse(stub.docs.get("telemetry-queue.json") ?? '{"events":[]}');
+    return saved.events
+      .filter((e) => e.event === "usage_counts" && (e.properties.pip_pinches || e.properties.pip_stand_in_timeouts))
+      .map((e) => [e.properties.pip_pinches, e.properties.pip_stand_in_timeouts]);
+  };
+  const before = (await sentCounts()).length;
+
+  pipCounts.notePictureInPictureStandIn({ pinch: true, timedOut: false, epoch: client.consentEpoch() });
+  pipCounts.notePictureInPictureStandIn({ pinch: true, timedOut: true, epoch: client.consentEpoch() });
+  pipCounts.notePictureInPictureStandIn({ pinch: false, timedOut: true, epoch: client.consentEpoch() });
+  pipCounts.notePictureInPictureStandIn({ pinch: true, timedOut: false, epoch: "an epoch from before" });
+  usage.sessionEnding();
+  const sent = await sentCounts();
+  assert.equal(sent.length, before + 1);
+  assert.deepEqual(sent.at(-1), [2, 2]);
+
+  usage.sessionEnding();
+  assert.equal((await sentCounts()).length, before + 1);
+});

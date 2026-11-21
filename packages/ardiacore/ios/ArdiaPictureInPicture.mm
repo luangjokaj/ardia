@@ -73,8 +73,10 @@ void InstallDragMonitor() {
   if (monitor) return;
   monitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskLeftMouseDown | NSEventMaskLeftMouseDragged | NSEventMaskLeftMouseUp
                                                   handler:^NSEvent *(NSEvent *event) {
+                                                    if ([ArdiaPiPZoom continueEdgeResize:event]) return nil;
                                                     if (event.type == NSEventTypeLeftMouseDown) {
                                                       NSWindow *window = event.window;
+                                                      if ([ArdiaPiPZoom beginEdgeResize:window event:event]) return nil;
                                                       ArdiaPiPController *grabbed =
                                                           GrabsWindowBackground(window, event) ? [ArdiaPiPController forWindow:window] : nil;
                                                       gDragged = grabbed;
@@ -354,6 +356,9 @@ void DocumentEntered(ArdiaWebView *view, ArdiaConsentStamp *stamp) {
   else if ([action isEqual:@"throw"]) return DevJSON([controller throwInfo]);
   else if ([action isEqual:@"skip"]) return DevJSON([controller skipInfo]);
   else if ([action isEqual:@"resizeCursor"]) return DevJSON([controller.resizeCursor probe]);
+  else if ([action hasPrefix:@"pinch:"]) [ArdiaPiPZoom devPinch:controller.window args:[[action substringFromIndex:6] componentsSeparatedByString:@","]];
+  else if ([action isEqual:@"pinchStats"]) return DevJSON([ArdiaPiPZoom devPinchStats:controller.window]);
+  else if ([action isEqual:@"standIn"]) return [ArdiaPiPZoom devStandInWindow:controller.window];
   else if ([action hasPrefix:@"resizeCursor:"]) controller.resizeCursor.enabled = [[action substringFromIndex:13] isEqual:@"on"];
   else if ([action isEqual:@"interactive"]) {
     if (!ArdiaLaunchConfig.shared.testInstance) return @"test instances only";

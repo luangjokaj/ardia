@@ -19,6 +19,8 @@ struct Point {
 
 constexpr double kPerPoint = 0.004, kPerLine = 0.08;
 constexpr double kDockSlop = 64;
+constexpr double kPinchFollow = 0.05;
+constexpr double kHandOffLinger = 0.25, kHandOffTimeout = 0.6;
 
 inline double ScrollFactor(double deltaY, bool precise) {
   return std::exp((precise ? kPerPoint : kPerLine) * deltaY);
@@ -39,6 +41,10 @@ inline double Anchor(double origin, double size, double next, double pointer, do
   if (std::min(before, after) <= kDockSlop) return before <= after ? origin : origin + size - next;
   double fraction = std::clamp((pointer - origin) / size, 0.0, 1.0);
   return pointer - fraction * next;
+}
+
+inline bool Finite(Rect r) {
+  return std::isfinite(r.x) && std::isfinite(r.y) && std::isfinite(r.w) && std::isfinite(r.h) && r.w > 0 && r.h > 0;
 }
 
 struct Result {

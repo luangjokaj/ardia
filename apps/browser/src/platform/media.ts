@@ -16,6 +16,7 @@ export {
   type PictureInPictureDrag,
   type PictureInPictureResize,
   type PictureInPictureSkip,
+  type PictureInPictureStandIn,
   type PictureInPictureUnstash,
 } from "@ardia/ardiacore";
 
