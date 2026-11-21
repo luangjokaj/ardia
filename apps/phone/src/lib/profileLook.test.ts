@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { luminance } from "./color.ts";
-import { backdropStops, choiceAfterMatchToggle, lookAccents, lookAction, lookForApp, lookOf, nativeLookColors, presetLook, showsTheme, spaceTone, windowTintStops } from "./profileLook.ts";
+import { backdropStops, choiceAfterMatchToggle, lookGlassTint, lookForApp, lookOf, nativeLookColors, presetLook, showsTheme, spaceTone, windowTintStops } from "./profileLook.ts";
 
 const presets = [
   { key: "plum", swatch: "#C07A98", tint: "#B25B6B" },
@@ -89,17 +88,7 @@ test("the native look views get a preset by name, and the Mac's own look by its 
   assert.deepEqual(nativeLookColors(lookOf(macTheme, presets, "plum")), { color: "#BD5380", themeColors: ["#FF6A00", "#7A3CFF"], darkThemeColors: ["#401A00", "#1E0F40"] });
 });
 
-test("the look's accent is the swatch lifted 0.12 (plum's own action colour), legible as text on its surface, and the neutral look keeps the system accent", () => {
-  const plum = presetLook({ key: "plum", swatch: "#B25B6B", tint: "#B25B6B" });
-  assert.equal(lookAction(plum), "#DD899B");
-  const green = presetLook({ key: "green", swatch: "#3EB489" });
-  assert.notEqual(lookAction(green), green.swatch);
-  const contrast = (ink: string, surface: number) => (Math.max(luminance(ink), surface) + 0.05) / (Math.min(luminance(ink), surface) + 0.05);
-  for (const dark of [false, true]) {
-    const accents = lookAccents(green, dark)!;
-    assert.equal(accents.accent, lookAction(green));
-    assert.ok(contrast(accents.formAccent, dark ? 0 : 1) >= 4.4);
-    assert.match(accents.glassTint, /^rgba\(/);
-  }
-  assert.equal(lookAccents(presetLook({ key: "neutral", swatch: "#8E8E93" }), false), null);
+test("the glass takes the look's tint at 15%, and the neutral look leaves the glass untinted", () => {
+  assert.equal(lookGlassTint(presetLook({ key: "plum", swatch: "#B25B6B", tint: "#B25B6B" })), "rgba(178, 91, 107, 0.15)");
+  assert.equal(lookGlassTint(presetLook({ key: "neutral", swatch: "#8E8E93" })), undefined);
 });

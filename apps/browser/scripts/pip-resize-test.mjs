@@ -199,8 +199,28 @@ try {
       (b, a) => (Math.abs(a.width - (b.width + 100)) > 2 ? `width ${a.width}` : Math.abs(a.x - b.x) > 1 ? `left edge moved to ${a.x}` : null));
     await drag("dragging the bottom-left corner in shrinks the window and keeps its top-right corner", (s) => [2, s.height - 2], [80, -40],
       (b, a) => (a.width > b.width - 60 ? `width ${a.width}` : Math.abs(a.x + a.width - (b.x + b.width)) > 1 || Math.abs(a.y + a.height - (b.y + b.height)) > 1 ? "the top-right corner moved" : null));
-    await drag("dragging the top-right corner straight left shrinks the window and keeps its bottom-left corner", (s) => [s.width - 2, 2], [-80, 0],
+    await drag("dragging the top-right corner straight left shrinks the window and keeps its bottom-left corner", (s) => [s.width - 2, 2], [-100, 0],
       (b, a) => (a.width > b.width - 60 ? `width ${a.width}` : Math.abs(a.x - b.x) > 1 || Math.abs(a.y - b.y) > 1 ? "the bottom-left corner moved" : null));
+    await r.check("a corner drag that turns from outward to inward changes size gradually, with no jump where the two directions cross", async () => {
+      const before = await state();
+      const [x, y] = [2, 2];
+      const widths = [];
+      await pip(`mouse:down:${x},${y}`);
+      await sleep(60);
+      const path = [...Array.from({ length: 8 }, (_, i) => [x - (60 * (i + 1)) / 8, y]), ...Array.from({ length: 24 }, (_, i) => [x - 60, y + (180 * (i + 1)) / 24])];
+      for (const [px, py] of path) {
+        await pip(`mouse:dragged:${Math.round(px)},${Math.round(py)}`);
+        await sleep(30);
+        widths.push(rect(JSON.parse(await pip("pinchStats")).shown)[2]);
+      }
+      await pip(`mouse:up:${Math.round(path.at(-1)[0])},${Math.round(path.at(-1)[1])}`);
+      await until("the hand-off", async () => !(await pip("standIn")), 5000);
+      const steps = widths.slice(1).map((w, i) => Math.abs(w - widths[i]));
+      const largest = Math.max(...steps);
+      if (largest > 20) throw new Error(`the width jumped ${largest} pt in one step: ${widths.join(" ")}`);
+      if (!(Math.max(...widths) > before.width + 20 && widths.at(-1) < Math.max(...widths) - 40)) throw new Error(`it didn't grow then shrink: ${widths.join(" ")}`);
+      return `largest step ${largest} pt, ${before.width} -> ${Math.max(...widths)} -> ${widths.at(-1)}`;
+    });
     await drag("dragging the top edge up makes the window taller and keeps its bottom edge", (s) => [Math.round(s.width / 2), 2], [0, -60],
       (b, a) => (a.height < b.height + 50 ? `height ${a.height}` : Math.abs(a.y - b.y) > 1 ? `bottom edge moved to ${a.y}` : null));
 

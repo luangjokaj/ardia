@@ -43,6 +43,11 @@ inline double Anchor(double origin, double size, double next, double pointer, do
   return pointer - fraction * next;
 }
 
+inline double CornerGrowth(double byX, double byY, double aspect) {
+  const double squared = aspect * aspect;
+  return (squared * byX + byY) / (squared + 1);
+}
+
 inline bool Finite(Rect r) {
   return std::isfinite(r.x) && std::isfinite(r.y) && std::isfinite(r.w) && std::isfinite(r.h) && r.w > 0 && r.h > 0;
 }

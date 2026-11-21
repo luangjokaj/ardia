@@ -167,6 +167,7 @@ static __weak NSWindow *gZoomGesture;
     @"gapMsMax" : @(at(1)),
     @"standIn" : @(zoom->_standIn != nil),
     @"frame" : NSStringFromRect(window.frame),
+    @"shown" : NSStringFromRect(zoom->_shown),
   };
 }
 
@@ -221,7 +222,7 @@ static __weak ArdiaPiPZoom *gEdgeResizing;
   const double byX = sx * (pointer.x - _resizeFrom.x), byY = sy * (pointer.y - _resizeFrom.y) * aspect;
   double low, high;
   ardia_pip_zoom::WidthLimits(aspect, [self minSize], [self maxSize], [self visible], &low, &high);
-  const double width = std::round(std::clamp(NSWidth(start) + (sx && sy ? (std::fabs(byX) >= std::fabs(byY) ? byX : byY) : sx ? byX : byY), low, high));
+  const double width = std::round(std::clamp(NSWidth(start) + (sx && sy ? ardia_pip_zoom::CornerGrowth(byX, byY, aspect) : sx ? byX : byY), low, high));
   const double height = std::round(width / aspect);
   double x = sx > 0 ? NSMinX(start) : sx < 0 ? NSMaxX(start) - width : NSMidX(start) - width / 2;
   double y = sy > 0 ? NSMinY(start) : sy < 0 ? NSMaxY(start) - height : NSMidY(start) - height / 2;
