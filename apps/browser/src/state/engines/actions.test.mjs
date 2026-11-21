@@ -21,7 +21,9 @@ const { useBrowser } = await import("../browser/store.ts");
 const model = await import("../browser/model.ts");
 const { webviews } = await import("../../platform/webviews.ts");
 const { patchPage, pageOf } = await import("../tabs/pageState.ts");
-const { goBackAcrossEngines, offerWebKit } = await import("./actions.ts");
+const { goBackAcrossEngines, noteWebKitPage, offerWebKit } = await import("./actions.ts");
+const { takeStreamingSiteCounts } = await import("../telemetry/streamingSiteCounts.ts");
+const { setConsentPeriod } = await import("../telemetry/consentPeriod.ts");
 
 const S = () => useBrowser.getState();
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -107,4 +109,36 @@ test("moving the same tab to WebKit again keeps one watch on its site, and closi
     S().updateSettings({ websiteEngines: {} });
     webviews.clear();
   }
+});
+
+test("a WebKit tab arriving on a streaming site the list sent there is counted once per arrival, never for a website rule", () => {
+  setConsentPeriod(true, "streaming-list-test");
+  S().hydrate({});
+  S().updateSettings({ protectedVideoInWebKit: true, websiteEngines: { "https://www.hulu.com": "webkit" } });
+  const w = S().createWindow({ url: "https://www.netflix.com/browse" });
+  const tabId = model.activeTabId(S(), w);
+  S().updateTab(tabId, { engine: "webkit" });
+  takeStreamingSiteCounts();
+  const page = (url, isLoading = false) => noteWebKitPage(tabId, { url, title: "", isLoading, committedUrl: url });
+  page("https://www.netflix.com/browse", true);
+  page("https://www.netflix.com/browse");
+  page("https://www.netflix.com/watch/1");
+  assert.deepEqual(takeStreamingSiteCounts(), { streaming_list_webkit_visits: 1 });
+  page("https://example.com/");
+  page("https://www.hulu.com/hub/home");
+  page("http://www.netflix.com/");
+  assert.deepEqual(takeStreamingSiteCounts(), {});
+  page("https://www.netflix.com/browse");
+  page("https://www.netflix.com/browse");
+  S().updateTab(tabId, { engine: "chromium" });
+  S().updateTab(tabId, { engine: "webkit" });
+  page("https://www.netflix.com/browse");
+  assert.deepEqual(takeStreamingSiteCounts(), { streaming_list_webkit_visits: 2 });
+  S().updateSettings({ protectedVideoInWebKit: false });
+  page("https://www.disneyplus.com/");
+  assert.deepEqual(takeStreamingSiteCounts(), {});
+  setConsentPeriod(false, null);
+  S().updateSettings({ protectedVideoInWebKit: true });
+  page("https://open.spotify.com/");
+  assert.deepEqual(takeStreamingSiteCounts(), {});
 });

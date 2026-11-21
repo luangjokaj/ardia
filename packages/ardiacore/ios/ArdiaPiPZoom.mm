@@ -229,8 +229,8 @@ static __weak ArdiaPiPZoom *gEdgeResizing;
   double x = sx > 0 ? NSMinX(start) : sx < 0 ? NSMaxX(start) - width : NSMidX(start) - width / 2;
   double y = sy > 0 ? NSMinY(start) : sy < 0 ? NSMaxY(start) - height : NSMidY(start) - height / 2;
   const ardia_pip_zoom::Rect visible = [self visible];
-  x = std::clamp(x, visible.x, visible.maxX() - width);
-  y = std::clamp(y, visible.y, visible.maxY() - height);
+  x = ardia_pip_zoom::KeptWithin(x, width, NSMinX(start), NSWidth(start), visible.x, visible.maxX());
+  y = ardia_pip_zoom::KeptWithin(y, height, NSMinY(start), NSHeight(start), visible.y, visible.maxY());
   const NSRect next = NSMakeRect(std::round(x), std::round(y), width, height);
   if (!ardia_pip_zoom::Finite({NSMinX(next), NSMinY(next), NSWidth(next), NSHeight(next)})) return;
   _width = width;
@@ -256,7 +256,7 @@ static __weak ArdiaPiPZoom *gEdgeResizing;
   id context = [source valueForKey:@"contextId"];
   if (!controller || !source || !hostClass || ![context unsignedIntValue] || !source.superlayer.superlayer) return;
   [controller stopMotion];
-  const NSRect stage = ScreenFor(window.frame).visibleFrame;
+  const NSRect stage = NSUnionRect(ScreenFor(window.frame).visibleFrame, window.frame);
   NSPanel *panel = [[NSPanel alloc] initWithContentRect:stage
                                               styleMask:NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel
                                                 backing:NSBackingStoreBuffered

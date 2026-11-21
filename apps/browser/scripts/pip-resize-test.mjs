@@ -3,7 +3,7 @@ const HELP = `Resizing the video Picture in Picture window, end to end in a hidd
 edge moves a stand-in that mirrors the live video every display frame instead of waiting ~33 ms for Chromium at
 each step: a 2 s pinch moves the stand-in on every frame while the real window keeps its size, then the real window
 takes the final size and the stand-in goes; two quick pinches share one stand-in; edge and corner drags keep the
-aspect ratio and the opposite edge or corner; the real window stays able to take the rest of the gesture under the stand-in; a pinch right after a mouse resize grows the window (it once divided by
+aspect ratio and the opposite edge or corner; the real window stays able to take the rest of the gesture under the stand-in; a window parked past the screen edge resizes where it is; a pinch right after a mouse resize grows the window (it once divided by
 a stale zero aspect and crashed); and each gesture sends one pictureInPictureStandIn or pictureInPictureResized event.
 
   node apps/browser/scripts/pip-resize-test.mjs <Debug app> [--out DIR] [--keep]
@@ -227,6 +227,83 @@ try {
     await drag("dragging the top edge up makes the window taller and keeps its bottom edge", (s) => [Math.round(s.width / 2), 2], [0, -60],
       (b, a) => (a.height < b.height + 50 ? `height ${a.height}` : Math.abs(a.y - b.y) > 1 ? `bottom edge moved to ${a.y}` : null));
 
+    await r.check("a window parked past the screen edge is resized where it is, by a pinch or an edge drag, and not pulled back on screen", async () => {
+      const [vx, , vw] = await engine("tabs.devPictureInPicture").then((ws) => rect(ws.find((w) => w.video && w.styled && w.visible).visibleFrame));
+      const edge = vx + vw;
+      const home = await state();
+      await pip(`frame:{{${Math.round(edge - home.width * 0.7)}, ${home.y}}, {${home.width}, ${home.height}}}`);
+      await sleep(600);
+      const parked = await state();
+      const right = (s) => s.x + s.width;
+      if (right(parked) < edge + parked.width * 0.2) throw new Error(`couldn't park it past the edge: ${JSON.stringify(parked)}`);
+      try {
+        await pip("pinch:1.3,300,120");
+        await sleep(150);
+        const standIn = Number(await pip("standIn"));
+        const covered = execFileSync("/usr/bin/swift", ["-e", `import CoreGraphics; let l = CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID) as! [[String: Any]]; if let w = l.first(where: { ($0[kCGWindowNumber as String] as? Int) == ${standIn} }), let b = w[kCGWindowBounds as String] as? [String: Double] { print(b["X"]!, b["Width"]!) }`]).toString().trim().split(" ").map(Number);
+        if (covered.length !== 2 || covered[0] > parked.x + 1 || covered[0] + covered[1] < right(parked) - 1)
+          throw new Error(`the stand-in spans ${covered[0]}..${covered[0] + covered[1]} and the window ${parked.x}..${right(parked)}: the part past the edge has no stand-in`);
+        await sleep(400);
+        await until("the hand-off", async () => !(await pip("standIn")), 5000);
+        const grown = await state();
+        if (grown.width <= parked.width + 20) throw new Error(`the pinch didn't grow it: ${size(grown)}`);
+        if (Math.abs(right(grown) - right(parked)) > 1) throw new Error(`growing moved its hidden edge from ${right(parked)} to ${right(grown)} (the screen ends at ${edge})`);
+        await pip("pinch:0.8,24,120");
+        await sleep(400);
+        await until("the hand-off", async () => !(await pip("standIn")), 5000);
+        const shrunk = await state();
+        if (shrunk.width >= grown.width - 20) throw new Error(`the pinch didn't shrink it: ${size(shrunk)}`);
+        if (right(shrunk) <= edge + 1 || right(shrunk) > right(grown) + 1 || shrunk.x < grown.x - 1) throw new Error(`shrinking moved it to ${shrunk.x}..${right(shrunk)} from ${grown.x}..${right(grown)} (the screen ends at ${edge})`);
+        const y = Math.round(shrunk.height / 2);
+        await pip(`mouse:down:2,${y}`);
+        await sleep(60);
+        for (let i = 1; i <= 8; i++) {
+          await pip(`mouse:dragged:${Math.round(2 - (60 * i) / 8)},${y}`);
+          await sleep(16);
+        }
+        await pip(`mouse:up:-58,${y}`);
+        await until("the hand-off", async () => !(await pip("standIn")), 5000);
+        const dragged = await state();
+        if (dragged.width <= shrunk.width + 20) throw new Error(`the edge drag didn't widen it: ${size(dragged)}`);
+        if (Math.abs(right(dragged) - right(shrunk)) > 1) throw new Error(`the edge drag moved its hidden edge from ${right(shrunk)} to ${right(dragged)}`);
+        return { edge, parked: `${parked.x}..${right(parked)}`, grown: `${grown.x}..${right(grown)}`, shrunk: `${shrunk.x}..${right(shrunk)}`, dragged: `${dragged.x}..${right(dragged)}` };
+      } finally {
+        await pip(`frame:{{${home.x}, ${home.y}}, {${home.width}, ${home.height}}}`);
+        await sleep(600);
+      }
+    });
+    await r.check("shrinking a window parked past the edge by its visible edge leaves it where it is, not tucked away", async () => {
+      const [vx, , vw] = await engine("tabs.devPictureInPicture").then((ws) => rect(ws.find((w) => w.video && w.styled && w.visible).visibleFrame));
+      const edge = vx + vw;
+      const home = await state();
+      await pip(`frame:{{${Math.round(edge - home.width * 0.6)}, ${home.y}}, {${home.width}, ${home.height}}}`);
+      await sleep(600);
+      const parked = await state();
+      const hidden = (s) => s.x + s.width - edge;
+      if (hidden(parked) < parked.width * 0.3 || (await shown()).stashed) throw new Error(`couldn't park it past the edge: ${JSON.stringify(parked)}`);
+      try {
+        const y = Math.round(parked.height / 2), by = Math.round(parked.width * 0.3);
+        await pip(`mouse:down:2,${y}`);
+        await sleep(60);
+        for (let i = 1; i <= 8; i++) {
+          await pip(`mouse:dragged:${Math.round(2 + (by * i) / 8)},${y}`);
+          await sleep(16);
+        }
+        await pip(`mouse:up:${2 + by},${y}`);
+        await until("the hand-off", async () => !(await pip("standIn")), 5000);
+        await sleep(900);
+        const after = await state(), tucked = (await shown()).stashed;
+        if (after.width >= parked.width - 20) throw new Error(`the drag didn't shrink it: ${size(after)}`);
+        if (tucked) throw new Error(`it was tucked away at the edge (stashed ${tucked}) with ${hidden(after)} of ${after.width} pt past the edge`);
+        if (hidden(after) > after.width / 2 + 1) throw new Error(`${hidden(after)} of ${after.width} pt is past the edge, more than half`);
+        return { parked: `${hidden(parked)} of ${parked.width} pt hidden`, after: `${hidden(after)} of ${after.width} pt hidden` };
+      } finally {
+        if ((await shown())?.stashed) await pip("unstash");
+        await sleep(400);
+        await pip(`frame:{{${home.x}, ${home.y}}, {${home.width}, ${home.height}}}`);
+        await sleep(600);
+      }
+    });
     await r.check("a pinch right after a mouse resize grows the window with its aspect ratio", async () => {
       const before = await state();
       await pip("pinch:1.3,60,120");

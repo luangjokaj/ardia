@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { View } from "react-native";
 import { copyText } from "../../../state/app/system";
 import { installOfficialPlugin, type OfficialPlugin } from "../../../state/plugins/actions";
-import { useOfficialPlugins, usePluginConsent, usePluginOrder, usePluginPrograms } from "../../../state/plugins/hooks";
+import { useOfficialFetch, useOfficialPlugins, usePluginConsent, usePluginOrder, usePluginPrograms } from "../../../state/plugins/hooks";
 import { installedLabel, isOffered, officialInSettings, officialTitle, officialView, wasCancelled, type OfficialAttempt } from "../../../state/plugins/officialView";
 import { goToSettingsPane } from "../../../state/settings/settingsWindows";
 import { consentToken, noteOfficialPlugin } from "../../../state/telemetry/officialPluginCounts";
@@ -65,7 +65,8 @@ function useInstall(plugin: OfficialPlugin) {
 function OfficialPluginRow({ plugin }: { plugin: OfficialPlugin }) {
   const programs = usePluginPrograms(plugin.name);
   const { attempt, install } = useInstall(plugin);
-  const view = officialView(plugin, programs, attempt);
+  const fetch = useOfficialFetch(plugin.name);
+  const view = officialView(plugin, programs, attempt, fetch);
   const offered = isOffered(plugin);
   useEffect(() => {
     if (offered) noteOfficialPlugin("settings", "shown", plugin.name);
@@ -89,7 +90,7 @@ function OfficialPluginRow({ plugin }: { plugin: OfficialPlugin }) {
       description={
         view.note === "comingSoon" ? undefined : (
           <Text selectable={view.failed} lines={view.failed ? undefined : 2} size="caption" tone={view.failed ? "destructive" : "textSecondary"} style={LINE}>
-            {view.failed && view.status ? view.status : plugin.blurb}
+            {view.status ?? plugin.blurb}
           </Text>
         )
       }
@@ -105,6 +106,7 @@ function OfficialPluginRow({ plugin }: { plugin: OfficialPlugin }) {
         <Button title="Install…" disabled={view.busy} onPress={() => void install()} />
       ) : null}
       {view.action === "again" ? <Button title="Try Again" onPress={() => void install()} /> : null}
+      {view.action === "update" ? <Button title="Update…" onPress={() => void install()} /> : null}
     </Row>
   );
 }

@@ -51,6 +51,13 @@ test("an installed row says so beside its title, with the version when the seam 
   assert.equal(installedLabel({ ...plugin("installed"), version: null }), "Installed");
 });
 
+test("a failed update stays on the row with Update to try again, while the old command keeps working", () => {
+  const ready = officialView({ ...plugin("installed"), update: "0.6.0" }, LINKED, null);
+  assert.deepEqual([ready.action, ready.failed], ["update", false]);
+  const failed = officialView({ ...plugin("installed"), update: "0.6.0" }, LINKED, { state: "failed", reason: "The download didn't match." });
+  assert.deepEqual([failed.action, failed.failed, failed.status], ["update", true, "The download didn't match."]);
+});
+
 test("an installed plugin whose command isn't on PATH says why and offers Retry", () => {
   const linking = officialView(plugin("installed"), { state: "linking", hash: "h", request: 1 }, null);
   assert.deepEqual([linking.busy, linking.action, linking.firstCommand], [true, null, null]);
@@ -68,12 +75,14 @@ test("only a plugin that can still be chosen counts as offered", () => {
 
 const CLI = JSON.stringify({ manifest: 1, name: "cli", title: "Command Line", version: "0.3.0", alwaysOn: true, official: true, icon: "terminal.fill", permissions: ["control"], programs: [{ name: "ardia", path: "bin/ardia" }] });
 useBrowser.getState().hydrate({});
-stub.pluginHost.folders = [{ name: "cli", text: CLI, status: "ok", folderId: "bundled", bundled: true }];
+stub.pluginHost.folders = [];
+stub.pluginHost.officialArtifacts = { cli: CLI };
 startPlugins();
 for (let i = 0; i < 8; i++) await new Promise((resolve) => setTimeout(resolve, 0));
 
 test("closing the consent is no error: the seam marks it cancelled, and nothing else counts as cancelled", async () => {
   const asked = installOfficialPlugin("cli", { showSheet: false });
+  for (let i = 0; i < 8; i++) await new Promise((resolve) => setTimeout(resolve, 0));
   assert.equal(usePlugins.getState().consent.name, "cli");
   lifecycle.dismissPluginConsent("cli");
   const result = await asked;
@@ -135,13 +144,13 @@ test("the Settings row and the consent sheet say Install for every official plug
   const sheet = readFileSync(new URL("../../components/plugins/PluginConsentSheet.tsx", import.meta.url), "utf8");
   assert.match(row, /<Button title="Install…"/);
   assert.doesNotMatch(row, /Turn On|<Toggle/);
-  assert.match(sheet, /const install = isAlwaysOn\(listing\) \|\| !!m\?\.official;/);
+  assert.match(sheet, /const install = !!m\?\.official;/);
 });
 
 
-test("every pinned or coming-soon plugin is counted by name, a dash becoming an underscore, and cli and ai keep their field names", () => {
-  assert.deepEqual([...OFFICIAL_COUNTED_NAMES].sort(), ["ai", "apple-passwords", "cli"]);
-  assert.equal(officialPluginField("settings", "installed", "apple-passwords"), "official_plugin_settings_installed_apple_passwords");
+test("every pinned or coming-soon plugin is counted by name, a retired one as other, and cli and ai keep their field names", () => {
+  assert.deepEqual([...OFFICIAL_COUNTED_NAMES].sort(), ["ai", "cli"]);
+  assert.equal(officialPluginField("settings", "installed", "apple-passwords"), "official_plugin_settings_installed_other");
   assert.equal(officialPluginField("settings", "shown", "cli"), "official_plugin_settings_shown_cli");
   assert.equal(officialPluginField("onboarding", "installed", "ai"), "official_plugin_onboarding_installed_ai");
   assert.equal(officialPluginField("settings", "shown", "not-pinned"), "official_plugin_settings_shown_other");

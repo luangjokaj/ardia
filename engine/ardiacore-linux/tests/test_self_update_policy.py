@@ -248,7 +248,7 @@ class SelfUpdatePolicyTests(unittest.TestCase):
                        'base::Seconds(policy::kInstallDeadlineSeconds)', 'base::Seconds(policy::kKindDeadlineSeconds)',
                        'environment["PATH"] = Text(policy::kHelperSearchPath)', 'environment["APPIMAGE"] = *appimage',
                        'HelperEnvironment(through_pkexec ? std::nullopt : appimage)', 'policy::kPkexecPaths',
-                       'arguments.push_back("install")', 'ardiacore::LinuxPackage().directory.Append(Text(policy::kHelperName))',
+                       'arguments.push_back("install")', 'arguments.push_back("--disable-internal-agent")', 'ardiacore::LinuxPackage().directory.Append(Text(policy::kHelperName))',
                        'base::BindOnce(&chrome::AttemptRestart)', 'DCHECK_CURRENTLY_ON(content::BrowserThread::UI)',
                        'options.allow_new_privs = lets_pkexec_gain_root;', 'base::Seconds(policy::kInstallDeadlineSeconds), through_pkexec);']:
             self.assertIn(needle, source)

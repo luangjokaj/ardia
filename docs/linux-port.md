@@ -716,9 +716,13 @@ command ([linux-ci.md](linux-ci.md) › Linux releases).
   called the helper started (another instance already replaced it, so this one's version check is stale). PATH is its own and the prefix comes from its own
   location, never from the caller. The last line on stdout is `installed <V>` or `failed <reason>` (`usage`,
   `missing`, `manifest`, `signature`, `notNewer`, `kind`, `checksum`, `install`, `busy`, `timeout`).
-- **polkit action `dev.ardia.linux.update`.** `allow_active` is `yes` with no password, `allow_any` and
-  `allow_inactive` are `no`, and `org.freedesktop.policykit.exec.path` limits it to the helper, which only installs
-  a release signed with Ardia's key that is newer than the installed one.
+- **polkit action `dev.ardia.linux.update`.** `allow_active` is `yes`, so the active local session installs with
+  no password. `allow_any` and `allow_inactive` are `auth_self`: polkit counts a remote desktop (xrdp, VNC) as a
+  remote session, so there the session's polkit agent asks for the user's password, and where such a session runs
+  no agent (SSH) Ardia's own pkexec fails and it offers the release page. A user there can still run the helper by
+  hand with pkexec's text agent; an admin who wants less can override the action with a polkit rule or
+  local-authority file. `org.freedesktop.policykit.exec.path` limits it to the helper, which only installs a release
+  signed with Ardia's key that is newer than the installed one.
 - **Signed manifest.** Each release carries `Ardia-<V>-linux-update.txt` (`ardia-linux-update 1`, `version <V>`, then
   `deb`, `tarball` and `appimage` lines with file name, sha256 and size, for the formats on the release) and
   `Ardia-<V>-linux-update.txt.sig`, the raw Ed25519 signature.
@@ -808,8 +812,12 @@ pnpm --filter @ardia/linux acceptance -- <extracted>/ardia/bin/ardia
     `Updates` must be a real directory, and only version folders in it are pruned). Redirects go only to https on
     github.com, objects.githubusercontent.com and release-assets.githubusercontent.com. Caps: 4096 bytes for the
     manifest, 64 for the signature, the manifest's size (at most 512 MiB) for the package, and the package size plus
-    64 MiB free. Then it runs `pkexec <helper> install <dir>` for a `.deb` or tarball, or the helper as the user with
-    `APPIMAGE` and `APPDIR` for an AppImage, with a clean environment and a 10 min deadline (the helper's own is 9).
+    64 MiB free. Then it runs `pkexec --disable-internal-agent <helper> install <dir>` for a `.deb` or tarball, or the
+    helper as the user with `APPIMAGE` and `APPDIR` for an AppImage, with a clean environment and a 10 min deadline
+    (the helper's own is 9). Without its text agent, pkexec never prompts on the terminal Ardia was started from (the
+    helper's own process group would stop on SIGTTIN there): a session that has to ask for the password and has no
+    polkit agent fails at once with `polkit`, and Ardia offers the release page. The active local session needs no
+    agent.
     Failure reasons: `version`, `kind`, `network`, `manifest`, `tooLarge`, `busy`, `disk`, the helper's, `polkit`,
     `timeout`, `missing`. A successful install deletes the folder, and so does a `signature`, `checksum`, `manifest` or
     `notNewer` failure, so the next try downloads afresh.

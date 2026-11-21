@@ -5,7 +5,7 @@ import { create } from "zustand";
 import { useBrowser } from "../browser/store";
 import { pageOf, patchPage } from "../tabs/pageState";
 import { hideKeyedToast, showToast } from "../app/toasts";
-import { canSwitchEngine, chosenEngine, ENGINE_NAMES, siteOf, tabEngine, visitRecorder, type WebKitPage } from "./engines";
+import { builtInEngine, canSwitchEngine, chosenEngine, ENGINE_NAMES, ruleFor, siteOf, tabEngine, visitRecorder, type WebKitPage } from "./engines";
 import { engineProfile, isIncognitoProfile, navigationTo } from "../browser/model";
 import type { Tab } from "../browser/types";
 import { carrySignInToWebKit, signInCarryOn } from "./engineSignIn";
@@ -13,6 +13,7 @@ import { wantsPage } from "../tabs/tabPages";
 import { webviews } from "../../platform/webviews";
 import { withDeadline } from "../../lib/deadline";
 import { loadedPage, navigationOf } from "../tabs/pageSession";
+import { noteStreamingListVisit } from "../telemetry/streamingSiteCounts";
 
 export type EngineOffer = { site: string; host: string; keySystem: string; canRemember: boolean };
 
@@ -23,6 +24,7 @@ const declinedSites = new Set<string>();
 const movingTabs = new Set<string>();
 const siteMoves = new Map<string, number>();
 const siteWatches = new Map<string, () => void>();
+const webKitSites = new Map<string, string>();
 const SITE_MOVE_SPACING_MS = 10_000;
 const hostLabel = (site: string) => new URL(site).hostname.replace(/^www\./, "");
 
@@ -195,6 +197,7 @@ function watchClosedTabs() {
       visits.close(id);
     }
     for (const id of siteMoves.keys()) if (!s.tabs[id]) siteMoves.delete(id);
+    for (const id of webKitSites.keys()) if (!s.tabs[id] || tabEngine(s, id) !== "webkit") webKitSites.delete(id);
   });
 }
 
@@ -204,4 +207,14 @@ export function noteWebKitPage(tabId: string, page: WebKitPage) {
   watchClosedTabs();
   visitedTabs.add(tabId);
   visits.note(tabId, isIncognitoProfile(t.profileId) ? null : engineProfile(useBrowser.getState(), t.profileId), page);
+  noteWebKitSite(tabId, page.url);
+}
+
+function noteWebKitSite(tabId: string, url: string) {
+  const site = siteOf(url);
+  if (webKitSites.get(tabId) === site) return;
+  if (!site) return void webKitSites.delete(tabId);
+  webKitSites.set(tabId, site);
+  const s = store();
+  if (!ruleFor(s, url) && builtInEngine(s, url)) noteStreamingListVisit();
 }

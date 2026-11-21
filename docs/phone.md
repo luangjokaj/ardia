@@ -2202,7 +2202,7 @@ simulator, the list under "The iPhone redesign".
 - [ ] On the sync step. Expect: a Mac window with a QR code and a phone scanning it, not a symbol. Tap Connect to Your Mac: the connect screen slides up from the bottom; Cancel slides it down. Connect: the phone in the picture turns plum, its viewfinder shrinks away as a checkmark grows in, and the subtitle crossfades from "Your Mac’s tabs, right here. End-to-end encrypted." to "Your Mac’s tabs are here, end-to-end encrypted."
 - [ ] **Android:** on the welcome, tap Continue at once. Expect: the default-browser step still shows.
 - [ ] **Android:** mid-onboarding, change the system font size so the activity is recreated (step 44). Expect: the same step comes back.
-- [ ] **iPhone:** the default-browser step. Expect: it shows only when SwiftUI's would (offered, and not asked within 100 days); with the entitlement off, as in test builds, it never shows.
+- [ ] **iPhone:** the default-browser step. Expect: it shows only when SwiftUI's would (offered, and not asked within 100 days); with the entitlement off (`--no-default-browser`), it never shows.
 - [ ] At the largest text size. Expect: each step scrolls. With Reduce Motion on: the welcome fades instead of moving.
 
 **3. Start page and the search tray**
@@ -3410,14 +3410,14 @@ What it needs, for a yes or no:
 
    The simulator rows above settle only how long our own work and animations take, and app size.
 
-#### Default browser on iPhone, once Apple grants the entitlement
+#### Default browser on iPhone
 
-Apple's web-browser entitlement (`com.apple.developer.web-browser`) has been requested. Until it is granted the
-app ships with the default browser off, and one build setting turns all of it on together:
+Apple granted the web-browser entitlement (`com.apple.developer.web-browser`) for `com.ardia.browser.ios`, so the
+app ships with the default browser on, and one build setting turns all of it on or off together:
 
-- **The switch.** `ARDIA_DEFAULT_BROWSER = NO` in the Debug and Release settings of the Ardia target in
-  `apps/phone/ios/Ardia.xcodeproj/project.pbxproj`. Flip both to `YES` (or pass `ARDIA_DEFAULT_BROWSER=YES` to
-  `xcodebuild`) for a build that should offer it.
+- **The switch.** `ARDIA_DEFAULT_BROWSER = YES` in the Debug and Release settings of the Ardia target in
+  `apps/phone/ios/Ardia.xcodeproj/project.pbxproj`. `release-ios` signs with it unless `--no-default-browser`, and
+  the iOS Release workflow's `default_browser` input is on by default.
 - **The entitlement.** `CODE_SIGN_ENTITLEMENTS = $(ARDIA_ENTITLEMENTS_$(ARDIA_DEFAULT_BROWSER))`, so `NO` signs with
   `apps/phone/ios/Config/Ardia.entitlements` and `YES` with `apps/phone/ios/Config/Ardia-DefaultBrowser.entitlements`,
   the same file plus `com.apple.developer.web-browser`. Main's SwiftUI app signs with the same two files.
@@ -3428,11 +3428,11 @@ app ships with the default browser off, and one build setting turns all of it on
   onboarding step shows (unless asked within 100 days, as in SwiftUI), and Settings › Default Browser opens the
   system's Default Apps page. Page menu › Open in Default Browser hides once Ardia is the default. With `NO`,
   `isDefault` and `canAsk` are both false and none of this shows.
-- **The signing side**, for the owner: the App ID `com.ardia.browser.ios` needs the Default Web Browser capability
-  once Apple grants it, and the provisioning profiles regenerated with it. A build with `YES` and an old profile
-  fails to sign, so it cannot ship half on.
+- **The signing side.** The App ID `com.ardia.browser.ios` has the Default Web Browser capability, switched on under
+  Additional Capabilities in the developer portal after Apple's approval; automatic signing puts it in the profile.
+  Without it a build with `YES` fails to sign ("requires approval from Apple"), so it cannot ship half on.
 
-`apps/phone/src/dev/defaultBrowserSwitch.test.ts` keeps this true: every configuration says `NO`, the entitlement and
+`apps/phone/src/dev/defaultBrowserSwitch.test.ts` keeps this true: every configuration says `YES`, the entitlement and
 the Info.plist key come from that one setting, and the two entitlement files differ only by the web-browser key.
 
 #### Settings on Expo UI: main's SwiftUI screens, the checklist
@@ -3906,10 +3906,9 @@ This was `docs/ios.md`'s, for main's SwiftUI app; since the clean-up the workflo
   email=<address>` invites someone to Public Testers.
 - **The default browser grant.** iOS lists an app as a browser only when it is signed with
   `com.apple.developer.web-browser`, which Apple grants per App ID on request
-  (https://developer.apple.com/contact/request/default-browser-entitlement/). Until then signing with it fails;
-  once granted, pass `default_browser=true` (`--default-browser`), then make `ARDIA_DEFAULT_BROWSER = YES` the
-  default ("Default browser on iPhone" above). iOS answers `UIApplication.isDefault(.webBrowser)` four times a year,
-  so `DefaultBrowserStatus` keeps the last answer and asks only on returning from the Settings button or after 100
+  (https://developer.apple.com/contact/request/default-browser-entitlement/). It is granted and on by default
+  ("Default browser on iPhone" above); `default_browser=false` (`--no-default-browser`) builds without it. iOS
+  answers `UIApplication.isDefault(.webBrowser)` four times a year, so `DefaultBrowserStatus` keeps the last answer and asks only on returning from the Settings button or after 100
   days; a web link from another app also proves it.
 - **Export compliance.** The only encryption is Apple's own (CryptoKit's AES-GCM, HKDF and HMAC for sync, and HTTPS),
   which Apple counts as exempt, so `ITSAppUsesNonExemptEncryption` is false and a build needs no compliance code.

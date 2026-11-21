@@ -256,6 +256,7 @@ policy::InstallOutcome RunInstall(base::FilePath helper, Kind kind, base::FilePa
     const std::optional<base::FilePath> pkexec = Pkexec();
     if (!pkexec) return {false, Text(policy::kPolkitReason)};
     arguments.push_back(pkexec->value());
+    arguments.push_back("--disable-internal-agent");
   } else if (!appimage) {
     return {false, Text(policy::kKindReason)};
   }

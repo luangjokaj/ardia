@@ -33,6 +33,7 @@ for file in "$dmg" "$zip" "$feed"; do
   [ -f "$file" ] || die "no $file (scripts/release.sh $version first)"
   assets+=("$file")
 done
+"$root/scripts/release/check-packages.sh" "$dist" "$version" || die "the update zip or the DMG isn't laid out as installs expect (scripts/release/check-packages.sh)"
 linux="$dist/linux"
 if [ -d "$linux" ]; then
   linux_package="$linux/Ardia-$version-linux-x64.tar.xz"
