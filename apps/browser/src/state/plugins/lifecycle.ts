@@ -76,7 +76,7 @@ function saveRecords(records: Record<string, PluginRecord>, consent: ConsentToke
   return true;
 }
 
-function updateRecord(name: string, change: (r: PluginRecord) => PluginRecord | null, consent: ConsentToken | null): boolean {
+export function updateRecord(name: string, change: (r: PluginRecord) => PluginRecord | null, consent: ConsentToken | null): boolean {
   const records = { ...currentPlugins().records };
   const next = change(recordOf(currentPlugins(), name));
   if (next) records[name] = next;
@@ -253,7 +253,7 @@ export function enablePlugin(name: string, hash: string): boolean {
   const builtIn = keepsInstalledFlag(listing) ? { installed: true, ...(before.controlGranted ? { controlGranted: true } : {}) } : {};
   const current = currentPlugins().listings[name];
   const previous = candidate && recordApproves(current, before) ? (approvalMatches(current, before.approved) ? before.approved : before.previous) : undefined;
-  if (!saveRecords({ ...records, [name]: { enabled: true, approved: hash, values, applied: plan.applied, ...builtIn, ...(previous ? { previous } : {}) } }, consent)) {
+  if (!saveRecords({ ...records, [name]: { enabled: true, approved: hash, values, applied: plan.applied, ...builtIn, ...(previous ? { previous } : {}), ...(before.sites ? { sites: before.sites } : {}) } }, consent)) {
     usePlugins.setState({ consent: null, unsaved: name });
     settleInstall(name, { ok: false, reason: UNSAVED });
     return false;

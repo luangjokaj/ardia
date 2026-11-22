@@ -66,6 +66,40 @@ holds the rest.
 | Native perf | `node apps/browser/scripts/perf/native-bench.mjs --app <Release app> --out <dir>` | Launch, idle, memory, tab and window latency; the release perf gate (`docs/perf/README.md`) |
 | JS perf | `node apps/browser/scripts/perf/js-bench.mjs run --app <Release app> --bundle <main.jsbundle> --label <name>` | What each interaction costs the JS thread (`docs/perf/README.md`) |
 
+## CI
+
+- `checks.yml` starts only on the paths one of its jobs reads, and a `which checks run` job (`dorny/paths-filter`)
+  picks the jobs from the change: `typecheck, tests and Mac bundle` (typecheck, the portable tests, the store
+  simulator and the Mac bundle, Metro then Hermes) for the workspace code; the browser's tests in three shares
+  (`--test-shard=I/3`) for what those tests read, which reaches past `apps/browser` into every package, the engine
+  sources, `apps/linux/src`, `scripts/{lib,security,windows}`, `tests/` and two docs; and `repository, vouch and
+  stale tests` (`test:root`, no install) for `scripts/`, `engine/`, `.github/`, `.claude/`, the site and the release
+  notes. A
+  docs-only, phone-app, dashboard or videos change starts none of them. When the filter can't tell (an API error, a
+  force push it can't diff, a pull request of 3,000 files or more) or the `which checks run` job fails, every job
+  runs. `scripts/ci/workflow-paths.test.mjs` keeps the trigger paths and the filters in step, follows the meadow
+  check's site imports, and fails when a Linux fixture or a root test names a file its job doesn't start on. Each share restores the TSX it transpiled last time (`ardia-test-tsx-I-of-3-…`); only pushes to
+  `main` save it, so pull requests add no caches. A newer push cancels the run before it, on `main` too.
+- `linux.yml` starts on what the Linux build and its fixture suites read (`apps/linux`, the shared UI and the desktop
+  packages' sources, the engine sources, its scripts, and the few Mac files the parity fixtures compare against,
+  which `workflow-paths.test.mjs` finds in the suites and checks), not on the rest of the Mac, iPhone, Android or
+  Windows native code; `windows.yml`
+  leaves out `packages/phone`; `windows-engine-inputs.yml` starts on the engine inputs `check_inputs.py` reads;
+  `deploy.yml` starts on `main` only for paths one of its services deploys from.
+- `mac.yml` compiles the Mac app (Debug, unsigned, `xcode-27`) on pull requests and pushes that touch its native code:
+  `apps/browser/macos`, the packages' `ios` folders, the Dock tile and plugin host, the engine's public headers, the
+  workspace manifests, the patches and the lockfile. It builds against this commit's engine, or the nearest published
+  one before it, and any compiler error fails it. When `engine/ardiacore/src/ardia/core/public` changed since that
+  engine it also fails after the build, asking for the engine to be published first.
+- The heavy workflows (`ios.yml`, `android.yml`, `linux.yml`, `windows.yml`, `mac.yml`) run their vouch `gate` job
+  only for pull requests from forks. Pushes, manual runs and branches of this repository skip it and start the build
+  at once. A newer push or pull request run cancels the one before it; manual and release runs each have their own
+  group and are never cancelled. `windows.yml` reads the `full-ci` label in its `identity` job, live, so adding the
+  label and re-running all jobs gives the full run.
+- Caches that would fill the 10 GB limit are saved on pushes to `main` only and pruned to the newest per branch by
+  `caches.yml`: Gradle (`gradle-phone-`, which `--main-only` also deletes from every other branch), Xcode compilation
+  caches (`xcode-cas-`), Pods (`pods-`, shared by `mac.yml` and the Release workflow, and `phone-pods-`).
+
 ## ArdiaCore acceptance
 
 The acceptance run's checks and what each proves are listed in `docs/ardiacore-parity.md` › "Acceptance (hidden instance)".
