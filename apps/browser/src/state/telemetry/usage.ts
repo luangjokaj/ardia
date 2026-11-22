@@ -10,7 +10,7 @@ import { reportLocalStore, startLocalStore } from "./localStoreReport";
 import { watchExtensionInstalls } from "./extensionInstalls";
 import { nativeConsent } from "./nativeConsent";
 import { startWatchChecks } from "./watch";
-import { appIconSetting, currentThemeFileSnapshot, customColorProfiles, narrowWindows, openTabSyncProfiles, SETTINGS_SNAPSHOT_EVENT, settingsSnapshot, widevineSetting } from "./settingsSnapshot";
+import { appIconSetting, currentThemeFileSnapshot, customColorProfiles, narrowWindows, openTabSyncProfiles, SETTINGS_SNAPSHOT_EVENT, settingsSnapshot, widevineSetting, windowButtonLayoutSnapshot } from "./settingsSnapshot";
 import { utcDay } from "./daily";
 import { percentile } from "./transport";
 import { reportNativeCrashes } from "./errors";
@@ -337,7 +337,7 @@ function snapshotSettings(consent: ConsentToken | null) {
   const today = utcDay(Date.now()), passwordManagers = passwordManagerSnapshot();
   if (settingsSnapshotDay() === today || !passwordManagers) return;
   const state = useBrowser.getState();
-  const settings = { ...settingsSnapshot(state.settings), ...customColorProfiles(state.profiles, state.settings.defaultProfileId), ...openTabSyncProfiles(state.profiles), ...narrowWindows(state.windows, state.settings.sidebarWidth), ...airTrafficSnapshot(), ...currentThemeFileSnapshot(), ...pluginsSnapshot(), ...passwordManagers };
+  const settings = { ...settingsSnapshot(state.settings), ...customColorProfiles(state.profiles, state.settings.defaultProfileId), ...openTabSyncProfiles(state.profiles), ...narrowWindows(state.windows, state.settings.sidebarWidth), ...airTrafficSnapshot(), ...currentThemeFileSnapshot(), ...pluginsSnapshot(), ...windowButtonLayoutSnapshot(), ...passwordManagers };
   void Promise.all([currentAppIcon().catch(() => null), listComponents().catch(() => null)]).then(([icon, components]) => (capture(SETTINGS_SNAPSHOT_EVENT, { ...settings, ...appIconSetting(icon), ...widevineSetting(components) }, consent), stillValid(consent) && markSettingsSnapshot(today)));
 }
 
