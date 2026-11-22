@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-usage="usage: scripts/release/cli-bootstrap-smoke.sh <Ardia.app> <version> <fixtures dir>
+usage="usage: scripts/release/cli-bootstrap-smoke.sh <Ardia.app> <version> <fixtures dir> [<earlier Ardia.app>]
 Launches hidden instances of <Ardia.app> on scratch data folders with scratch bin folders, fetching official plugins
 from <fixtures dir> (official-plugins.py fixtures: the pinned, SHA-256 checked release assets) instead of GitHub. A
 fresh profile downloads nothing and gets no ardia until it installs Command Line. A profile whose plugins.json holds the
@@ -9,13 +9,18 @@ approval the Install sheet records for the pinned copy (its plugin.json under th
 it, checks its SHA-256 against the pin, links ardia from Ardia's copy without a quarantine flag, and with control on
 ardia tabs answers; the linked ardia is the pinned version, run as published (ad hoc or Developer ID-signed alike). The
 same profile with a changed asset, or with none (offline), gets no ardia and no downloaded copy. Command Line coverage
-can't be skipped: no fixture fails."
+can't be skipped: no fixture fails. Given an earlier release that bundles Command Line (0.2.47), a profile where it
+installed and linked its own ardia keeps that ardia on <Ardia.app>: the pinned copy is fetched and verified but waits for
+your approval, because its plugin.json isn't the one approved, and plugins.json stays as it was; once the approval the
+Update… sheet records is saved, ardia switches to the pinned version."
 case "${1:-}" in -h | --help | "") echo "$usage"; [ -n "${1:-}" ] && exit 0 || exit 64 ;; esac
 app="$(cd "$1" && pwd -P)"
 version="${2:?$usage}"
 fixtures="$(cd "${3:?$usage}" && pwd -P)"
+earlier="${4:+$(cd "$4" && pwd -P)}"
 root="$(cd "$(dirname "$0")/../.." && pwd -P)"
 case "$app" in /Applications/*) echo "error: never an installed app" >&2; exit 1 ;; esac
+case "$earlier" in /Applications/*) echo "error: never an installed app" >&2; exit 1 ;; esac
 read -r pinned file sha < <(python3 -I -c 'import json, sys; p = next(p for p in json.load(open(sys.argv[1]))["plugins"] if p["name"] == "cli"); a = p["artifacts"]["macos-arm64"]; print(p["version"], a["file"], a["sha256"])' "$root/apps/browser/official-plugins.json")
 [ -f "$fixtures/$file" ] || { echo "error: $fixtures has no $file; run scripts/release/official-plugins.py fixtures $fixtures" >&2; exit 1; }
 [ "$(shasum -a 256 "$fixtures/$file" | cut -d' ' -f1)" = "$sha" ] || { echo "error: $fixtures/$file isn't the pinned $sha" >&2; exit 1; }
@@ -27,6 +32,7 @@ stop() {
 }
 cleanup() {
   stop
+  chmod -R u+w "$work" 2>/dev/null || true
   rm -rf "$work"
 }
 trap cleanup EXIT
@@ -43,10 +49,11 @@ with tarfile.open(sys.argv[1], "r:gz") as packed:
 print(hashlib.sha256(manifest + b"\0official-" + sys.argv[2].encode()).hexdigest())' "$fixtures/$file" "$sha")"
 
 launch() {
+  local which="${4:-$app}"
   echo '{"version":1,"completedAt":1}' >"$1/onboarding.json"
-  open -g -n --env ARDIA_BACKGROUND=1 --env "ARDIA_DATA_DIR=$1" --env "ARDIA_INSTANCE=cliBinDir=$2,officialPluginsFrom=$3" \
-    --stdout "$1/app.out.log" --stderr "$1/app.out.log" "$app"
-  for _ in $(seq 1 100); do pid="$(pgrep -n -f "^$app/Contents/MacOS/Ardia" || true)"; [ -n "$pid" ] && break; sleep 0.1; done
+  open -g -n --env ARDIA_BACKGROUND=1 --env "ARDIA_DATA_DIR=$1" --env "ARDIA_INSTANCE=cliBinDir=$2${3:+,officialPluginsFrom=$3}" \
+    --stdout "$1/app.out.log" --stderr "$1/app.out.log" "$which"
+  for _ in $(seq 1 100); do pid="$(pgrep -n -f "^$which/Contents/MacOS/Ardia" || true)"; [ -n "$pid" ] && break; sleep 0.1; done
 }
 
 installed_profile() {
@@ -102,4 +109,46 @@ sleep 12
 check "offline, nothing is half-installed and nothing goes on PATH" \
   "$([ ! -e "$offline/bin/ardia" ] && [ -z "$(find "$offline/d/OfficialPlugins" -mindepth 2 -maxdepth 2 ! -name '.*' 2>/dev/null)" ] && echo 1 || echo 0)"
 stop
+
+bundled="${earlier:+$earlier/Contents/Resources/Plugins/cli/plugin.json}"
+if [ -z "$earlier" ]; then
+  echo "SKIP  an earlier release's Command Line keeps working: no earlier release given"
+elif [ ! -f "$bundled" ]; then
+  echo "SKIP  an earlier release's Command Line keeps working: Ardia $(plutil -extract CFBundleShortVersionString raw "$earlier/Contents/Info.plist" 2>/dev/null) bundles no Command Line"
+else
+  read -r old_version receipt < <(python3 -I -c '
+import hashlib, json, sys
+text = open(sys.argv[1], "rb").read()
+print(json.loads(text)["version"], hashlib.sha256(text + b"\0bundled").hexdigest())' "$bundled")
+  upgrade="$work/upgrade"
+  mkdir -p "$upgrade/d" "$upgrade/bin"
+  printf '{"plugins":{"cli":{"enabled":true,"approved":"%s","values":{},"applied":{},"installed":true}},"version":1}\n' "$receipt" >"$upgrade/d/plugins.json"
+  launch "$upgrade/d" "$upgrade/bin" "" "$earlier"
+  for _ in $(seq 1 300); do [ -L "$upgrade/bin/ardia" ] && break; sleep 0.2; done
+  sleep 2
+  stop
+  ran="$(env -i HOME="$HOME" PATH="$upgrade/bin:/usr/bin:/bin" ARDIA_DATA_DIR="$upgrade/d" ARDIA_TELEMETRY=off ardia --version 2>&1 || true)"
+  check "the earlier release installs and links its own ardia $old_version" "$([ "$ran" = "ardia $old_version" ] && echo 1 || echo 0)" "$ran"
+  saved="$(shasum -a 256 "$upgrade/d/plugins.json" | cut -d' ' -f1)"
+  launch "$upgrade/d" "$upgrade/bin" "$fixtures"
+  for _ in $(seq 1 300); do [ -f "$upgrade/d/OfficialPlugins/cli/$sha/plugin.json" ] && break; sleep 0.2; done
+  sleep 5
+  check "after the update, the pinned $pinned is fetched and verified, then waits for your approval instead of switching" \
+    "$([ -f "$upgrade/d/OfficialPlugins/cli/$sha/plugin.json" ] && [ ! -e "$upgrade/d/OfficialPlugins/cli/active" ] && echo 1 || echo 0)"
+  ran="$(env -i HOME="$HOME" PATH="$upgrade/bin:/usr/bin:/bin" ARDIA_DATA_DIR="$upgrade/d" ARDIA_TELEMETRY=off ardia --version 2>&1 || true)"
+  check "ardia still runs, and is still the earlier $old_version" "$([ "$ran" = "ardia $old_version" ] && echo 1 || echo 0)" "$ran"
+  check "plugins.json is untouched before you confirm" "$([ "$(shasum -a 256 "$upgrade/d/plugins.json" | cut -d' ' -f1)" = "$saved" ] && echo 1 || echo 0)"
+  stop
+  printf '{"plugins":{"cli":{"enabled":true,"approved":"%s","previous":"%s","values":{},"applied":{},"installed":true}},"version":1}\n' "$approved" "$receipt" >"$upgrade/d/plugins.json"
+  launch "$upgrade/d" "$upgrade/bin" "$fixtures"
+  for _ in $(seq 1 300); do [ -L "$upgrade/d/OfficialPlugins/cli/active" ] && break; sleep 0.2; done
+  ran=""
+  for _ in $(seq 1 100); do
+    ran="$(env -i HOME="$HOME" PATH="$upgrade/bin:/usr/bin:/bin" ARDIA_DATA_DIR="$upgrade/d" ARDIA_TELEMETRY=off ardia --version 2>&1 || true)"
+    [ "$ran" = "ardia $pinned" ] && break
+    sleep 0.2
+  done
+  check "once you confirm (the approval Update… records), ardia is the pinned $pinned" "$([ "$ran" = "ardia $pinned" ] && echo 1 || echo 0)" "$ran"
+  stop
+fi
 exit "$status"

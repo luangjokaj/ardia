@@ -1,7 +1,7 @@
 import type { ViewProps } from "react-native";
 import type { ExternalAppRequest } from "./permissions";
 import type { FaviconImage } from "./favicons";
-import type { PageCookie, PageEngine } from "./webkit";
+import type { ChromiumSiteDataReply, ChromiumSiteDataRequest, PageCookie, PageEngine } from "./webkit";
 
 export type NavigationState = {
   url: string;
@@ -125,6 +125,8 @@ export type PictureInPictureDrag = { offCursor: boolean; slowMove: boolean; epoc
 export type PictureInPictureSkip = { seconds: number; epoch: string };
 export type PictureInPictureStandIn = { pinch: boolean; timedOut: boolean; epoch: string };
 export type PictureInPictureUnstash = { epoch: string };
+export type PictureInPictureReleaseOutcome = "corner" | "flickTuck" | "tuck" | "pullOut" | "cornerPull" | "placed";
+export type PictureInPictureRelease = { outcome: PictureInPictureReleaseOutcome; epoch: string };
 export type PictureInPictureActivation = { move: boolean; activated: boolean; epoch: string };
 export type PictureInPictureResize = { inside: boolean; cursorShown: boolean; epoch: string };
 export type AutoPictureInPictureHold = "onScreen" | "appSwitch" | "nothingPlaying";
@@ -176,10 +178,11 @@ export type ExtensionActionResult = "none" | "popup" | "sidePanel";
 export type PageSelection = { text: string; rect: { x: number; y: number; width: number; height: number } };
 export type ScrollState = "down" | "up" | "top";
 export type FocusRestoreOutcome = "focused" | "kept" | "refused" | "gaveUp" | "unknown";
-export type ProtectedMediaRequest = { keySystem: string; main: boolean };
+export type ProtectedMediaRequest = { keySystem: string; main: boolean; stage?: "access" | "createMediaKeys" | "licence" | "keystatus" };
 
 export type WebViewProps = ViewProps & {
   engine?: PageEngine;
+  retired?: boolean;
   url?: string;
   profile?: string;
   adoptId?: string;
@@ -225,6 +228,7 @@ export type WebViewProps = ViewProps & {
   onPictureInPictureSkip?: (skip: PictureInPictureSkip) => void;
   onPictureInPictureStandIn?: (standIn: PictureInPictureStandIn) => void;
   onPictureInPictureUnstashed?: (unstash: PictureInPictureUnstash) => void;
+  onPictureInPictureReleased?: (release: PictureInPictureRelease) => void;
   onPictureInPictureActivated?: (activation: PictureInPictureActivation) => void;
   onMediaFault?: (fault: MediaFault) => void;
   onActivateRequest?: (request: ActivateRequest) => void;
@@ -268,7 +272,7 @@ export type WebViewHandle = {
   find(text: string, forward: boolean, findNext: boolean): Promise<void>;
   stopFinding(clearSelection: boolean): Promise<void>;
   print(): Promise<void>;
-  runPageCommand(name: "savePage" | "systemPrint" | "caretBrowsing"): Promise<void>;
+  runPageCommand(name: "savePage" | "systemPrint" | "caretBrowsing" | "viewSource"): Promise<void>;
   showDevTools(panel?: string): Promise<void>;
   executeJavaScript(code: string): Promise<void>;
   evaluate<T = unknown>(code: string): Promise<T | null>;
@@ -284,6 +288,7 @@ export type WebViewHandle = {
 
   getSecurityInfo(): Promise<SecurityInfo | null>;
   pageCookies(urls: string[]): Promise<PageCookie[]>;
+  siteData(request: ChromiumSiteDataRequest): Promise<ChromiumSiteDataReply | null>;
   openBlockedPopup(id: string, always?: boolean): Promise<void>;
   clearSiteData(): Promise<{ cookies: number | false; storage: boolean }>;
 

@@ -1024,6 +1024,8 @@ pnpm --filter @ardia/linux acceptance -- <extracted>/ardia/bin/ardia
 - **Materials.** `VisualEffect`, `GlassEffect`, popover bubbles and the window's vibrancy take light or dark from the
   theme scope they render in (`useSurfaceDark`), not the app appearance, so an Incognito window is dark in a light
   app and a toast is light there.
+  A custom profile theme draws in the window as the theme editor's preview does: the theme's grey underlay, its
+  gradient at its layer alpha (Intensity and Pass-through blur), then its grain, with the theme's forced appearance.
 - **Window controls with the sidebar on the right.** They sit in the right sidebar's header, at its outer edge, as on
   Windows.
 - **Fullscreen restore.** A window saved fullscreen comes back fullscreen. On Wayland the saved output's name is kept

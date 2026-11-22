@@ -41,6 +41,7 @@ python3 -I "$root/scripts/release/official-plugins.py" verify-registry "$recorde
   || die "Info.plist's ArdiaProgramRegistry doesn't match the pin's reserved programs and legacy installs"
 pinned="$(mktemp -d /tmp/ac-verify-pin.XXXXXX)"
 python3 -I "$root/scripts/release/official-plugins.py" fixtures "$pinned" >/dev/null || { rm -rf "$pinned"; die "the pinned official plugins couldn't be fetched and verified against the pin"; }
+"$root/scripts/release/official-signatures.sh" "$pinned" || { rm -rf "$pinned"; die "a pinned official plugin has a program whose signature is invalid or another team's"; }
 rm -rf "$pinned"
 [ -f "$app/Contents/Resources/Extensions/ublock/manifest.json" ] || die "no uBlock Origin in the app"
 [ -f "$app/Contents/Resources/ContentRules/rulesets.json" ] || die "no WebKit content rules in the app"

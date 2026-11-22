@@ -20,7 +20,8 @@
 #
 # Checks before anything leaves the machine: the bundle id, every target's version and build, the release
 # version, three extensions, the stamp, Hermes bytecode, the lab off, the stripped frameworks, the app's
-# dSYM matching its binary, the default browser flag and, when signed, the entitlements (the app group,
+# dSYM matching its binary, the default browser flag, every privacy API having its purpose string
+# (check-privacy-keys) and, when signed, the entitlements (the app group,
 # and the web-browser entitlement unless --no-default-browser).
 #
 # --unsigned archives without signing and stops after the checks: proof without the Apple account.
@@ -169,11 +170,8 @@ if [ "$default_browser" = YES ]; then
   for key in NSPhotoLibraryUsageDescription NSLocationAlwaysUsageDescription NSLocationAlwaysAndWhenInUseUsageDescription NSHomeKitUsageDescription NSBluetoothAlwaysUsageDescription NSBluetoothPeripheralUsageDescription NSHealthShareUsageDescription NSHealthUpdateUsageDescription; do
     [ -z "$(plist_value "$app" "$key")" ] || die "the app asks for $key, which Apple refuses in a default browser"
   done
-  while IFS= read -r machO; do
-    if otool -L "$machO" 2>/dev/null | grep -q '/Photos.framework/'; then die "$(basename "$machO") links Photos.framework: App Store Connect then wants NSPhotoLibraryUsageDescription, which a default browser can't have"; fi
-    if nm -u "$machO" 2>/dev/null | grep -qE '_OBJC_CLASS_\$_PH(Asset|PhotoLibrary|FetchResult|ImageManager)'; then die "$(basename "$machO") calls the Photos library"; fi
-  done < <(find "$app" -type f -perm -u+x -exec sh -c 'file -b "$1" | grep -q Mach-O && echo "$1"' _ {} \;)
 fi
+"$here/check-privacy-keys" "$app" $([ "$default_browser" = YES ] && echo --default-browser) || die "the app calls an API whose purpose string is missing or refused (above)"
 [ "$(plist_value "$app" ArdiaTestBuild)" = NO ] || die "the app is a test build: ArdiaTestBuild $(plist_value "$app" ArdiaTestBuild)"
 [ "$(plist_value "$app" ArdiaBuildCommit)" = "$commit" ] || die "the app's stamp says JS ${commit:-none}: $(plist_value "$app" ArdiaBuildCommit)"
 [ "$(plist_value "$app" ArdiaBuildDirty)" = no ] || die "the app's stamp says dirty"
