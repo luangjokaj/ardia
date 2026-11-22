@@ -60,6 +60,7 @@ export type PluginsStore = {
   pinned: OfficialPinned[] | null;
   fetches: Record<string, OfficialFetch>;
   consent: { id: number; name: string; hash: string } | null;
+  unsaved: string | null;
 };
 
 export const usePlugins = create<PluginsStore>()(() => ({
@@ -74,6 +75,7 @@ export const usePlugins = create<PluginsStore>()(() => ({
   pinned: null,
   fetches: {},
   consent: null,
+  unsaved: null,
 }));
 
 export const NO_RECORD: PluginRecord = { enabled: false, approved: null, values: {}, applied: {} };
@@ -114,6 +116,12 @@ export function needsReview(s: Pick<PluginsStore, "listings" | "records">, name:
 }
 
 export const currentPlugins = () => usePlugins.getState();
+
+export const UNSAVED = "plugins.json couldn't be saved. Try again.";
+
+export const clearUnsaved = (name: string) => {
+  if (currentPlugins().unsaved === name) usePlugins.setState({ unsaved: null });
+};
 
 export type PluginsCommit = Pick<PluginsStore, "listings" | "records">;
 const committing = new Set<(next: PluginsCommit, before: PluginsCommit) => void>();

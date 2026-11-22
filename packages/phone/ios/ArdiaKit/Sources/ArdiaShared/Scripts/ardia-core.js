@@ -30,7 +30,7 @@ __define("packages/core/src/mobile.ts", function (exports, __require) {
 const { BANG_LIST, BANG_LIST_UNICODE } = __require("packages/core/src/bangList.ts");
 const { bangDocument, bangTable, findBang, joinBangTables, readBangDocument, slimBangs } = __require("packages/core/src/bangs.ts");
 const { cleanUrl } = __require("packages/core/src/cleanUrl.ts");
-const { allEngines, engineById, parseSuggestions, suggestRequestUrl } = __require("packages/core/src/engines.ts");
+const { allEngines, engineById, parseSuggestions, suggestRequestUrl, validSearchTemplate } = __require("packages/core/src/engines.ts");
 const { breadcrumb, fixupUrl, searchUrlFor, urlForDisplay } = __require("packages/core/src/omnibox.ts");
 const { findScope } = __require("packages/core/src/siteSearch.ts");
 const { buildSuggestions, prepareSuggestions } = __require("packages/core/src/suggest.ts");
@@ -94,7 +94,7 @@ function mobileSetSources(next                  )          {
 
 function mobileSetSearch(search              )                                                               {
   const list = allEngines(search.customEngines ?? []);
-  if (search.customUrl?.includes("%s")) list.push({ id: "custom", name: "Custom", keyword: "custom", url: search.customUrl, custom: true });
+  if (validSearchTemplate(search.customUrl)) list.push({ id: "custom", name: "Custom", keyword: "custom", url: search.customUrl, custom: true });
   engines = list;
   engine = engineById(engines, search.engineId ?? undefined);
   return { id: engine.id, name: engine.name, url: engine.url, suggests: Boolean(engine.suggestUrl) };
@@ -969,6 +969,7 @@ function calculate(raw        )                     {
 
 });
 __define("packages/core/src/cleanUrl.ts", function (exports, __require) {
+  __export(exports, "cleanUrlReport", () => cleanUrlReport);
   __export(exports, "cleanUrl", () => cleanUrl);
   __export(exports, "markdownLink", () => markdownLink);
 
@@ -1020,22 +1021,30 @@ function isTrackingParam(name        , hostname = "")          {
   return siteRules(hostname).some((r) => r.params.includes(key) || r.prefixes?.some((p) => key.startsWith(p)));
 }
 
-function cleanUrl(url        )         {
+                                                                  
+
+function cleanUrlReport(url        )             {
+  const unchanged = { url, removedTracker: false };
   const match = /^([^?#]*)(\?[^#]*)?(#.*)?$/.exec(url);
-  if (!match?.[2]) return url;
+  if (!match?.[2]) return unchanged;
   let hostname = "";
   try {
     const parsed = new URL(url);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return url;
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return unchanged;
     hostname = parsed.hostname;
   } catch {
-    return url;
+    return unchanged;
   }
   const [, base = "", query = "", hash = ""] = match;
   const pairs = query.slice(1).split("&");
-  const kept = pairs.filter((pair) => pair && !isTrackingParam(decodeName(pair.split("=")[0] ), hostname));
-  if (kept.length === pairs.length) return url;
-  return `${base}${kept.length ? `?${kept.join("&")}` : ""}${hash}`;
+  const tracks = (pair        ) => isTrackingParam(decodeName(pair.split("=")[0] ), hostname);
+  const kept = pairs.filter((pair) => pair && !tracks(pair));
+  if (kept.length === pairs.length) return unchanged;
+  return { url: `${base}${kept.length ? `?${kept.join("&")}` : ""}${hash}`, removedTracker: pairs.some((pair) => pair !== "" && tracks(pair)) };
+}
+
+function cleanUrl(url        )         {
+  return cleanUrlReport(url).url;
 }
 
 function markdownLink(title        , url        )         {
@@ -1045,6 +1054,9 @@ function markdownLink(title        , url        )         {
 });
 __define("packages/core/src/engines.ts", function (exports, __require) {
   __export(exports, "BUILT_IN_ENGINES", () => BUILT_IN_ENGINES);
+  __export(exports, "validSearchTemplate", () => validSearchTemplate);
+  __export(exports, "customEngineFrom", () => customEngineFrom);
+  __export(exports, "customEnginesFrom", () => customEnginesFrom);
   __export(exports, "allEngines", () => allEngines);
   __export(exports, "extensionEngineId", () => extensionEngineId);
   __export(exports, "controllingExtensionEngine", () => controllingExtensionEngine);
@@ -1145,8 +1157,20 @@ const BUILT_IN_ENGINES                          = [
   },
 ];
 
+const validSearchTemplate = (url         )                => typeof url === "string" && /^https?:\/\/[^/?#\s]+/i.test(url) && url.includes("%s");
+
+function customEngineFrom(raw         )                            {
+  if (!raw || typeof raw !== "object") return null;
+  const { id, name, keyword, url } = raw                           ;
+  if (typeof id !== "string" || typeof name !== "string" || typeof keyword !== "string" || !validSearchTemplate(url)) return null;
+  return { id, name, keyword, url };
+}
+
+const customEnginesFrom = (raw         )                       =>
+  Array.isArray(raw) ? raw.flatMap((e) => customEngineFrom(e) ?? []) : [];
+
 function allEngines(custom                                = [], extension                                   = [])                 {
-  const engines                 = [...BUILT_IN_ENGINES, ...custom.map((e) => ({ ...e, custom: true }))];
+  const engines                 = [...BUILT_IN_ENGINES, ...customEnginesFrom(custom).map((e) => ({ ...e, custom: true }))];
   const seen = new Set        ();
   for (const e of extension) {
     if (seen.has(e.extensionId)) continue;
@@ -1176,7 +1200,7 @@ function engineById(engines                         , id                    )   
 const searchUrl = (engine                           , query        ) => searchUrlFor(engine.url, query);
 
 const suggestRequestUrl = (engine              , query        ) =>
-  engine.suggestUrl && query.trim() ? searchUrlFor(engine.suggestUrl, query) : null;
+  engine.suggestUrl && !engine.custom && query.trim() ? searchUrlFor(engine.suggestUrl, query) : null;
 
 const engineHost = (engine                           ) => hostOf(engine.url.replace(/%s/g, "q"));
 
@@ -1396,8 +1420,12 @@ function fixup(raw        )                {
   return host.port || path.endsWith("/") || parts > 1 ? `${proto}://${input}` : null;
 }
 
+const SURROGATE_PAIR_OR_LONE = /[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDFFF]/g;
+
+const wellFormed = (text        ) => text.replace(SURROGATE_PAIR_OR_LONE, (unit) => (unit.length === 2 ? unit : "\uFFFD"));
+
 function searchUrlFor(template        , query        )         {
-  const q = encodeURIComponent(query.trim());
+  const q = encodeURIComponent(wellFormed(query.trim()));
   return template.includes("%s") ? template.replace(/%s/g, q) : template + q;
 }
 
@@ -3416,7 +3444,7 @@ __define("packages/core/src/suggestFetcher.ts", function (exports, __require) {
 const { parseRemoteSuggestions, suggestReplyJson, suggestRequestUrl } = __require("packages/core/src/engines.ts");
 
                                                               
-                                                                                               
+                                                                                                                      
 
                               
                                                                                                                      
@@ -3468,7 +3496,7 @@ function createSuggestFetcher({
         timer = undefined;
         const controller = new AbortController();
         inFlight = controller;
-        fetch(url, { signal: controller.signal })
+        fetch(url, { signal: controller.signal, engine })
           .then(async (res) => {
             if (!res.ok) return none;
             try {

@@ -218,6 +218,8 @@ jobs:
           for built in "${formats[@]}"; do
             (cd "$RUNNER_TEMP/dist" && sha256sum "$PACKAGE_NAME.$built" > "$PACKAGE_NAME.$built.sha256")
           done
+      - name: Content blocker patches
+        run: node --test packages/ardiacore/tests/ubo-scriptlets.test.mjs
       - name: Smoke
         run: |
           set -euo pipefail

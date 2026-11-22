@@ -85,6 +85,12 @@ jobs:
           path: apps/browser/node_modules/.cache/ardia-test-tsx
           key: ardia-test-tsx-${{ matrix.shard }}-of-8-${{ hashFiles('apps/browser/src/test-loader.mjs', 'pnpm-lock.yaml') }}-${{ github.run_id }}
           restore-keys: ardia-test-tsx-${{ matrix.shard }}-of-8-${{ hashFiles('apps/browser/src/test-loader.mjs', 'pnpm-lock.yaml') }}-
+      - name: The uBlock Origin release ubo.sh pins
+        if: matrix.part == 'browser'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: apps/browser/node_modules/.cache/ublock/*.zip
+          key: ublock-${{ hashFiles('packages/ardiacore/scripts/ubo.sh') }}
       - name: This share of the browser's tests
         if: matrix.part == 'browser'
         env:

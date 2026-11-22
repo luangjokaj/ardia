@@ -8,6 +8,7 @@ import { openEmptySidebarField } from "../../state/omnibox/barState";
 import { isAddressBarInSidebar } from "../../state/sidebar/current";
 import { extensionsFitting, ToolbarExtensions, useToolbarExtensionsWidth } from "../extensions/ToolbarExtensions";
 import { PluginToolbarItems } from "../plugins/PluginToolbarItems";
+import { TabSwipeArea } from "../window/TabSwipe";
 import { PLUGIN_CHROME, usePluginChrome } from "../../state/plugins/chrome";
 import { useHistoryAvailability } from "../../state/tabs/navigation";
 import { toolbarPalette, type ToolbarPalette } from "../ui/toolbarColors";
@@ -164,6 +165,7 @@ export function SidebarAddressRow({ width, top }: { width: number; top: number }
           )}
         </ToolbarRowContext.Provider>
       </SidebarTextScope>
+      <TabSwipeArea windowId={windowId} surface="sidebarField" />
     </View>
   );
 }
