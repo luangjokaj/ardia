@@ -54,13 +54,20 @@ enum AppIcons {
   }
 
   private static var cache: [String: NSImage] = [:]
+  private static var previewCache: [String: String] = [:]
 
   static var base: NSImage = NSImage(named: "AppIcon") ?? NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath) {
-    didSet { cache.removeAll() }
+    didSet {
+      cache.removeAll()
+      previewCache.removeAll()
+    }
   }
 
   static var imageNamed: (String) -> NSImage? = { NSImage(named: $0) } {
-    didSet { cache.removeAll() }
+    didSet {
+      cache.removeAll()
+      previewCache.removeAll()
+    }
   }
 
   static func image(_ id: String, size: CGFloat) -> NSImage? {
@@ -77,9 +84,13 @@ enum AppIcons {
   }
 
   static func preview(_ id: String, size: CGFloat) -> String? {
+    let key = "\(id)@\(size)"
+    if let hit = previewCache[key] { return hit }
     guard let image = image(id, size: size * 2),
           let tiff = image.tiffRepresentation,
           let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else { return nil }
-    return "data:image/png;base64,\(png.base64EncodedString())"
+    let encoded = "data:image/png;base64,\(png.base64EncodedString())"
+    previewCache[key] = encoded
+    return encoded
   }
 }
