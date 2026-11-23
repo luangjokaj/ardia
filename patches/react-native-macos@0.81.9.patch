@@ -976,7 +976,7 @@ index 137d0ee9f51616ea27c397a8bf595fe2c0ff5e91..aee0e19607a58db55ddf0afc4f6d682b
  #import <React/RCTUtils.h>
  #import <React/UIView+React.h>
  
-@@ -17,8 +18,119 @@
+@@ -17,8 +18,140 @@
  
  #if TARGET_OS_OSX // [macOS
  
@@ -1037,7 +1037,28 @@ index 137d0ee9f51616ea27c397a8bf595fe2c0ff5e91..aee0e19607a58db55ddf0afc4f6d682b
 +
 +@end
 +
-+@implementation RCTUIPlainPasteFieldEditor
++@implementation RCTUIPlainPasteFieldEditor {
++  NSUndoManager *_editingUndoManager;
++}
++
++- (NSUndoManager *)undoManager
++{
++  if (!self.window) {
++    return nil;
++  }
++  if (!_editingUndoManager) {
++    _editingUndoManager = [NSUndoManager new];
++  }
++  return _editingUndoManager;
++}
++
++- (void)viewDidMoveToWindow
++{
++  [super viewDidMoveToWindow];
++  if (!self.window) {
++    [_editingUndoManager removeAllActions];
++  }
++}
 +
 +- (void)paste:(id)sender
 +{
@@ -1096,7 +1117,7 @@ index 137d0ee9f51616ea27c397a8bf595fe2c0ff5e91..aee0e19607a58db55ddf0afc4f6d682b
  @property (nonatomic, assign) UIEdgeInsets textContainerInset;
  @property (nonatomic, getter=isAutomaticTextReplacementEnabled) BOOL automaticTextReplacementEnabled;
  @property (nonatomic, getter=isAutomaticSpellingCorrectionEnabled) BOOL automaticSpellingCorrectionEnabled;
-@@ -29,7 +141,29 @@ @interface RCTUITextFieldCell : NSTextFieldCell
+@@ -29,7 +162,29 @@ @interface RCTUITextFieldCell : NSTextFieldCell
  
  @end
  
@@ -1127,7 +1148,7 @@ index 137d0ee9f51616ea27c397a8bf595fe2c0ff5e91..aee0e19607a58db55ddf0afc4f6d682b
  
  - (NSRect)titleRectForBounds:(NSRect)rect
  {
-@@ -84,6 +218,8 @@ @implementation RCTUITextField {
+@@ -84,6 +239,8 @@ @implementation RCTUITextField {
  #if TARGET_OS_OSX // [macOS
    BOOL _isUpdatingPlaceholderText;
    NSArray<NSPasteboardType> *_readablePasteboardTypes;
@@ -1136,7 +1157,7 @@ index 137d0ee9f51616ea27c397a8bf595fe2c0ff5e91..aee0e19607a58db55ddf0afc4f6d682b
  #endif // macOS]
  }
  
-@@ -155,6 +291,11 @@ - (BOOL)hasMarkedText
+@@ -155,6 +312,11 @@ - (BOOL)hasMarkedText
  	return ((NSTextView *)self.currentEditor).validAttributesForMarkedText ?: @[];
  }
  
@@ -1148,7 +1169,7 @@ index 137d0ee9f51616ea27c397a8bf595fe2c0ff5e91..aee0e19607a58db55ddf0afc4f6d682b
  #endif // macOS]
  
  #pragma mark - Accessibility
-@@ -304,8 +445,110 @@ - (RCTUIColor*)cursorColor
+@@ -304,8 +466,110 @@ - (RCTUIColor*)cursorColor
  - (void)setFont:(UIFont *)font
  {
    ((RCTUITextFieldCell*)self.cell).font = font;
@@ -1259,7 +1280,7 @@ index 137d0ee9f51616ea27c397a8bf595fe2c0ff5e91..aee0e19607a58db55ddf0afc4f6d682b
  - (UIFont *)font
  {
    return ((RCTUITextFieldCell*)self.cell).font;
-@@ -330,7 +573,9 @@ - (void)setPlaceholder:(NSString *)placeholder
+@@ -330,7 +594,9 @@ - (void)setPlaceholder:(NSString *)placeholder
  #if !TARGET_OS_OSX // [macOS]
    [super setPlaceholder:placeholder];
  #else // [macOS
@@ -1269,7 +1290,7 @@ index 137d0ee9f51616ea27c397a8bf595fe2c0ff5e91..aee0e19607a58db55ddf0afc4f6d682b
  #endif // macOS]
    [self _updatePlaceholder];
  }
-@@ -385,6 +630,20 @@ - (void)_updatePlaceholder
+@@ -385,6 +651,20 @@ - (void)_updatePlaceholder
    _isUpdatingPlaceholderText = YES;
    self.placeholderAttributedString = [[NSAttributedString alloc] initWithString:self.placeholder ?: @""
  																	 attributes:[self _placeholderTextAttributes]];
@@ -1290,7 +1311,7 @@ index 137d0ee9f51616ea27c397a8bf595fe2c0ff5e91..aee0e19607a58db55ddf0afc4f6d682b
    _isUpdatingPlaceholderText = NO;
  #endif // macOS]
  }
-@@ -710,6 +969,9 @@ - (void)keyUp:(NSEvent *)event {
+@@ -710,6 +990,9 @@ - (void)keyUp:(NSEvent *)event {
  - (void)setReadablePasteBoardTypes:(NSArray<NSPasteboardType> *)readablePasteboardTypes
  {
    _readablePasteboardTypes = readablePasteboardTypes;

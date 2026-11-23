@@ -7,6 +7,7 @@ let centeredResizes = 0;
 let reopenedMaximized = 0;
 let titlesRead = 0;
 let closePinsKept = 0;
+let closePinIdsRenewed = 0;
 let dragLoops = 0;
 const NO_LINUX_COUNTS = {
   linux_windows_app_decorated: 0,
@@ -36,7 +37,10 @@ onAppEvent((e) => {
 });
 
 export const noteWindowReopenedMaximized = () => void (isSharing() && reopenedMaximized++);
-export const noteWindowClosePinsKept = (n: number) => void (closePinsKept += n);
+export function noteWindowClosePinsKept(n: number, renewed: number) {
+  closePinsKept += n;
+  closePinIdsRenewed += renewed;
+}
 
 export function noteLinuxWindowDecorations(decoratedBy: unknown, answer: unknown) {
   if (!isSharing()) return;
@@ -47,12 +51,13 @@ export function noteLinuxWindowDecorations(decoratedBy: unknown, answer: unknown
 export const noteLinuxPageViewportRejected = (consent: ConsentToken | null) => counted(consent, () => void linuxCounts.linux_page_viewports_rejected++);
 
 export function takeWindowPlacementCounts() {
-  const taken = { window_centered_resizes: centeredResizes, windows_reopened_maximized: reopenedMaximized, window_titles_read: titlesRead, window_drag_loops: dragLoops, window_close_pins_kept: closePinsKept, ...linuxCounts };
+  const taken = { window_centered_resizes: centeredResizes, windows_reopened_maximized: reopenedMaximized, window_titles_read: titlesRead, window_drag_loops: dragLoops, window_close_pins_kept: closePinsKept, window_close_pin_ids_renewed: closePinIdsRenewed, ...linuxCounts };
   linuxCounts = { ...NO_LINUX_COUNTS };
   centeredResizes = 0;
   reopenedMaximized = 0;
   titlesRead = 0;
   dragLoops = 0;
   closePinsKept = 0;
+  closePinIdsRenewed = 0;
   return taken;
 }

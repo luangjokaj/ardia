@@ -24,6 +24,7 @@ import {
   setDesktopSite,
   setNightShadeOn,
   shareCurrentPage,
+  shareOffersPrint,
   showFind,
   showReader,
   zoomIn,
@@ -66,7 +67,7 @@ function useActionColumns(labels: readonly string[]) {
   return { columns, measure: (next: number) => setMeasured((now) => (now === next ? now : next)) };
 }
 
-export function PageMenuWords({ tabId, model, onTranslate }: { tabId: string; model: MenuModel; onTranslate: () => void }) {
+export function PageMenuWords({ tabId, model, onTranslate, onContentHeight }: { tabId: string; model: MenuModel; onTranslate: () => void; onContentHeight?: (height: number) => void }) {
   const large = useAccessibilityText();
   const devices = useSendTargets(tabId);
   const offersSummary = usePageSummariesEnabled() && canSummarizePages();
@@ -79,7 +80,7 @@ export function PageMenuWords({ tabId, model, onTranslate }: { tabId: string; mo
   const { columns, measure } = useActionColumns(actions.map((action) => action.label));
   const square = columns === actions.length;
   return (
-    <SheetScrollView testID="pageMenuWords" style={styles.scroll} contentContainerStyle={[styles.column, large ? styles.largeBottom : null]} bounces={false}>
+    <SheetScrollView testID="pageMenuWords" style={styles.scroll} contentContainerStyle={[styles.column, large ? styles.largeBottom : null]} bounces={false} onContentSizeChange={onContentHeight ? (_, height) => onContentHeight(height) : undefined}>
       <NavigationBar tabId={tabId} model={model} large={large} />
       <View testID="pageMenuActions" style={styles.actionRows} onLayout={(event) => measure(event.nativeEvent.layout.width)}>
         {inRows(actions, columns).map((row, index) => (
@@ -102,7 +103,7 @@ export function PageMenuWords({ tabId, model, onTranslate }: { tabId: string; mo
         {model.pageRows ? <ZoomRow model={model} large={large} /> : null}
         {model.pageRows ? <ToggleRow which="desktopSite" icon="desktop" title="Desktop Site" value={model.desktopSite} enabled={model.isWebPage} onChange={setDesktopSite} /> : null}
         {model.pageRows ? <Row icon="translate" title={model.translateTitle} enabled={model.translate} onPress={onTranslate} /> : null}
-        {canPrintPages() ? <Row icon="printer" title="Print" enabled={model.print} onPress={printCurrentPage} /> : null}
+        {canPrintPages() && !shareOffersPrint() ? <Row icon="printer" title="Print" enabled={model.print} onPress={printCurrentPage} /> : null}
         <Row icon="gearshape" title="Site Settings" enabled onPress={openSiteSettingsSheet} />
       </Group>
       <Group>

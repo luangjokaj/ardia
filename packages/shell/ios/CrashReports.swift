@@ -307,6 +307,7 @@ enum DiagnosticsInfo {
     let drag = Thread.isMainThread ? ServerWindowDrag.counts : DispatchQueue.main.sync { ServerWindowDrag.counts }
     sample["dragRegionRebuilds"] = drag.rebuilds
     sample["dragRegionStalePresses"] = drag.stalePresses
+    sample["dragRegionScrollWaits"] = drag.scrollWaits
     let home = FileManager.default.homeDirectoryForCurrentUser
     if let free = (try? home.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]))?.volumeAvailableCapacityForImportantUsage {
       sample["freeDiskGB"] = Double(free / 104_857_600) / 10

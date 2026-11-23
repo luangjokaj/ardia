@@ -31,7 +31,7 @@ const ENGINE = {
   report: listed("ac_linux_report_core.h", "kReportCapabilities"),
   hiddenElements: listed("ac_linux_site_controls.cc", "kBlockerCalls").filter((name) => /^contentBlocker\.(hiddenElements|hideElements|restoreElements)$/.test(name)),
   customFilterLists: listed("ac_linux_site_controls.cc", "kBlockerCalls").filter((name) => /^contentBlocker\.(addList|removeList)$/.test(name)),
-  appendedByName: [appended("profiles.deleteData"), appended("ArdiaShell.fetchBangList")],
+  appendedByName: [appended("profiles.deleteData"), appended("ArdiaShell.fetchBangList"), appended("tab.viewportClip")],
   wheelZoom: listed("ac_linux_page_messages.h", "kLinuxPageMessageRoutes").filter((route) => route === "webView.setCommandScrollZoom"),
   blockAutoplay: listed("ac_linux_page_messages.h", "kLinuxPageMessageRoutes").filter((route) => route === "webView.setBlockAutoplayEverywhere"),
 };

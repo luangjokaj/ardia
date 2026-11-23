@@ -23,7 +23,7 @@ import { sessionWithCleanUpMinutes } from "../settings/cleanUpAfter";
 import { parseSettingsMeta, sessionWithNewTabLinksInLittleArdia, sessionWithSettingsMeta, sessionWithUnreadCountsOffByDefault } from "../settings/settings";
 import { sessionWithOwnTabMutes } from "../tabs/mute";
 import { isRegularWindow } from "../windows/small";
-import { sessionWithPinChoiceStamps } from "../pins/pinChoices";
+import { pinChoicesFromDisk, sessionWithPinChoiceStamps } from "../pins/pinChoices";
 import { isFields, isString, isStringList } from "../../lib/decode";
 import { pageFromDisk, pinFromDisk, splitsChecked, savedPage, sessionWithSplitSlots, sessionWithTabPages, sessionWithTabPins, slotsFromDisk } from "./savedShapes";
 import { beginActivity } from "../app/jobActivity";
@@ -173,7 +173,7 @@ export function parseSession(json: string | null | undefined): SavedSession | nu
     closedTabs: rows(raw.closedTabs, closedTabOk),
     closedWindows: rows<ClosedWindow>(raw.closedWindows, tabListOk).map(splitsChecked).map(withoutSavedTabsShown),
     parkedPins: Object.fromEntries(Object.entries(byProfile<ParkedPins>(raw.parkedPins, parkedOk)).map(([p, park]) => [p, splitsChecked(park)])),
-    pinChoices: byProfile(raw.pinChoices),
+    pinChoices: pinChoicesFromDisk(raw.pinChoices),
     pinSync: byProfile(raw.pinSync),
     topAppsMerged: typeof raw.topAppsMerged === "string" ? raw.topAppsMerged : undefined,
     closedGroups: rows(raw.closedGroups, tabListOk),

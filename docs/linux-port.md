@@ -114,8 +114,13 @@ The acceptance suite is in [linux-acceptance.md](linux-acceptance.md) and CI in 
   because its window or profile went away leaves the closed tab reopenable. Duplicating a tab (`clone:<key>`) clones
   its contents. Either falls back to loading the URL when nothing was saved. The host advertises this as
   `tab.adoptCopies`; without it the shell sends neither id, and the tab loads its URL instead of failing.
-- **Placement.** Rectangles arrive in CSS viewport coordinates and the host converts them. Native pages hide beneath
-  browser overlays and clip themselves.
+- **Placement.** Rectangles arrive in CSS viewport coordinates and the host converts them. `clippedRectOf` clips each
+  page slot to its `overflow`-clipping ancestors (such as `TabPane`) for `tab.viewport`, `shell.inputRegions`, page
+  holes and `clipRadii`, so an auto-hiding toolbar's tall page box never protrudes past the card's bottom or drops its
+  rounded corners. When the unclipped box overflows its clip, `tab.viewport` also carries `contentRect` (gated on
+  `tab.viewportClip`), and `ViewportView` clips the native page to `pane_bounds` (with its rounded corners) while
+  keeping the `WebContents` at `contentRect`'s height until the glide settles, avoiding per-frame page resizes. Native
+  pages hide beneath browser overlays and clip themselves.
 - **Tracking.** `watchTabViewport` measures a page's rectangle, overlays and coverage only when something changes: a
   DOM mutation, a resize, scroll or visibility change, a CSS transition or animation, or a page's own presentation
   change (`refreshTabViewports`). It measures at most once per animation frame. It keeps measuring each

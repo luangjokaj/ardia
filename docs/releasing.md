@@ -1,6 +1,6 @@
 # Releasing
 
-Releases are GitHub releases of `mantrakp04/ardia`, tagged `v<version>`, on two channels: **stable** (`0.2.37`, a full
+Releases are GitHub releases of `ardia-browser/ardia`, tagged `v<version>`, on two channels: **stable** (`0.2.37`, a full
 release) and **nightly** (`0.2.37-nightly.1`, a GitHub prerelease: one fix, shipped the day it's made; "Channels" below).
 Since the Release workflow (`.github/workflows/release.yml`, "CI releases" below) a release is built and published in
 GitHub Actions. Each has these assets:
@@ -12,8 +12,8 @@ GitHub Actions. Each has these assets:
   (a nightly rewrites that asset; "Channels" below). Builds after 0.2.13 poll
   `https://ardia.dev/appcast.xml` (`SUFeedURL`), which counts the check by version and day (and whether
   it's the copy's first) and redirects to
-  `https://github.com/mantrakp04/ardia/releases/latest/download/appcast.xml`, the URL 0.2.13 and
-  earlier poll directly. The count can't block an update: see `infra/site/nginx.conf` and `docs/growth.md`
+  `https://github.com/ardia-browser/ardia/releases/latest/download/appcast.xml`. 0.2.13 and earlier
+  poll the same file under the repo's old name, `mantrakp04/ardia`, which GitHub redirects. The count can't block an update: see `infra/site/nginx.conf` and `docs/growth.md`
   › Installs.
 - `ArdiaCore-<engine tree>.tar.xz`, only in a release built locally from a Chromium tree whose `engine/` changed since
   the last one: the release's engine (Chrome's framework, stripped), so the app builds without a Chromium tree. Engines
@@ -420,7 +420,7 @@ key=<tree:12> dir="dist/engine-$key-backfill" release_out="$HOME/chromium-build/
 mkdir -p "$dir/dsyms"
 scripts/agent/locked chromium -- bash -c 'cp -cR "$1/Chromium Framework.framework" "$2/" && cp -cR "$1"/*.dSYM "$2/dsyms/"' copy "$release_out" "$dir"
 scripts/lib/pack-symbols.sh "$dir/Chromium Framework.framework" "$dir/dsyms" "$dir/ArdiaCore-$key-symbols.tar.xz" "$dir/ArdiaCore-$key-uuids.txt"
-gh release upload "engine-$key" -R mantrakp04/ardia --clobber "$dir/ArdiaCore-$key-symbols.tar.xz" "$dir/ArdiaCore-$key-uuids.txt"
+gh release upload "engine-$key" -R ardia-browser/ardia --clobber "$dir/ArdiaCore-$key-symbols.tar.xz" "$dir/ArdiaCore-$key-uuids.txt"
 ```
 
 ## The engine switch (0.2.21 → 0.2.22)

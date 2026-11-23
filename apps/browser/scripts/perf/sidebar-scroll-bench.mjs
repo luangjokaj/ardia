@@ -37,8 +37,9 @@ events then); --post acperf posts them with acperf postscroll instead. Gestures:
 --pointer over (default) parks the hover pointer (ac.shell.devSetPointer, Debug builds) over the sidebar under the
 gesture, as a real pointer is while you scroll; away parks it over the page.
 Per gesture, over the gesture plus 700 ms: main- and JS-thread CPU ms (thread_info, read on each display-link tick) and
-run-loop busy ms (acframes.m), app process CPU ms
-(acperf rusage), display-link frames and the longest gap between them (about 63 Hz while locked), React commits, renders, host view updates, store updates, JS tasks from native events by name
+run-loop busy ms (acframes.m), the longest main run-loop iteration and how many ran over 8.3 ms (each costs a 120 Hz
+frame; mainLong in the report lists when and how long), the display-link ticks on which the list had moved and how many of
+those came over 1.5 display frames after the tick before (a frame dropped while it moved, the one you see; null with --post acperf, which samples no offsets), app process CPU ms (acperf rusage), display-link frames and the longest gap between them (about 63 Hz while locked), React commits, renders, host view updates, store updates, JS tasks from native events by name
 (scroll and hover events), native view updates and layout passes (acframes counters), and how far the list moved.
 Instances alternate nothing: run two labels in turn with --append to interleave builds (A B A B), e.g.
   for i in 1 2 3 4 5; do for s in base:A.jsbundle new:B.jsbundle; do
@@ -233,7 +234,7 @@ async function readProbe(inst, reset) {
       commits: s.commits, renders: sum(s.renders), hostUpdates: s.hostUpdates, storeUpdates: sum(s.storeUpdates),
       scrollEvents: tasksOf(/scroll/i), scrollMs: msOf(/scroll/i), hoverEvents: tasksOf(/mouse(Enter|Leave)/i), hoverMs: msOf(/mouse(Enter|Leave)/i),
       tasks: sum(s.tasks), taskMs: sum(s.taskMs), commitMs: s.commitMs,
-      tasksBy: pick(s.tasks, 8), rendersBy: pick(s.renders, 8), storeKeys: pick(s.storeKeys, 6),
+      tasksBy: pick(s.tasks, 8), rendersBy: pick(s.renders, 12), commitTasks: pick(s.commitTasks, 8), mountsBy: pick(s.mounts, 8), storeKeys: pick(s.storeKeys, 6),
     };`);
 }
 
@@ -254,10 +255,32 @@ class Frames {
     }).filter(Boolean);
   }
   busy(from, to) {
-    const out = { m: 0, j: 0, mMax: 0, jMax: 0, layoutMs: 0, frames: 0, maxGap: 0, mainCpu: null, jsCpu: null };
+    const out = { m: 0, j: 0, mMax: 0, jMax: 0, mOver: 0, mLong: [], layoutMs: 0, frames: 0, maxGap: 0, mainCpu: null, jsCpu: null, moving: null, lateMoving: null, movingMaxGap: null };
+    const records = this.records();
+    const periods = records.filter((r) => r.k === "f" && r.ts >= from && r.ts < to && r.tgt > r.ts).map((r) => r.tgt - r.ts).sort((x, y) => x - y);
+    const lateAfter = 1.5 * (periods.length ? periods[periods.length >> 1] : 1000 / 120);
+    const before = records.filter((r) => r.k === "y" && r.ts < from).at(-1);
+    const offsets = records.filter((r) => r.k === "y" && r.ts >= from && r.ts < to);
+    if (offsets.length && before) offsets.unshift(before);
+    if (offsets.length) Object.assign(out, { moving: 0, lateMoving: 0, movingMaxGap: 0 });
+    for (let i = 1; i < offsets.length; i++) {
+      if (Math.abs(offsets[i].y - offsets[i - 1].y) < 0.5) continue;
+      const gap = offsets[i].ts - offsets[i - 1].ts;
+      out.moving++;
+      out.movingMaxGap = Math.max(out.movingMaxGap, gap);
+      if (gap > lateAfter) out.lateMoving++;
+    }
+    const wholeIterations = records.some((r) => r.k === "i");
     let last = null;
     let first = null;
-    for (const r of this.records()) {
+    for (const r of records) {
+      if (r.k === "i" && r.th === "m" && r.a < to && r.a + r.d > from) {
+        out.mMax = Math.max(out.mMax, r.d);
+        if (r.d > 8.3) {
+          out.mOver++;
+          out.mLong.push([Math.round(r.a - from), Math.round(r.d * 10) / 10]);
+        }
+      }
       if (r.k === "f" && r.ts >= from && r.ts < to) {
         first ??= r;
         if (r.mc >= 0 && first.mc >= 0) out.mainCpu = r.mc - first.mc;
@@ -268,7 +291,11 @@ class Frames {
       }
       if (r.k === "r" && r.a >= from && r.a < to) {
         out[r.th] += r.d;
-        out[`${r.th}Max`] = Math.max(out[`${r.th}Max`], r.d);
+        if (r.th === "j" || !wholeIterations) out[`${r.th}Max`] = Math.max(out[`${r.th}Max`], r.d);
+        if (r.th === "m" && !wholeIterations && r.d > 8.3) {
+          out.mOver++;
+          out.mLong.push([Math.round(r.a - from), Math.round(r.d * 10) / 10]);
+        }
       } else if (r.k === "l" && r.a >= from && r.a < to) out.layoutMs += r.d;
     }
     return out;
@@ -318,7 +345,7 @@ async function gesture(inst, frames, win, name, at) {
   const counter = (k) => (c0 && c1 ? c1[k] - c0[k] : null);
   return {
     gesture: name, events: posted.events, ms: t1 - t0, moved: y0 === null || y1 === null ? null : Math.round(y1 - y0),
-    frames: busy.frames, maxGapMs: round(busy.maxGap), mainCpuMs: round(busy.mainCpu), jsCpuMs: round(busy.jsCpu), mainBusyMs: round(busy.m), jsBusyMs: round(busy.j), mainMaxMs: round(busy.mMax), jsMaxMs: round(busy.jMax), layoutMs: round(busy.layoutMs),
+    frames: busy.frames, maxGapMs: round(busy.maxGap), mainCpuMs: round(busy.mainCpu), jsCpuMs: round(busy.jsCpu), mainBusyMs: round(busy.m), jsBusyMs: round(busy.j), mainMaxMs: round(busy.mMax), mainOver: busy.mOver, mainLong: busy.mLong, movingFrames: busy.moving, lateWhileMoving: busy.lateMoving, movingMaxGapMs: round(busy.movingMaxGap), jsMaxMs: round(busy.jMax), layoutMs: round(busy.layoutMs),
     cpuMs: round(cpu1 - cpu0), delivered: counter("scrollEvents"), hitTests: counter("rootHitTests"), viewUpdates: counter("viewUpdates"), viewCreates: counter("viewCreates"), layoutPasses: counter("layoutPasses"), uiBlocks: counter("uiBlocks"),
     ...probe,
   };
@@ -377,7 +404,7 @@ async function run() {
               const row = await gesture(inst, frames, win, g, at);
               if (!(Math.abs(row.moved ?? 0) >= 50)) console.log(`WARNING: ${key} ${g} moved ${row.moved} pt: the list didn't scroll, so this row measures nothing`);
               rows.push(row);
-              console.log(`${label} ${key} #${r + 1} ${g.padEnd(11)} moved ${String(row.moved).padStart(5)} (${row.delivered} ev)  gap ${row.maxGapMs}  mainCpu ${row.mainCpuMs}  jsCpu ${row.jsCpuMs}  main ${String(row.mainBusyMs).padStart(6)} ms  js ${String(row.jsBusyMs).padStart(6)} ms  cpu ${String(row.cpuMs).padStart(6)} ms  commits ${row.commits}  renders ${row.renders}  scrollEv ${row.scrollEvents}  hoverEv ${row.hoverEvents}  viewUpd ${row.viewUpdates}  layouts ${row.layoutPasses}`);
+              console.log(`${label} ${key} #${r + 1} ${g.padEnd(11)} moved ${String(row.moved).padStart(5)} (${row.delivered} ev)  gap ${row.maxGapMs}  longest ${row.mainMaxMs}  over ${row.mainOver}  late ${row.lateWhileMoving}/${row.movingFrames} moving  mainCpu ${row.mainCpuMs}  jsCpu ${row.jsCpuMs}  main ${String(row.mainBusyMs).padStart(6)} ms  js ${String(row.jsBusyMs).padStart(6)} ms  cpu ${String(row.cpuMs).padStart(6)} ms  commits ${row.commits}  renders ${row.renders}  scrollEv ${row.scrollEvents}  hoverEv ${row.hoverEvents}  viewUpd ${row.viewUpdates}  layouts ${row.layoutPasses}`);
             }
           console.log(`${label} ${key} idle 2.2 s: main ${rows[0].mainBusyMs} ms  js ${rows[0].jsBusyMs} ms  cpu ${rows[0].cpuMs} ms`);
           report.runs.push({ key, tabs, profiles, at: new Date().toISOString(), rows });
@@ -395,7 +422,7 @@ async function run() {
 
 function compare(a, b) {
   const sides = [a, b].map((f) => JSON.parse(readFileSync(f, "utf8")));
-  const metrics = ["maxGapMs", "hitTests", "mainCpuMs", "jsCpuMs", "mainBusyMs", "jsBusyMs", "cpuMs", "commits", "renders", "scrollEvents", "hoverEvents", "viewUpdates", "layoutPasses", "moved"];
+  const metrics = ["maxGapMs", "mainMaxMs", "mainOver", "lateWhileMoving", "movingMaxGapMs", "movingFrames", "hitTests", "mainCpuMs", "jsCpuMs", "mainBusyMs", "jsBusyMs", "cpuMs", "commits", "renders", "scrollEvents", "hoverEvents", "viewUpdates", "layoutPasses", "moved"];
   const group = (side) => {
     const out = new Map();
     for (const run of side.runs)
