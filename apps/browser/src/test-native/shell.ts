@@ -450,7 +450,7 @@ const translate: Modules["ArdiaTranslate"] = {
 };
 
 const magnifyArea: Modules["ArdiaMagnifyArea"] = { devMagnify: () => unfaked("ArdiaMagnifyArea", "devMagnify") };
-const wheelArea: Modules["ArdiaWheelArea"] = { devWheel: () => unfaked("ArdiaWheelArea", "devWheel"), glideScroll: async () => {} };
+const wheelArea: Modules["ArdiaWheelArea"] = { devWheel: () => unfaked("ArdiaWheelArea", "devWheel"), glideScroll: async () => {}, steerScroll: async () => {} };
 const fileDrop: Modules["ArdiaFileDrop"] = {
   devDrag: () => unfaked("ArdiaFileDrop", "devDrag"),
   devLastFileDrag: () => Promise.resolve([]),

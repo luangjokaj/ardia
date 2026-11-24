@@ -23,6 +23,7 @@
 #include "ardia/win/webui/webui_file_picker.h"
 #include "ardia/win/webui/webui_host_internal.h"
 #include "ardia/win/webui/webui_storage.h"
+#include "ardia/win/webui/webui_updates.h"
 #include "ardia/win/webui/webui_windows.h"
 #include "base/functional/bind.h"
 #include "base/json/json_writer.h"
@@ -1340,7 +1341,8 @@ std::string ShellHostView::BootstrapJson() const {
   for (const auto& calls :
        {std::span<const std::string_view>(kDefaultBrowserCalls),
         std::span<const std::string_view>(kLoginItemCalls),
-        std::span<const std::string_view>(kOpenExternalCalls)}) {
+        std::span<const std::string_view>(kOpenExternalCalls),
+        std::span<const std::string_view>(kUpdateCapabilities)}) {
     for (std::string_view call : calls) {
       capabilities.Append(call);
     }

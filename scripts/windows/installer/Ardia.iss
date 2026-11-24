@@ -57,6 +57,9 @@ Source: "{#ShellManifest}"; DestDir: "{app}"; DestName: "ardia-{#Shell}-files.tx
 #ifdef RetiredList
 Source: "{#RetiredList}"; DestName: "retired-shell.txt"; Flags: dontcopy
 #endif
+#ifdef KeptList
+Source: "{#KeptList}"; DestName: "kept-files.txt"; Flags: dontcopy
+#endif
 
 [Dirs]
 Name: "{localappdata}\Ardia\User Data"
@@ -292,11 +295,30 @@ begin
       Log('Owned files: could not keep ' + Failed[I] + ' in ' + Path);
 end;
 
+procedure ReadKeptFiles(Kept: TStringList);
+var
+  Entries: TArrayOfString;
+  I: Integer;
+begin
+#ifdef KeptList
+  if not FileExists(ExpandConstant('{tmp}\kept-files.txt')) then
+    ExtractTemporaryFile('kept-files.txt');
+  if not LoadStringsFromFile(ExpandConstant('{tmp}\kept-files.txt'), Entries) then
+  begin
+    Log('Retired shell: the list of files both shells keep could not be read');
+    Exit;
+  end;
+  for I := 0 to GetArrayLength(Entries) - 1 do
+    if Trim(Entries[I]) <> '' then
+      Kept.Add(Trim(Entries[I]));
+#endif
+end;
+
 procedure RemoveRetiredShell(Folder: String);
 var
   Manifest, Entry: String;
   Entries: TArrayOfString;
-  Removed, Failed: TStringList;
+  Removed, Failed, Kept: TStringList;
   FromManifest: Boolean;
   I: Integer;
 begin
@@ -322,11 +344,15 @@ begin
   end;
   Removed := TStringList.Create;
   Failed := TStringList.Create;
+  Kept := TStringList.Create;
   try
+    ReadKeptFiles(Kept);
     for I := 0 to GetArrayLength(Entries) - 1 do
     begin
       Entry := Trim(Entries[I]);
-      if ExactEntryValid(Entry) then
+      if InList(Kept, Entry) then
+        Log('Retired shell: ' + Entry + ' is kept by both shells, so it stays')
+      else if ExactEntryValid(Entry) then
         RemoveOwnedFile(Folder, Entry, Removed, Failed)
       else if not FromManifest and OwnedEntryValid(Entry) and (Copy(Entry, 1, 2) = '*\') then
         RemoveInEachFolder(Folder, Copy(Entry, 3, Length(Entry) - 2), Removed, Failed)
@@ -349,6 +375,7 @@ begin
   finally
     Removed.Free;
     Failed.Free;
+    Kept.Free;
   end;
 end;
 
@@ -372,6 +399,7 @@ begin
   try
     for I := 0 to GetArrayLength(Current) - 1 do
       Kept.Add(Trim(Current[I]));
+    ReadKeptFiles(Kept);
     for I := 0 to GetArrayLength(PreviousOwn) - 1 do
     begin
       Entry := Trim(PreviousOwn[I]);

@@ -352,8 +352,9 @@ export const shell = defineModuleDomain({
     },
     ArdiaWheelArea: {
       functions: {
-        devWheel: { args: [["windowId", "string"], ["x", "number"], ["y", "number"], ["steps", "{ phase?: string; dy: number; momentum?: boolean; precise?: boolean }[]", "[[String: Any]]"]], result: "{ claimed?: boolean[]; error?: string }", swiftResult: "[String: Any]", async: true, queue: "main", mac: "custom", desktop: "absent", windows: "absent" },
+        devWheel: { args: [["windowId", "string"], ["x", "number"], ["y", "number"], ["steps", "{ phase?: string; dy: number; momentum?: boolean; precise?: boolean; afterMs?: number }[]", "[[String: Any]]"]], result: "{ claimed?: boolean[]; inputs?: { t: number; dy: number }[]; frames?: { t: number; model: number; shown: number }[]; error?: string }", async: true, promise: true, queue: "main", mac: "custom", desktop: "absent", windows: "absent" },
         glideScroll: { args: [["tag", "number", "Int"], ["y", "number"], ["durationMs", "number"]], result: "void", async: true, queue: "main", instance: "strong", mac: "custom", desktop: "absent", windows: "absent" },
+        steerScroll: { args: [["tag", "number", "Int"], ["lo", "number"], ["hi", "number"], ["glideMs", "number"], ["canForward", "boolean"], ["canBack", "boolean"]], result: "void", async: true, queue: "main", instance: "strong", mac: "custom", desktop: "absent", windows: "absent" },
       },
       events: {},
     },

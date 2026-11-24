@@ -28,3 +28,5 @@ export const donateLabel = (amount: DonateAmount) =>
 
 
 export const MONTHLY_CUSTOM = { path: "/api/donate/monthly", min: 1, max: 10_000 } as const;
+
+export const DONATE_POP_PICKER = "donate-pop-picker";

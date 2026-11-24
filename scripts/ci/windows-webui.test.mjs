@@ -58,6 +58,7 @@ test("the WebUI job builds the UI and the migrator, assembles a shippable build 
     "Check the pilot's waits, log and types on Windows PowerShell",
     "Build the desktop UI for Windows",
     "Build the migrator",
+    "Build the update verifier",
     "Fetch the engine",
     "Assemble the shippable WebUI build",
     "Every DLL the WebUI build needs is in it or in a clean Windows 11",
@@ -75,7 +76,9 @@ test("the WebUI job builds the UI and the migrator, assembles a shippable build 
   assert.match(stepNamed(job, "Build the migrator"), /cargo build --locked --release -p ardia-shell-migration --bin ardia-webui-migrate/);
   assert.ok(job.includes("      MIGRATOR: packages/core-rs/target/release/ardia-webui-migrate.exe\n"));
   const assemble = stepNamed(job, "Assemble the shippable WebUI build");
-  assert.match(assemble, /assemble-webui\.ps1 -Engine .* -Ui apps\/desktop\/dist\/win -Out .* -MigrateBin \$env:MIGRATOR -Shippable -Version \$env:VERSION -Build \$env:BUILD/);
+  assert.match(assemble, /assemble-webui\.ps1 -Engine .* -Ui apps\/desktop\/dist\/win -Out .* -MigrateBin \$env:MIGRATOR -UpdateVerify .* -Shippable -Version \$env:VERSION -Build \$env:BUILD/);
+  assert.ok(stepNamed(job, "Build the update verifier").includes('run: scripts/windows/update-verify.ps1 -Cpu $env:SLUG -Out "${{ runner.temp }}/update-verify"'), "the verifier is built for the build's CPU");
+  assert.ok(assemble.includes('-UpdateVerify "${{ runner.temp }}/update-verify/ardia-update-verify.exe"'), "the shippable WebUI build carries the update verifier and the pinned key");
   assert.ok(!assemble.includes("-TestBuild"), "the shippable build carries no test marker");
   assert.ok(stepNamed(job, "Fetch the engine").includes("github.event.pull_request.head.repo.full_name == github.repository"), "a fork's pull request never gets the engine token");
 });
@@ -156,4 +159,26 @@ test("removals never pass through a link, take exact paths from manifests, and k
   assert.ok(installer.includes("Write-RetiredShellList $shellKind $retired"));
   assert.ok(installer.includes("Write-ShellManifest $sourceRoot $shellKind $manifest"));
   assert.ok(installer.includes('"/DShellManifest=$manifest"'));
+});
+
+test("the update verifier and its pinned key survive every shell switch and update, since both shells verify updates with them", () => {
+  const layout = read("scripts/windows/shell-layout.ps1");
+  const kept = layout.match(/\n\$ShellKept = @\(([^)]*)\)/)?.[1] ?? "";
+  for (const name of ["ardia-update-verify.exe", "windows-update.pem"]) {
+    assert.ok(kept.includes(`"${name}"`), `${name} is kept by both shells`);
+    const owned = layout.slice(layout.indexOf("$ShellOwned = @{"), layout.indexOf("$ShellOwnedFolders"));
+    assert.ok(!owned.includes(`"${name}"`), `${name} is owned by neither shell, so retiring one never lists it`);
+  }
+  assert.ok(layout.includes('function Write-KeptFileList([string]$path) {'));
+  const installer = read("scripts/windows/make-installer.ps1");
+  assert.ok(installer.includes("Write-KeptFileList $kept"));
+  assert.ok(installer.includes('"/DKeptList=$kept"'), "make-installer hands Inno Setup the kept list");
+  assert.ok(SCRIPT.includes('#ifdef KeptList\nSource: "{#KeptList}"; DestName: "kept-files.txt"; Flags: dontcopy\n#endif'));
+  const retire = SCRIPT.slice(SCRIPT.indexOf("procedure RemoveRetiredShell("), SCRIPT.indexOf("procedure RemoveStaleOwnFiles"));
+  assert.ok(retire.indexOf("ReadKeptFiles(Kept);") > 0 && retire.indexOf("if InList(Kept, Entry) then") < retire.indexOf("RemoveOwnedFile(Folder, Entry, Removed, Failed)"), "an older install's own manifest never takes a kept file with it");
+  const stale = SCRIPT.slice(SCRIPT.indexOf("procedure RemoveStaleOwnFiles"), SCRIPT.indexOf("procedure NoteInstalledShells"));
+  assert.ok(stale.indexOf("ReadKeptFiles(Kept);") > 0 && stale.indexOf("ReadKeptFiles(Kept);") < stale.indexOf("RemoveOwnedFile"), "an update of the same shell keeps them though the last manifest listed them");
+  const assemble = read("scripts/windows/assemble-webui.ps1");
+  assert.ok(assemble.includes('if ($Shippable -and -not $UpdateVerify) { throw'), "a shippable WebUI build refuses to assemble without the verifier");
+  assert.ok(assemble.includes("Copy-Item -LiteralPath $pinnedKey -Destination (Join-Path $outRoot $keyName) -Force"), "the pinned key comes from scripts/windows, never from the command line");
 });

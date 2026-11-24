@@ -19,6 +19,7 @@ export const SITE_EVENTS = [
   "github_clicked",
   "discord_clicked",
   "donate_clicked",
+  "sponsor_clicked",
   "notify_clicked",
   "screenshot_opened",
   "section_viewed",
@@ -97,6 +98,8 @@ export const REPLAY_START_AFTER_LOAD_MS = 2500;
 export const REPLAY_START_IDLE_MS = 2000;
 export const PRIVATE_SELECTOR = ".ac-private, [data-private]";
 export const BLOCK_SELECTOR = ".ac-block, [data-private-block], .demo-frame";
+export const AUTOCAPTURE_PRIVATE_SELECTOR = `${PRIVATE_SELECTOR}, .ph-sensitive`;
+export const NO_CAPTURE_SELECTOR = ".ph-no-capture, [data-ac-no-capture]";
 
 export const FLAGS = {
   "download-band": {

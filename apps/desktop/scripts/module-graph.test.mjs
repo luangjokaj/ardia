@@ -324,6 +324,7 @@ const WIN_TWINS = [
   ["state/commands/comboWords", "desktop"],
   ["state/commands/keyText", "win"],
   ["state/telemetry/copyWords", "win"],
+  ["platform/windowsUpdateCounts", "win"],
   ["state/tabs/engineKeptCodes", "desktop"],
 ];
 const WINDOWS_WORDING = new Set([`${browser}lib/platformTerms.windows.ts`, `${browser}lib/platformChrome.windows.ts`, `${browser}state/telemetry/copyWords.windows.ts`]);
@@ -343,15 +344,17 @@ test("the win build shares every desktop adapter, takes Windows terms, and leave
   const seams = [
     ["main.tsx", "platform/buttonLayout.win.ts"],
     ["main.tsx", "platform/launchNotice.desktop.ts"],
-    ["main.tsx", "platform/updater.desktop.ts"],
+    ["main.tsx", "platform/updater.win.ts"],
+    ["AppMenuButton.tsx", "platform/updater.win.ts"],
     ["hostModules.ts", "platform/calendar.desktop.ts"],
-    ["hostSystem.ts", "platform/updates.desktop.ts"],
-    ["settingsIndex.ts", "platform/updates.desktop.ts"],
+    ["hostSystem.ts", "platform/updates.win.ts"],
+    ["settingsIndex.ts", "platform/updates.win.ts"],
     ["shortcutFormat.ts", "platform/keyNames.win.ts"],
     ["credentialNotices.ts", "platform/secretWording.win.ts"],
     ["syncKeyStore.ts", "platform/secretWording.win.ts"],
   ];
   for (const [importer, seam] of seams) assert.ok(graph.get(`${desktop}${importer}`)?.importedIds.includes(`${desktop}${seam}`), `${importer} imports ${seam}`);
+  assert.ok(graph.get(`${desktop}platform/win/hostUpdates.ts`)?.importedIds.includes(`${browser}platform/windowsUpdateCounts.win.ts`), "the Windows updater counts manifest checks in the same twin the hourly telemetry takes them from");
   const code = chunks.map((chunk) => chunk.code).join("\n");
   for (const linux of ["Evolution Data Server", "yay -Syu", "Super+", "(polkit)", "Ardia is running without Chromium's sandbox", '"hyprland","sway","niri"']) assert.ok(!code.includes(linux), `the win bundle says ${linux}`);
   for (const windows of ["File Explorer", "Windows Hello or your Windows password"]) assert.ok(code.includes(windows), `the win bundle lacks ${windows}`);

@@ -210,6 +210,34 @@ void TestDownloadCommands() {
   assert(command_routes == 4);
 }
 
+void TestShellSelection() {
+  static_assert(WebUIShellSelected(L"", L"", false, false));
+  static_assert(WebUIShellSelected(L"", L"webui", false, false));
+  static_assert(WebUIShellSelected(L"", L"webui", false, true));
+  static_assert(!WebUIShellSelected(L"", L"rnw", false, false));
+  static_assert(!WebUIShellSelected(L"", L"rnw", false, true));
+  static_assert(!WebUIShellSelected(L"", L"", false, true));
+  static_assert(!WebUIShellSelected(L"", L"", true, false));
+  static_assert(!WebUIShellSelected(L"", L"", true, true));
+  static_assert(WebUIShellSelected(L"", L"webui", true, false));
+  static_assert(WebUIShellSelected(L"", L"webui", true, true));
+  static_assert(!WebUIShellSelected(L"", L"rnw", true, false));
+  assert(WebUIShellSelected(L"", L"RNW", false, false));
+  assert(!WebUIShellSelected(L"", L"RNW", false, true));
+  assert(!WebUIShellSelected(L"", L"RNW", true, false));
+  assert(WebUIShellSelected(L"", L"rnw ", false, false));
+  assert(WebUIShellSelected(L"", L" rnw", false, false));
+  assert(WebUIShellSelected(L"", L"WebUI", false, false));
+  assert(!WebUIShellSelected(L"", L"WebUI", false, true));
+  assert(!WebUIShellSelected(L"", L"WebUI", true, false));
+  assert(WebUIShellSelected(L"", L"anything", false, false));
+  assert(!WebUIShellSelected(L"renderer", L"", false, false));
+  assert(!WebUIShellSelected(L"gpu-process", L"webui", false, false));
+  assert(!WebUIShellSelected(L"crashpad-handler", L"rnw", false, true));
+  assert(!WebUIShellSelected(L"utility", L"webui", false, true));
+  assert(!WebUIShellSelected(L"utility", L"webui", true, false));
+}
+
 void TestStartupMigrationGate() {
   using Outcome = StartupMigrationOutcome;
   static_assert(kStartupMigrationTimeoutMs == 60000);
@@ -484,6 +512,7 @@ int main() {
   TestCanonicalPathContainment();
   TestStartupMigrationPolicy();
   TestStartupMigrationGate();
+  TestShellSelection();
   TestWinRenameHelpers();
   TestDesktopTelemetryPolicy();
   TestMaximizeButtonStateMachine();

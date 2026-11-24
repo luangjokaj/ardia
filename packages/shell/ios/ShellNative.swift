@@ -1178,21 +1178,26 @@ extension MagnifyAreaNative {
 }
 
 protocol WheelAreaNative {
-  static func devWheel(_ windowId: String, _ x: Double, _ y: Double, _ steps: [[String: Any]]) -> [String: Any]
+  static func devWheel(_ windowId: String, _ x: Double, _ y: Double, _ steps: [[String: Any]], _ promise: Promise)
   func glideScroll(_ tag: Int, _ y: Double, _ durationMs: Double)
+  func steerScroll(_ tag: Int, _ lo: Double, _ hi: Double, _ glideMs: Double, _ canForward: Bool, _ canBack: Bool)
 }
 
 extension WheelAreaNative {
   static var moduleName: String { "ArdiaWheelArea" }
 
   static var devWheelFunction: AnyDefinition {
-    AsyncFunction("devWheel") { (windowId: String, x: Double, y: Double, steps: [[String: Any]]) -> [String: Any] in Self.devWheel(windowId, x, y, steps) }.runOnQueue(.main)
+    AsyncFunction("devWheel") { (windowId: String, x: Double, y: Double, steps: [[String: Any]], promise: Promise) in Self.devWheel(windowId, x, y, steps, promise) }.runOnQueue(.main)
   }
 }
 
 extension WheelAreaNative where Self: Module {
   var glideScrollFunction: AnyDefinition {
     AsyncFunction("glideScroll") { (tag: Int, y: Double, durationMs: Double) in self.glideScroll(tag, y, durationMs) }.runOnQueue(.main)
+  }
+
+  var steerScrollFunction: AnyDefinition {
+    AsyncFunction("steerScroll") { (tag: Int, lo: Double, hi: Double, glideMs: Double, canForward: Bool, canBack: Bool) in self.steerScroll(tag, lo, hi, glideMs, canForward, canBack) }.runOnQueue(.main)
   }
 }
 

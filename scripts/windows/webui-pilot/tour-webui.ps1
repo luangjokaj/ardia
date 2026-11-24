@@ -87,10 +87,6 @@ function Go([string]$url) {
   [Pilot]::Chord(0x0D)
   Wait-Until { @(Pages | Where-Object { $_.url -eq $url }).Count -ge 1 } 20 "a page at $url" -NoThrow
 }
-function App-Processes {
-  $folder = $App.TrimEnd('\') + '\'
-  @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($folder, [StringComparison]::OrdinalIgnoreCase) })
-}
 $maxSelector = 'document.querySelector(''.ardia-window-controls [role="button"][aria-label="Maximize"], .ardia-window-controls [role="button"][aria-label="Restore Down"]'')'
 $closeSelector = 'document.querySelector(''.ardia-window-controls [role="button"][aria-label="Close"]'')'
 $maxState = "(() => { const b = $maxSelector; return b ? JSON.stringify({ hover: b.getAttribute('data-ardia-nc-hover') === 'true', pressed: b.getAttribute('data-ardia-nc-pressed') === 'true' }) : null; })()"

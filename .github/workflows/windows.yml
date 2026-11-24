@@ -811,6 +811,9 @@ jobs:
         shell: bash
         working-directory: packages/core-rs
         run: rustup toolchain install && cargo build --locked --release -p ardia-shell-migration --bin ardia-webui-migrate
+      - name: Build the update verifier
+        shell: pwsh
+        run: scripts/windows/update-verify.ps1 -Cpu $env:SLUG -Out "${{ runner.temp }}/update-verify"
       - name: Fetch the engine
         id: engine
         if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
@@ -822,7 +825,7 @@ jobs:
         id: assemble
         if: ${{ !cancelled() && steps.engine.outcome == 'success' }}
         shell: pwsh
-        run: scripts/windows/assemble-webui.ps1 -Engine "${{ runner.temp }}/engine" -Ui apps/desktop/dist/win -Out "${{ runner.temp }}/ArdiaWebUI" -MigrateBin $env:MIGRATOR -Shippable -Version $env:VERSION -Build $env:BUILD
+        run: scripts/windows/assemble-webui.ps1 -Engine "${{ runner.temp }}/engine" -Ui apps/desktop/dist/win -Out "${{ runner.temp }}/ArdiaWebUI" -MigrateBin $env:MIGRATOR -UpdateVerify "${{ runner.temp }}/update-verify/ardia-update-verify.exe" -Shippable -Version $env:VERSION -Build $env:BUILD
       - name: Every DLL the WebUI build needs is in it or in a clean Windows 11
         if: ${{ !cancelled() && steps.assemble.outcome == 'success' }}
         shell: pwsh

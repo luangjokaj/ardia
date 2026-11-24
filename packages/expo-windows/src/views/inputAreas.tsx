@@ -361,7 +361,7 @@ export const WindowProfile = forwardRef<View, WindowProfileProps>(function Windo
   );
 });
 
-export const WheelArea = forwardRef<View, NativeWheelAreaProps>(function WheelArea({ onWheel: _onWheel, children, ...rest }, ref) {
+export const WheelArea = forwardRef<View, NativeWheelAreaProps>(function WheelArea({ onStep: _onStep, children, ...rest }, ref) {
   return (
     <View {...rest} ref={ref}>
       {children}
