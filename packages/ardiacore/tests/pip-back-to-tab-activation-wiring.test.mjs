@@ -61,6 +61,6 @@ test("a press on the PiP activates with only that window, and never falls back t
   assert.ok(start >= 0 && activation.length > 0);
   assert.match(activation, /dlsym\(RTLD_DEFAULT, "_SLPSSetFrontProcessWithOptions"\)/);
   assert.doesNotMatch(activation, /activateIgnoringOtherApps|\[NSApp activate\]/, "the ordinary activation brings the main window forward too");
-  assert.match(activation, /!= kCGErrorSuccess\) \{\s*ConsumeBackToTabActivation\(\);\s*return EndActiveOnlyForPictureInPicture\(\);/, "a refused activation leaves no mark behind for a later one");
+  assert.match(activation, /!= kCGErrorSuccess\) \{\s*NoteGesture\([^;]*\);\s*ConsumeBackToTabActivation\(\);\s*return EndActiveOnlyForPictureInPicture\(@"activation refused"\);/, "a refused activation leaves no mark behind for a later one");
 });
 
