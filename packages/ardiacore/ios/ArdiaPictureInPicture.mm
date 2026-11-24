@@ -311,6 +311,8 @@ BOOL ConsumeBackToTabActivation() {
 
 static BOOL gActiveOnlyForPictureInPicture;
 
+static NSUInteger gPictureInPictureActivation;
+
 static void EndActiveOnlyForPictureInPicture(NSString *why) {
   if (!gActiveOnlyForPictureInPicture) return;
   gActiveOnlyForPictureInPicture = NO;
@@ -338,6 +340,7 @@ void ActivateWithOnlyPictureInPicture(ArdiaPiPController *controller, BOOL move)
   if (!window || NSApp.active) return;
   NoteGesture(@"activate with only PiP asked (%@) window=%ld", move ? @"move" : @"press", (long)window.windowNumber);
   gActivations++;
+  const NSUInteger activation = ++gPictureInPictureActivation;
   ArdiaConsentStamp *activationStamp = ArdiaConsentStamp.begin;
   __weak ArdiaWebView *source = controller.view;
   __block BOOL becameActive = NO;
@@ -348,7 +351,7 @@ void ActivateWithOnlyPictureInPicture(ArdiaPiPController *controller, BOOL move)
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(reportAfter * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
     [NSNotificationCenter.defaultCenter removeObserver:watch];
     watch = nil;
-    if (!NSApp.active) EndActiveOnlyForPictureInPicture(@"still inactive after the wait");
+    if (!NSApp.active && activation == gPictureInPictureActivation) EndActiveOnlyForPictureInPicture(@"still inactive after the wait");
     NoteGesture(@"activation outcome (%@) becameActive=%d activeNow=%d", move ? @"move" : @"press", becameActive, NSApp.active);
     [source emit:@"pictureInPictureActivated" payload:[activationStamp onto:@{@"move" : @(move), @"activated" : @(becameActive || NSApp.active)}]];
   });

@@ -126,7 +126,7 @@ test("pinches are logged at their beginning and end only, local and from other a
   assert.match(logPinch, /@"passed"/);
   assert.match(logPinch, /@"zoom off"/);
   assert.match(logPinch, /FollowsPinchesFromOtherApps\(\)/);
-  assert.equal((logPinch.match(/NoteGesture\(/g) ?? []).length, 3, "begin, end and an unfinished pinch; never a step");
+  assert.equal((logPinch.match(/NoteGesture\(/g) ?? []).length, 5, "begin, end, an unfinished pinch, and a pinch seen or ended without its start; never a step");
   assert.match(logPinch, /if \(!\(phase & \(NSEventPhaseEnded \| NSEventPhaseCancelled\)\)\) return;/);
   assert.match(body(pip, "void FollowPinchesFromOtherApps()"), /NoteGesture\(@"other-app pinch monitor off/);
   assert.match(body(pip, "void PinchFromOtherApp(NSEvent *event)"), /\[ArdiaPiPZoom handleFromOtherApp:event\]/);
@@ -137,4 +137,13 @@ test("the log reaches Copy Diagnostics through the engine info, the typed domain
   assert.match(body(host, "+ (NSDictionary<NSString *, id> *)engineInfo"), /@"pictureInPictureGestures" : ardia_pip::GestureLog\(\),/);
   assert.match(domain, /pictureInPictureGestures\?: string;/);
   assert.match(commands, /engine\?\.pictureInPictureGestures \? \[`Picture in Picture gestures:\\n {2}\$\{engine\.pictureInPictureGestures\.replace\(\/\\n\/g, "\\n {2}"\)\}`\] : \[\]/);
+});
+
+test("a pinch whose start went elsewhere is still logged from its first step that arrives, and an end without a start says so", () => {
+  const logPinch = body(routing, "+ (void)logPinch:(NSEvent *)event");
+  const unopened = logPinch.slice(logPinch.indexOf("if (!gLoggedPinchOpen) {"), logPinch.indexOf("gLoggedPinchSteps++;"));
+  assert.match(unopened, /NoteGesture\(@"pinch seen without its start phase=%lu/);
+  assert.match(unopened, /NoteGesture\(@"pinch %@ without a start/);
+  assert.match(unopened, /gLoggedPinchOpen = YES;/);
+  assert.doesNotMatch(logPinch, /if \(!gLoggedPinchOpen\) return;/);
 });

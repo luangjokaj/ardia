@@ -62,7 +62,20 @@ static NSTimeInterval gLoggedWheelZoomAt;
                 FollowsPinchesFromOtherApps(), outcome);
     return;
   }
-  if (!gLoggedPinchOpen) return;
+  if (!gLoggedPinchOpen) {
+    if (phase & (NSEventPhaseEnded | NSEventPhaseCancelled)) {
+      NoteGesture(@"pinch %@ without a start fromOtherApp=%d appActive=%d window=%ld", (phase & NSEventPhaseCancelled) ? @"cancelled" : @"ended",
+                  fromOtherApp, NSApp.isActive, routedTo);
+      return;
+    }
+    gLoggedPinchOpen = YES;
+    gLoggedPinchSteps = 0;
+    gLoggedPinchMagnification = 0;
+    gLoggedPinchRoutedTo = routedTo;
+    NoteGesture(@"pinch seen without its start phase=%lu fromOtherApp=%d appActive=%d eventWindow=%ld monitor=%d -> %@", (unsigned long)phase,
+                fromOtherApp, NSApp.isActive, (long)event.windowNumber, FollowsPinchesFromOtherApps(),
+                routedTo ? [NSString stringWithFormat:@"window %ld", routedTo] : handled ? @"held" : [self enabled] ? @"passed" : @"zoom off");
+  }
   gLoggedPinchSteps++;
   gLoggedPinchMagnification += event.magnification;
   if (routedTo) gLoggedPinchRoutedTo = routedTo;
