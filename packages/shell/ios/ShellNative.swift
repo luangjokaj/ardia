@@ -61,6 +61,7 @@ protocol AppWindowsNative {
   static func setTrafficLightsCenter(_ id: String, _ center: CGPoint?, _ trailing: Bool)
   static func watchSidebarEdge(_ id: String, _ on: Bool, _ hold: Double, _ right: Bool, _ whilePressed: Bool)
   static func focusWindow(_ id: String)
+  static func setWindowShown(_ id: String, _ shown: Bool, _ burst: Bool)
   static func restoreFullScreen(_ ids: [String], _ focus: String?)
   static func dragPreviewBegin(_ windowId: String, _ chip: CGRect, _ grab: CGPoint)
   static func dragPreviewPage(_ base64: String, _ frame: CGRect)
@@ -120,6 +121,10 @@ extension AppWindowsNative {
 
   static var focusWindowFunction: AnyDefinition {
     AsyncFunction("focusWindow") { (id: String) in Self.focusWindow(id) }.runOnQueue(.main)
+  }
+
+  static var setWindowShownFunction: AnyDefinition {
+    AsyncFunction("setWindowShown") { (id: String, shown: Bool, burst: Bool) in Self.setWindowShown(id, shown, burst) }.runOnQueue(.main)
   }
 
   static var restoreFullScreenFunction: AnyDefinition {
@@ -1169,6 +1174,25 @@ extension MagnifyAreaNative {
 
   static var devMagnifyFunction: AnyDefinition {
     AsyncFunction("devMagnify") { (windowId: String, x: Double, y: Double, steps: [[String: Any]]) -> [String: Any] in Self.devMagnify(windowId, x, y, steps) }.runOnQueue(.main)
+  }
+}
+
+protocol WheelAreaNative {
+  static func devWheel(_ windowId: String, _ x: Double, _ y: Double, _ steps: [[String: Any]]) -> [String: Any]
+  func glideScroll(_ tag: Int, _ y: Double, _ durationMs: Double)
+}
+
+extension WheelAreaNative {
+  static var moduleName: String { "ArdiaWheelArea" }
+
+  static var devWheelFunction: AnyDefinition {
+    AsyncFunction("devWheel") { (windowId: String, x: Double, y: Double, steps: [[String: Any]]) -> [String: Any] in Self.devWheel(windowId, x, y, steps) }.runOnQueue(.main)
+  }
+}
+
+extension WheelAreaNative where Self: Module {
+  var glideScrollFunction: AnyDefinition {
+    AsyncFunction("glideScroll") { (tag: Int, y: Double, durationMs: Double) in self.glideScroll(tag, y, durationMs) }.runOnQueue(.main)
   }
 }
 

@@ -52,6 +52,7 @@ export type AppWindowsNative = {
   setTrafficLightsCenter(id: string, center: [number, number] | null, trailing: boolean): Promise<void>;
   watchSidebarEdge(id: string, on: boolean, hold: number, right: boolean, whilePressed: boolean): Promise<void>;
   focusWindow(id: string): Promise<void>;
+  setWindowShown?(id: string, shown: boolean, burst: boolean): Promise<void>;
   restoreFullScreen(ids: string[], focus: string | null): Promise<void>;
   dragPreviewBegin(windowId: string, chip: Rect4, grab: [number, number]): Promise<void>;
   dragPreviewPage(base64: string, frame: Rect4): Promise<void>;
@@ -313,6 +314,11 @@ export type MagnifyAreaNative = {
   devMagnify(windowId: string, x: number, y: number, steps: MagnifyUpdate[]): Promise<{ claimed?: boolean[]; hit?: string; error?: string }>;
 };
 
+export type WheelAreaNative = {
+  devWheel(windowId: string, x: number, y: number, steps: { phase?: string; dy: number; momentum?: boolean; precise?: boolean }[]): Promise<{ claimed?: boolean[]; error?: string }>;
+  glideScroll(tag: number, y: number, durationMs: number): Promise<void>;
+};
+
 export type PeekStageNative = {
   devState(windowId: string): Promise<Record<string, unknown>[]>;
   devPageFrames(windowId: string): Promise<{ tabId: string; browserId: number; visible: boolean; inPeek: boolean; frame: PeekRect }[]>;
@@ -507,6 +513,7 @@ export type ShellModules = {
   ArdiaInlineCompletion: InlineCompletionNative;
   ArdiaTranslate: TranslateNative;
   ArdiaMagnifyArea: MagnifyAreaNative;
+  ArdiaWheelArea: WheelAreaNative;
   ArdiaPeekStage: PeekStageNative;
   ArdiaFileDrop: FileDropNative;
   ArdiaCli: CliNative;

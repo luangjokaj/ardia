@@ -1,4 +1,5 @@
 import type { Settings } from "../settings/settings";
+import type { CtrlTabPreset } from "../commands/ctrlTabKeys";
 
 export type BrowserSourceId = "arc" | "dia" | "chrome" | "safari" | "firefox" | "zen" | "brave" | "edge" | "helium" | "chromium" | "vivaldi" | "opera" | "fresh";
 
@@ -124,6 +125,21 @@ export const PRESETS: Record<Preset, Partial<Settings>> = {
   vivaldi: CLASSIC_TABS,
   opera: CLASSIC_TABS,
   fresh: { addressBar: "sidebar", commandBarPlacement: "centred", newTabPosition: "nextToCurrent", newTabButtonPosition: "bottom" },
+};
+
+export const CTRL_TAB_LIKE: Partial<Record<Preset, CtrlTabPreset>> = {
+  arc: "switcher",
+  dia: "switcher",
+  vivaldi: "switcher",
+  opera: "switcher",
+  chrome: "step",
+  safari: "step",
+  firefox: "step",
+  zen: "step",
+  brave: "step",
+  edge: "step",
+  helium: "step",
+  chromium: "step",
 };
 
 export const setsUpLikeBrowser = (source: BrowserSourceId | null): source is Exclude<BrowserSourceId, "fresh"> => !!source && source !== "fresh";

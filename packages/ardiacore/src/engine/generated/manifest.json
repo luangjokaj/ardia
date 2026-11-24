@@ -337,6 +337,54 @@
           "desktop": "absent",
           "windows": "absent"
         },
+        "cliDevToolsOpen": {
+          "mac": "custom",
+          "desktop": "custom",
+          "windows": "absent"
+        },
+        "cliDevToolsSend": {
+          "service": "ac_cli_devtools_send",
+          "mac": "service",
+          "desktop": "custom",
+          "windows": "absent"
+        },
+        "cliDevToolsClose": {
+          "service": "ac_cli_devtools_close",
+          "mac": "service",
+          "desktop": "custom",
+          "windows": "absent"
+        },
+        "cliCancel": {
+          "service": "ac_cli_cancel",
+          "mac": "service",
+          "desktop": "custom",
+          "windows": "absent"
+        },
+        "cliSnapshot": {
+          "mac": "custom",
+          "desktop": "custom",
+          "windows": "absent"
+        },
+        "cliWaitSettled": {
+          "mac": "custom",
+          "desktop": "custom",
+          "windows": "absent"
+        },
+        "cliHitTest": {
+          "mac": "custom",
+          "desktop": "custom",
+          "windows": "absent"
+        },
+        "cliClick": {
+          "mac": "custom",
+          "desktop": "custom",
+          "windows": "absent"
+        },
+        "cliScreenshot": {
+          "mac": "custom",
+          "desktop": "custom",
+          "windows": "absent"
+        },
         "cliMoveOffscreen": {
           "mac": "custom",
           "desktop": "custom",
@@ -357,6 +405,12 @@
         },
         "cliControl": {
           "topic": "cliControl",
+          "mac": "forward",
+          "desktop": "custom",
+          "windows": "forward"
+        },
+        "cliDevTools": {
+          "topic": "cliDevTools",
           "mac": "forward",
           "desktop": "custom",
           "windows": "forward"
@@ -1441,8 +1495,8 @@
       "types": "packages/shell/src/generated/native.ts",
       "swift": "packages/shell/ios/ShellNative.swift",
       "sha256": {
-        "types": "25ce93a844a411ce16ac7fcd3c5e63ba6e9a859855d68bcc3bcd4cf187395fe0",
-        "swift": "b11487a0232b8f7ff070b0726b13e18a14dffe7bccf08736e9db4ce35fea6353"
+        "types": "9d07e607c3521a6eb746371c018d63140c3412eb578869dcb84205c5aab3c088",
+        "swift": "d49600f2662c2179c47ef172af2959b23eca51e846f94f24fb4368c644b115aa"
       },
       "modules": {
         "ArdiaShell": {
@@ -1614,6 +1668,17 @@
               "mac": "custom",
               "desktop": "absent",
               "windows": "custom"
+            },
+            "setWindowShown": {
+              "args": [
+                "id",
+                "shown",
+                "burst"
+              ],
+              "async": true,
+              "mac": "custom",
+              "desktop": "absent",
+              "windows": "absent"
             },
             "restoreFullScreen": {
               "args": [
@@ -3335,6 +3400,35 @@
               "async": true,
               "mac": "custom",
               "desktop": "custom",
+              "windows": "absent"
+            }
+          },
+          "events": {}
+        },
+        "ArdiaWheelArea": {
+          "native": "WheelAreaNative",
+          "functions": {
+            "devWheel": {
+              "args": [
+                "windowId",
+                "x",
+                "y",
+                "steps"
+              ],
+              "async": true,
+              "mac": "custom",
+              "desktop": "absent",
+              "windows": "absent"
+            },
+            "glideScroll": {
+              "args": [
+                "tag",
+                "y",
+                "durationMs"
+              ],
+              "async": true,
+              "mac": "custom",
+              "desktop": "absent",
               "windows": "absent"
             }
           },

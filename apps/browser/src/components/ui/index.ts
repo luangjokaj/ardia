@@ -42,6 +42,7 @@ export {
   Breathe,
   ClipView,
   ContextMenuArea,
+  WheelArea,
   DIA_SPECTRUM,
   DockSelection,
   drawnFadeLabel,

@@ -116,6 +116,10 @@ test("production graph uses current Linux adapters and one canonical shared stat
   }
   assert.deepEqual(graph.get(`${browser}components/toolbar/AutoHideToolbar.tsx`).importers, [`${desktop}AutoHideToolbarRegion.tsx`], "the shared auto-hide toolbar is reached only through the Linux region");
 
+  const card = graph.get(`${browser}components/window/ContentCard.tsx`);
+  assert.ok(card.importedIds.includes(`${desktop}SplitToastRegion.tsx`), "toasts reserve their input region over the page, so their buttons take the click");
+  assert.ok(!card.importedIds.includes(`${browser}components/split/SplitChrome.tsx`));
+
   assert.ok(graph.has(`${browser}lib/platformChrome.windows.ts`), "Linux lays out its window like the Windows build");
   assert.ok(!graph.has(`${browser}platform/windowControls.ts`) && !graph.has(`${browser}platform/windowControls.windows.ts`), "window buttons reach the Linux host, not a native Windows module");
   assert.ok(graph.get(`${browser}state/windows/controls.ts`).importedIds.includes(`${desktop}hostWindowControls.ts`));
