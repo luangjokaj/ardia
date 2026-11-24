@@ -19,6 +19,7 @@ import { startKillSwitches } from "./platform/killSwitchesLaunch";
 import { startMemoryTrim } from "./state/tabs/memoryTrim";
 import { startNativeSync } from "./state/app/nativeSync";
 import { startPersistence } from "./state/session/persist";
+import { noteRestoredWindowsNow } from "./state/sidebar/launchRows";
 import { configRestoreSession, startConfigFiles } from "./state/config/configFiles";
 import { colorRoles } from "./components/ui/tokens";
 import { startFavicons } from "./state/favicons/favicons";
@@ -31,6 +32,7 @@ import { startPrivateSessions } from "./state/windows/privateSessions";
 import { startNewTabBar } from "./state/omnibox/newTabBar";
 import { perfMark, perfProbeEnabled, probeStore } from "./state/app/perfProbe";
 import { startTabLifecycle } from "./state/tabs/tabLifecycle";
+import { startBusyTabWatch } from "./state/tabs/busyTabWatch";
 import { startTabPages } from "./state/tabs/tabPages";
 import { startTabReveal } from "./state/tabs/tabReveal";
 import { startSync } from "./state/sync/engine";
@@ -45,6 +47,7 @@ probeStore("browser", useBrowser);
 installErrorReporting();
 setStoreBatching(unstable_batchedUpdates);
 startPersistence({ restoreSession: configRestoreSession() });
+noteRestoredWindowsNow();
 startConfigFiles(colorRoles);
 startDecideHooks();
 startProfileLoading();
@@ -72,12 +75,14 @@ afterFirstWindow(startUserScripts);
 afterFirstWindow(startAutomation);
 afterFirstWindow(startPlugins);
 afterFirstWindow(startSharedFolders);
+afterFirstWindow(startBusyTabWatch);
 startMemoryTrim();
 if (__DEV__ || perfProbeEnabled) require("./components/dev/devHarness").startDevHarness();
 
 const devMountDelay = () => (__DEV__ ? ((globalThis as { acDevMountDelayMs?: number }).acDevMountDelayMs ?? 0) : 0);
 
 function Root({ windowId }: { windowId: string }) {
+  const [renderedAt] = useState(Date.now);
   const [delay] = useState(devMountDelay);
   const [held, setHeld] = useState(delay > 0);
   useEffect(() => {
@@ -85,7 +90,7 @@ function Root({ windowId }: { windowId: string }) {
     const timer = setTimeout(() => setHeld(false), delay);
     return () => clearTimeout(timer);
   }, []);
-  useLayoutEffect(() => launchCommitted(), []);
+  useLayoutEffect(() => launchCommitted(renderedAt), []);
   useLayoutEffect(() => noteWindowRoot(windowId), [windowId]);
   useEffect(() => {
     perfMark("firstWindow");

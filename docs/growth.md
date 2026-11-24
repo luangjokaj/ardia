@@ -233,7 +233,7 @@ owner's Mac ──▶ ardia.dev/_ch/ (read-only ClickHouse user)   ardia.dev/_re
     to the first press in its page, within 60 s), `range_selects` (⇧-clicks that selected a range of tabs) and
     `range_from_shown` (those whose last clicked tab was no longer the shown one, so the range started at the shown tab:
     #1074, where it started at a Top Apps tile and took every pinned tab), `page_refused` (presses on the sidebar or anything else drawn over a
-    WebKit page that the page turned away, `WebKitPagePresses.swift`). Issue #1386 (a sidebar tab sometimes needs a second click) adds
+    WebKit page that the page turned away, `WebKitPagePresses.swift`). Issue #3965 (a double-click on a Top Apps tile already at its pinned URL refreshes it, as Dia's) adds `tile_double_returns` (double-clicks that went back to the pinned URL), `tile_double_reloads` (those that refreshed the page), `tile_double_fresh` (those that did nothing because the page was fresh: the pair's first click switched to the tile or woke it, or it was still loading) and `tile_double_missed` (refreshes that found no page, or that the engine rejected or threw on: should stay near zero). A refresh counts once, as a reload or a miss, when the page answers. Issue #1386 (a sidebar tab sometimes needs a second click) adds
     counts of where a press is lost: `drop_no_release`/`drop_not_dragged`/`drop_no_start`/`drop_start_mismatch` (the
     condition that stopped a drag from being rescued as a click; they add up to `drags`), `press_out_no_press` (presses
     Pressable ended without `onPress`), `unfocused_presses` and `unfocused_no_press` (presses that began while the
@@ -241,6 +241,10 @@ owner's Mac ──▶ ardia.dev/_ch/ (read-only ClickHouse user)   ardia.dev/_re
     drift from where the press began when Pressable ended it, in buckets of under 5 pt, 5-9 pt, 10 pt or more and
     unknown, for every press (`drift_lt5`/`drift_5_9`/`drift_10_plus`/`drift_unknown`) and for those without `onPress`
     (`no_press_drift_*`). Counts only: no tab id, URL, title or position.
+  - `usage_counts` adds `pip_pinches_unfocused` and `pip_pinches_from_other_app` (#3973): pinches that resized a
+    Picture in Picture window while it wasn't the key window, and those that arrived while another app was in front.
+    Both are within `pip_pinches`; either dropping while `pip_pinches` holds means pinching an unfocused window broke.
+    Counts only: never the window's size or place.
   - `usage_counts` adds `web_notifications_from_shim` (website notifications that reached the page script this
     period; a notification that never reaches the page script doesn't count, so a gap shows up as missing counts),
     `web_notification_clicks` (clicks on Ardia's website notifications) and `worker_notification_responses` (clicks or

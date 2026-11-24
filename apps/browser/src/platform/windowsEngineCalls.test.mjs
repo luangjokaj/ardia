@@ -5,6 +5,7 @@ import { domainCall, domainFunctions, domainsOf, reproduced, topicRouter } from 
 import { watchDownloads } from "../../../../packages/expo-windows/src/engine/domains/downloads.ts";
 import { readArgs } from "../../../../packages/expo-windows/src/engine/domains/calling.ts";
 import { privateWindowShown } from "../../../../packages/expo-windows/src/engine/privateWindows.ts";
+import { typeRows } from "../../../../packages/ardiacore/src/engine/apiRows.mjs";
 
 const repo = new URL("../../../../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, repo), "utf8");
@@ -24,7 +25,7 @@ const sorted = (list) => [...list].sort();
 
 function macTables() {
   const tables = {};
-  for (const file of readdirSync(new URL(ios, repo)).filter((name) => name.endsWith("Module.swift"))) {
+  for (const file of readdirSync(new URL(ios, repo)).filter((name) => /(Module|Calls)\.swift$/.test(name))) {
     const text = read(ios + file);
     const domain = text.match(/CallTable\(domain: "([a-zA-Z]+)"/)?.[1];
     if (!domain || MAC_ONLY.has(domain)) continue;
@@ -445,6 +446,19 @@ test("engine.info answers from the engine host in the Mac's shape", async () => 
   assert.deepEqual(engine.hosted, ["host.info"]);
 });
 
+test("favicons.peek reads through ac_favicons_peek, and an engine without it answers with ac_favicons_get as main did", async () => {
+  const args = { pages: ["https://a.example/"], icons: [], size: 32 };
+  const stored = { pages: { "https://a.example/": { png: ONE_PIXEL_PNG, icon: "https://a.example/favicon.ico" } }, icons: {} };
+  const current = fakeEngine((name) => (name === "ac_favicons_peek" ? JSON.stringify(stored) : '{"error":"unexpected"}'));
+  assert.deepEqual(await calling(current, "favicons")("peek", args, "work"), stored);
+  assert.deepEqual(current.calls.map((c) => c.name), ["ac_favicons_peek"]);
+  const older = fakeEngine((name) => (name === "ac_favicons_get" ? JSON.stringify(stored) : '{"error":"unknown call"}'));
+  assert.deepEqual(await calling(older, "favicons")("peek", args, "work"), stored);
+  assert.deepEqual(older.calls.map((c) => c.name), ["ac_favicons_peek", "ac_favicons_get"]);
+  const failing = fakeEngine(() => '{"error":"favicons not loaded"}');
+  await assert.rejects(calling(failing, "favicons")("peek", args, "work"), /favicons not loaded/);
+});
+
 test("favicons.fetch answers the icon Chromium stored for that address, with its size", async () => {
   const url = "https://a.example/favicon.ico";
   const engine = fakeEngine(() => JSON.stringify({ pages: {}, icons: { [url]: { png: ONE_PIXEL_PNG } } }));
@@ -573,11 +587,11 @@ test("the window list answers an empty list where the engine has none, so a call
 
 test("an event only the Windows host sends is declared apart from the Mac's, and Windows does send it", () => {
   const api = read("packages/ardiacore/src/engine/api.ts");
-  const bodyOf = (name) => api.slice(api.indexOf(`export type ${name} = {`), api.indexOf("\n};", api.indexOf(`export type ${name} = {`)));
-  const keysOf = (body) => [...body.matchAll(/^ {2}"([a-zA-Z]+\.[a-zA-Z]+)":/gm)].map((m) => m[1]);
-  const windowsOnly = keysOf(bodyOf("WindowsHostEvents"));
+  const manifest = JSON.parse(read("packages/ardiacore/src/engine/generated/manifest.json"));
+  const windowsOnly = [...typeRows(api, manifest, "WindowsHostEvents").rows];
   assert.ok(windowsOnly.length > 0);
-  const mac = new Set(keysOf(bodyOf("EngineEvents")));
+  const mac = typeRows(api, manifest, "EngineEvents").rows;
+  assert.ok(mac.has("history.changed"));
   const sent = readdirSync(new URL(windowsDomains + "../", repo)).filter((file) => /\.tsx?$/.test(file)).map((file) => read("packages/expo-windows/src/engine/" + file)).join("\n");
   for (const name of windowsOnly) {
     assert.equal(mac.has(name), false, `${name} is also in the Mac's events`);

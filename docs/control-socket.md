@@ -7,6 +7,15 @@ per request (`{"id", "result"}` or `{"id", "error": {"code", "message"}}`), and 
 on; with it off every request answers `failed` "Control is off." (`state/automation/controlSocket.ts`). The contract
 with the command (protocol numbers, `hello`) is in `docs/cli.md` › The contract.
 
+On macOS a client that isn't the bundled `ardia` (or another hardened program signed with Ardia's Team ID) is held
+before its first line is read until the user allows it in the doorbell; a client that's refused reads one line,
+`{"id": null, "error": {"code": "refused", "message": …}}`, and the socket closes. Who gets in, how approvals are kept
+and revoked, and the test-instance rule are in `docs/automation.md` › Who the program is. Every admitted connection is
+the owner: the methods below don't vary by client. `usage_counts.cli_socket_doorbells_shown` and
+`cli_socket_doorbell_<outcome>` (`once`, `half_hour`, `always`, `deny`, `unshown`, `timeout`, `left`, `stopped`,
+`unsaved`) count the doorbells and how they ended. A program the socket admitted can ask it for the engine's DevTools
+token (`control.devtoolsEndpoint`, › The DevTools token) instead of reading `ArdiaControl.json`.
+
 This page is the map of the whole profile against the socket: every data point Ardia keeps, where it lives, and which
 methods read and change it. The goal is full control: anything a person can see or change in Ardia, the command can
 read and change, through the same store actions the UI calls, so every invariant, sync write, undo, saved document and
@@ -264,6 +273,7 @@ changes it today, 🔍 read only, 🗺️ designed below, ⛔ deliberately not e
 | `methods` | no | This catalogue |
 | `commands` | no | The command catalogue `run` takes |
 | `windows` | no | Windows and their tabs, with each tab's DevTools target |
+| `control.devtoolsEndpoint` | no | The engine's DevTools token connection: `{port, token, generation}` (see › The DevTools token) |
 | `workspace` | no | The sidebar tree of a window or profile: pinned, groups, tabs, with usage on request |
 | `apply` | yes | A batch of ops on tabs, groups and pins (`docs/automation.md`): `open`, `tab.*`, `group.*` |
 | `run` | yes | Runs a menu command in a window or on a tab |
@@ -276,19 +286,20 @@ changes it today, 🔍 read only, 🗺️ designed below, ⛔ deliberately not e
 
 | Area | Read | Write |
 | --- | --- | --- |
-| tabs | `tabs.list {window?, profile?}`, `tabs.get {tab}` | `tabs.navigate {tab, url}`, `tabs.reload`, `tabs.back`, `tabs.forward`, `tabs.duplicate`, `tabs.setPinnedUrl {tab, url?}`, `tabs.returnToPinnedUrl` |
+| tabs | `tabs.list {window?, profile?}`, `tabs.get {tab}` | `tabs.navigate {tab, url}`, `tabs.reload`, `tabs.back`, `tabs.forward`, `tabs.duplicate`, `tabs.setPinnedUrl {tab, url?}`, `tabs.returnToPinnedUrl`, `tabs.hold {session, tabs, seconds?}` → `{held, gone, seconds, engineKeeps?}` and `tabs.release {session}`: a session keeps the tabs it drives loaded (Memory Saver's `cliSession` veto, and their profile isn't unloaded). On macOS Chromium's own discards keep them too: the app hands the engine each held tab with the wall-clock time its hold ends (`until`, in ms), which the engine turns into its own deadline when the update arrives (so time an update spends queued never lengthens a hold; at most 300 s), on every change and every 10 s while any hold lasts (`engine.setCliHeldTabs {tabs: [{tabId, until}]}`, an empty list when the socket stops), `tabs.hold` answers only once the engine has them and `tabs.release` only once the engine has let them go, with `engineKeeps: true` only when the engine marked every held tab and the hold is still running when the answer goes out (false when it didn't answer within 3 s, refused, found no page for a tab, or the hold had already ended) (only Ardia's own budget keeps the tabs then; macOS only), and the engine's discard veto keeps a tab with kept-by code 103 until that deadline (so a hold the app forgets, for example across a JS reload, still ends) through Memory Saver's timer, urgent and frozen-memory discards and a queued idle-profile unload, while the tab menu's Sleep Tab still puts one to sleep. On Linux and Windows Chromium keeps them only while a debugger is attached. Each call replaces that session's list and lasts at most 300 s on the app's own clock, so the session renews while it works. One session's release never ends another's hold, at most 4 sessions hold at once, a hold nobody renews runs out, and the socket stopping ends them all. `tabs.hold {…, untilDisconnect: true}` ties the hold to the connection that sent it instead of a timer: it needs no renewing (`seconds` answers null), the app renews the engine's 300 s deadline itself every 10 s, and it ends the moment that connection closes, whatever ended the command (a crash or SIGKILL closes the socket too), or at `tabs.release` from that connection; it belongs to the connection as well as the session name, so another connection using the same name keeps its own holds and can neither replace nor release this one, a caller with no connection of its own is refused, and a timed hold still outlives the one-shot connection that sent it. `live: true` (macOS) also keeps the held tabs drawing and laying out in the background, so screenshots, hover and hit tests work without showing them: the engine raises the tab's capturer count with `stay_hidden` false while the hold lasts (`engine.setCliHeldTabs {tabs: [{tabId, until, live}]}`) and drops it when the hold ends, the tab is released, or its own deadline passes. `tabs.consoleDelta {tab, after?, generation?, limit?}` → `{entries, generation, reset, next, last, dropped, withheld, errors, more}` (macOS) reads the console warnings, errors and uncaught exceptions the engine has kept for the tab since it joined a tab strip (the last 200, text cut to 2048 bytes): pass the reply's `next` as `after` and its `generation` as `generation` (a replaced ring or a watermark past its end starts over with `reset: true`), `dropped` counts entries that left the ring unread, `withheld` those from frames Chrome's DevTools policy keeps from inspection, a tab the policy keeps from inspection is refused, and each entry has `seq`, `level`, `exception`, `mainFrame`, `text`, `source`, `line` and `time` |
 | windows | `windows.get {window}`, `windows.geometry {window}` | `windows.create {profile?, url?, layout?}`, `windows.close`, `windows.focus`, `windows.setLayout {window, layout?, tabsShown?}`, `windows.switchProfile`, `windows.merge`, `windows.setFrame {window, frame}`, `windows.setMaximized {window, on}`, `windows.setFullScreen {window, on}` |
 | closed | `closed.list {window?}` | `closed.restore {id, window?}`, `closed.clear {window?}` → `{cleared}`; both act on the window's profile, the last focused main window when `window` is left out, and answer `no_window` when there's none |
 | profiles | `profiles.list` | `profiles.create`, `profiles.update`, `profiles.setLook`, `profiles.reorder`, `profiles.setDefault`, `profiles.delete {profile}` (Ardia asks the user first) |
 | splits | `splits.list {window?}` | `splits.create {tabs, orientation?}`, `splits.separate`, `splits.removeTab`, `splits.resize {split, sizes}`, `splits.flip`, `splits.setOrientation` |
 | peek | `peek.list` | `peek.open {tab, url}`, `peek.close {tab}`, `peek.toTab {window}` |
 | littleArdia | (in `windows`) | `littleArdia.open {url?, profile?}`, `littleArdia.close`, `littleArdia.toMain` |
-| bookmarks | `bookmarks.tree {profile?, folder?, depth?}`, `bookmarks.search {profile?, query, limit?, offset?}`, `bookmarks.get {id}` | `bookmarks.add`, `bookmarks.addFolder`, `bookmarks.update`, `bookmarks.move {ids, parent, index?}`, `bookmarks.remove {ids}` |
+| spaces | `spaces.list {limit?, offset?}` (paged, a space is a profile's tabs: `{id, name, profileId, color, icon, active, default, windowIds, tabCount, pinnedCount, groupCount}`), `tabGroups.list {space?, limit?, offset?}` (`{id, title, color, icon, spaceId, windowId, collapsed, pinned, parentId, tabIds, tabs: [{id, url, title, active, clipped?}]}`, at most 200 tabs and about 768 KiB of them a group, URLs cut at 2,048 characters and titles at 512, then `truncated` and `tabCount`) | none (groups change through `apply`'s `group.*` ops) |
+| bookmarks | `bookmarks.tree {profile?, folder?, depth?}`, `bookmarks.search {profile?, folder?, query, limit?, offset?}` (each row with `folderPath`, the titles of the folders it sits in), `bookmarks.get {id}` | `bookmarks.add`, `bookmarks.addFolder`, `bookmarks.update`, `bookmarks.move {ids, parent, index?}`, `bookmarks.remove {ids}` |
 | history | `history.search {profile?, query?, since?, until?, limit?, offset?}` (rows `{id, url, title, visits, lastVisit, clipped?}`) | `history.remove {profile?, ids \| urls}`, `history.clear {profile?, since?}` |
 | downloads | `downloads.list {profile?, state?, limit?, offset?}` (live progress for running downloads), `downloads.settings {profile?}` | `downloads.pause`, `downloads.resume`, `downloads.cancel`, `downloads.keep`, `downloads.open`, `downloads.reveal`, `downloads.remove`, `downloads.clear`, `downloads.setSettings` |
 | settings | `settings.get {keys?}`, `settings.schema` | `settings.set {values}`, `settings.reset {keys}` |
 | search | `search.engines` (`default` is the engine searches use, an extension's when one controls it, with `controlledBy`) | `search.setDefault {id}` (`refused` while an extension controls it, as Settings disables the picker; so is `settings.set {searchEngine}`), `search.add`, `search.update`, `search.remove` |
-| sites | `sites.origins {profile?}`, `sites.get {origin, profile?}`, `sites.zoomLevels {profile?}` | `sites.set {origin, type, value}`, `sites.reset {origin}`, `sites.setZoom {host, zoom}`, `sites.clearData {site}` |
+| sites | `sites.origins {profile?}`, `sites.get {origin, profile?}`, `sites.zoomLevels {profile?}`, `sites.adBlocker` → `{enabled, allowedSites}` | `sites.set {origin, type, value}`, `sites.reset {origin}`, `sites.setZoom {host, zoom}`, `sites.clearData {site}`, `sites.allowAds {site}` → `{site, trusted, covers, enabled, allowedSites}` and `sites.blockAds {site}` → `{site, removed, trusted, coveredBy?, enabled, allowedSites}`: the built-in uBlock Origin's trusted sites, the list Site Controls' Block Ads & Trackers switch edits (shared by every profile, from the next load). `allowAds` trusts the site and its subdomains, as the switch does (`covers` says so); the site can't be a public suffix (Chromium's list, private section included) or an IP address, so `co.uk`, `github.io` and `s3.amazonaws.com` are refused, while a name under a top-level domain the list doesn't know, like `wiki.intranet.corp`, counts as one site, as Chromium counts it. `blockAds` takes out exactly that entry (`contentBlocker.removeAllowed`): never a broader entry or one uBlock ships with; it answers `removed`, and `trusted` with `coveredBy` when a broader entry still lets the site through, and is refused naming the broader entry when the site itself isn't listed. An Ardia whose host lacks these calls (Linux until its engine has them) refuses both with `refused` |
 | extensions | `extensions.list {profile?}` | `extensions.install {profile?, webStore}` (the user adds it on the store page; `folder` is refused), `extensions.configure {id, siteAccess \| incognito \| userScripts}` (exactly one; `specificSites` is refused), `extensions.setEnabled {id, enabled}`, `extensions.setPinned`, `extensions.reload`, `extensions.uninstall` (Ardia asks the user first) |
 | media | `media.list` | `media.control {tab, action, seconds?}` |
 | sync | `sync.status`, `sync.devices {profile?}` | `sync.now`, `sync.setType {type, on}`, `sync.setProfile {profile, on}`, `sync.setOpenTabs {profile, on}`, `sync.sendTab {tab, device}` |
@@ -550,6 +561,53 @@ above. The dispatcher already has its single check point for this: `controlSocke
 request and `accessProblem` (`socketCatalog.ts`) refuses everything outside `PLUGIN_SESSION_METHODS` for a plugin
 connection, before params are even checked. Until the credential exists every connection is `owner`.
 
+## The DevTools token
+
+`control.devtoolsEndpoint` takes nothing and answers `{port, token, generation}`: the loopback port, the token and the
+generation of the engine's token connection, the one `ardia browse` speaks CDP over (`docs/cli.md`). It's how the
+command gets the token without reading `ArdiaControl.json`, so the token reaches only programs the socket let in: the
+bundled `ardia` and Ardia's other signed code, programs you allowed in the doorbell, and, in test instances, any
+process of the user, as for every method. The engine's server restarting moves `generation`; a client keeps the
+generation it was given and asks again when a connection is refused.
+
+- **Who gets it.** Only a connection the socket admitted. Native checks again on its own queue, before and after it
+  reads the token and once more after reading it, that the connection is still open and its approval still live, and a reply to a connection whose
+  approval ran out meanwhile is dropped (`ControlSocket.admits`, `reply`). A 30-minute approval that runs out, or
+  one removed in Settings, closes the connection, so the client sees the stream end rather than a reply. Before
+  starting each line, native checks the approval, so a line queued behind a slow reader never starts after it ends; a line already being written then is finished, as for every reply, and the token in it was
+  given while the approval held.
+- **A token outlives the approval.** The engine checks only the token, not the doorbell, so a program that got it
+  (even one allowed once) can use it until the token connection restarts: control off and on, or Ardia quitting.
+  Removing a program's approval stops it asking again; it doesn't take back a token it already has.
+- **Control off** answers `failed` "Control is off.", when the request arrives and again when the read comes back.
+  Turning it off first cuts native off, synchronously and before the rest of the stop (`ArdiaAutomation.cutOff`): from
+  then on native writes no line that hasn't started, hands out no token and admits no connection, until the socket
+  starts again.
+  Like every request, this one is abandoned when its peer stops writing (› A request lives only while its connection
+  and consent do): keep the write side open until the reply arrives. It then answers `failed` "The connection closed
+  before the token was ready." if anything is still written.
+- **Where it comes from.** The engine call `ac_cli_devtools_endpoint` when the engine has it (it answers
+  `{port, generation, token}` through `ArdiaEngineBridge.callForSecretReply`, whose bytes are wiped after parsing);
+  the engine's shared status (`ac_cli_control`, which also feeds `cliControl` events and JS state) is never trusted to
+  carry the token. Until the engine has that call, `ArdiaControl.json`, read by the app only if it is a regular file
+  of the user's with no group or other bits and no access list letting anyone else in, not a link, at most 64 KiB, and
+  its `port`, `generation` and `pid` match the running server (`ControlPeerCore/DevtoolsEndpoint.swift`). A server
+  that stops just after the read leaves a token that opens nothing; the next connection fails and the client asks
+  again.
+- **Errors.** `failed` when the token connection isn't running, the token can't be read, or the server restarted
+  while Ardia read it (ask again). Where the socket has no doorbell (Linux and Windows today) the method isn't listed
+  and answers `unknown_method`, as an Ardia older than it does. A command that reads the token from here should fall
+  back to the file only on an `unknown_method` reply carrying its own request's `id`; a `refused` line with `id: null`
+  is the doorbell turning the program away, and the file isn't a way around that.
+- **Containment.** In JS the token is a `Secret` of kind `devtoolsToken` from the moment it crosses from native
+  (`platform/automation.ts`), revealed only on that one reply line (`socketDevtools.ts`); JSON, text, telemetry,
+  logs and every other reply or event drop it (`secretContainment.test.mjs`).
+- **Rollout.** The command doesn't ask for it yet: it reads `ArdiaControl.json`. Next, the command asks here and falls
+  back to the file as above; then the engine stops writing the token into the file.
+- **Telemetry.** `usage_counts.cli_socket_devtools_endpoint_<outcome>`: `given` (read and handed to the socket to
+  write; a peer that leaves or loses its approval at that moment may not receive it), `control_off`, `unsupported`,
+  `server_off`, `unreadable`, `stale`, `left`. Never the token, the port or which program asked.
+
 ## Secrets
 
 **Chosen:** the socket lists saved logins (origin and username) and autofill entries (addresses, and cards by name,
@@ -723,6 +781,178 @@ socket can pick one. Creating or using a passkey then goes to macOS: the iCloud 
 macOS, can't be answered by any app, and shouldn't be: they are the proof that the owner is present. So the socket stops
 at listing Ardia's own step, and the owner touches the sensor. A virtual authenticator (`WebAuthn.addVirtualAuthenticator`
 over DevTools) remains the way to test, never the owner's real keys.
+
+## DevTools inspection
+
+The `devtools` family (`cli_socket_calls_devtools`) inspects a tab in its own DevTools session and answers structured
+results instead of raw protocol data. Every method is in `methods` with its schema.
+
+| Method | What it answers |
+| --- | --- |
+| `devtools.perfTrace` | Records a trace (`Tracing.start`/`Tracing.end`, `durationMs` 250–30000) and answers FCP, LCP, TTFB, TBT, INP and CLS with insights: `lcp-breakdown` (TTFB, load delay, load duration, render delay), `cls-culprits` (worst session window, shifted nodes, fonts or images that finished just before), `inp-breakdown` (input delay, processing, presentation), `long-tasks` (with the script or function that ran longest), `render-blocking`, `document-latency`, `network-bottlenecks`. `reload` only on a tab the command opened |
+| `devtools.perfInsight` | The same analysis for trace events you pass (`[…]` or `{traceEvents}`, within the 1 MiB line) |
+| `devtools.issues` | A tab's DevTools Issues (CORS, cookies and SameSite, CSP, mixed content, deprecations, …), each with an explanation, a fix and the affected request, element, source line or cookie (name, domain, path; never the value or raw cookie line). Or explains `issues` you pass |
+| `devtools.stackTrace` | An error and its `Error.cause` chain with every frame mapped through source maps. Maps come only from what you pass: `sourceMaps` (a map, its JSON or a `data:` URL) or `scripts` (a script's text, whose inline `data:` map is read). Ardia fetches nothing |
+| `devtools.causeChainFunction` | A function declaration for `Runtime.callFunctionOn` on an error that answers its cause chain in the shape `devtools.stackTrace` takes |
+| `devtools.styles` | For the first element matching `selector`, which declaration wins each property (selector, specificity, origin, stylesheet line), each overridden one with why it lost, and the computed value |
+| `devtools.logpoint`, `devtools.logpoints`, `devtools.clearLogpoint` | Non-pausing logpoints on a tab the command opened; `url` may be an original source path named by a script's inline `data:` source map, and then the logpoint binds to that one script (`Debugger.setBreakpoint` by script id), not to every script sharing its URL. A logpoint the tab won't remove stays listed so it can be cleared again. The condition wraps the expression so it always answers `false`, so the page never pauses. The expression and condition are **not** a sandbox: they run as the page's own JavaScript where the line runs, with the page's privileges, and can change page state, so keep them to reads. At most 50 per connection; they end when the connection closes or control stops |
+
+**Scope.** A trace counts only the inspected tab: its main frame's navigation, its frames' requests and its renderer process, from the selected navigation's start up to the next one.
+
+**Isolation.** `InspectionSession` (`state/automation/devToolsSession.ts`) sends only `INSPECTION_METHODS`, never an
+emulation, network or audit override, so it can't reset what the command or DevTools set. Each session belongs to the
+connection that opened it and ends when that connection closes or control stops, even mid-trace or while still
+opening; once it starts closing it refuses new commands and waits for the ones in flight, for at most two seconds, before it cleans up; the transport is always closed, and an open still pending when its connection closes is abandoned at once. When it closes it removes its
+breakpoints, ends its trace and disables only the domains it enabled. Each trace is recorded into a buffer owned by
+that call and analysed into a model built for that call, so nothing carries over from one trace to the next.
+
+**Field data is opt-in.** `includeFieldData: true` with your `fieldDataKey` asks the public field-data service for
+real-user metrics of the traced page's origin, read from the tab after the trace ends: only the origin, never a path or
+query. When the trace has no page load to tie it to (record with `reload`), or the page changed origin during the trace, `fieldData` is `{skipped}` instead. Nothing is sent without it,
+and never for a private window's page.
+
+**Engine.** The tab-reading methods need an event-capable inspection session from the engine (#3993); until it lands
+they answer `failed` with "This Ardia can't open a DevTools inspection session on a tab yet." The analysers
+(`perfInsight`, `issues` given `issues`, `stackTrace`, `causeChainFunction`) work now. Ardia's app makes no request
+for a source map: React Native's `fetch` follows redirects and buffers whole bodies, so it can't enforce the limits
+such a fetch needs.
+
+**Why not the DevTools frontend's own trace engine.** `third_party/devtools-frontend`'s `models/trace` handlers and
+insights depend on its `core/i18n`, `core/platform` and `lantern` modules. Bundling them into the app's Hermes bundle
+would add megabytes to launch for a feature only the command uses. The analyser here reads the same trace events
+(`navigationStart`, `largestContentfulPaint::Candidate`, `LayoutShift`, `EventTiming`, `RunTask`, `Resource*`)
+with the same thresholds. To adopt the frontend's engine later, build `front_end/models/trace/trace.ts` with esbuild
+into a separate bundle that is loaded only when a `devtools.*` method first runs, and keep `analyzeTrace`'s answer shape.
+
+**Telemetry** (counts only): `cli_devtools_traces`, `cli_devtools_trace_failures`, `cli_devtools_trace_analysis_ms`,
+`cli_devtools_field_data_requests`, `cli_devtools_issues_reported`, `cli_devtools_source_maps_resolved`,
+`cli_devtools_source_maps_failed`, `cli_devtools_style_lookups`, `cli_devtools_logpoints_set`,
+`cli_devtools_logpoints_refused`.
+
+## Files: silent uploads and downloads
+
+A page's file chooser and a download's save panel are native panels a background program can't answer, and a panel
+would take focus from the person. The command arms them instead, through the socket alone (peer-UID trust, no extra
+question), on macOS (`PLATFORM_FEATURES.silentFilePanels`; Linux and Windows answer `refused` and hide the methods).
+The native calls (`armFiles`, `disarmFiles`, `fileArms`, `claimArmedDownload`, `placeArmedDownload`,
+`releaseArmedDownload` on `ArdiaAutomation`) need native API 97.
+
+| Method | Mutates | What it does |
+| --- | --- | --- |
+| `files.armUpload {tab, paths, once?, seconds?}` | yes | The next file chooser opened in the tab's window is answered with `paths` (regular files; more than one only when the chooser takes several), without a panel, in a visible Ardia as in a background one |
+| `files.armDownload {tab?, path, once?, seconds?}` | yes | The next download (of the tab's profile, or of any regular profile without `tab`) lands at `path` without asking where. `path` is a file that doesn't exist yet in a folder that does, or an existing folder, where each download keeps its own name (`once: false` keeps answering, numbering names that are taken) |
+| `files.arms {arms?}` | no | Arms from the last ten minutes: `state` (`armed`, `answered`, `claimed`, `downloading`, `finished`, `failed`, `cancelled`, `expired`, `cleared`), `reason`, `chosen` for uploads, and for downloads each `{downloadId, state, path, bytes, reason?}` (a failed placement names where the file was left in `path`) |
+| `files.disarm {arms?}` | yes | Stops the named arms, or every waiting one |
+
+**An arm outlives its connection.** The command arms in one call and clicks in the next, often on a new connection,
+so closing the connection that armed doesn't end an arm. It ends when its time runs out (`seconds`, default 120, at
+most 600), after its one answer when `once` (the default), when its tab closes, at `files.disarm`, and with every
+other arm when control turns off: the app clears the native arms right after cutting the socket off, in the same
+synchronous step. Clearing every arm also moves the registry's generation on, so a registration still copying files
+when control went off is refused when it reaches the registry (its copies are removed), and the app checks again
+after the native answer that control is still on and the tab still exists, disarming the new arm if not. At most 16 wait
+at once.
+
+**Paths.** Checked in JS (`localPathProblem`: absolute, no NUL or line break, at most 1,024 bytes, no `.` or `..`)
+and again natively (`ArdiaFilePaths.mm`).
+- *Uploads* are regular files only, on purpose: a folder chooser (`webkitdirectory`) is never answered, and arming a
+  folder is refused (`bad_request`), because a folder can't be copied from one descriptor the way a file can, so it
+  couldn't be protected against a swap after the check. A path whose own name is a symbolic link is refused too
+  (folders above it may be links; they're resolved). When armed, each is opened without following a link (`O_NOFOLLOW`),
+  checked to be a regular file on the open descriptor, and copied from that descriptor (an APFS clone when it can be)
+  into `file-arms/<arm>/` in Ardia's data folder (`ARDIA_DATA_DIR`, or `~/Library/Application Support/<bundle id>` in
+  a normal launch), a `0700` folder only Ardia writes. The chooser is answered with that copy, so a path swapped for a
+  link, a pipe or another file after the check can't reach the page.
+- *How long the app keeps track.* The app keeps an answered upload arm for the copies' whole 30 minutes (plus a
+  minute), so its tab closing at any point in that time still removes them, and keeps an answered download arm for the
+  native staging handoff's hour, so a download that saves into its staging folder late is still claimed and placed.
+- *How long copies stay.* A page may send a chosen file long after choosing it, so copies of an arm that answered a
+  chooser stay until the first of: its tab closes, control turns off, 30 minutes pass since that arm last answered
+  (a timer set for that deadline removes them, whether or not anything else happens in Ardia meanwhile), or Ardia
+  quits (the next launch removes what's left, before any new arm). An arm that never
+  answered drops its copies as soon as it ends (expired, cleared, failed), even when it was reusable (`once: false`):
+  what decides is whether it ever answered, not whether it still waits.
+- *Download targets* never exist yet and are never a symbolic link; the folder above is resolved when armed (`/tmp`
+  becomes `/private/tmp`, and the reply names the resolved path) and must resolve to the same place when the file
+  lands. Placing a file opens the source without following a link, checks it's a regular file, moves it to a hidden
+  temporary name in the target folder, checks it's still the file that was opened (device and inode), and publishes
+  it with `renameatx_np(RENAME_EXCL)`; across volumes it copies from the open descriptor into an exclusive temporary
+  file and publishes that the same way, then removes the source only if it's still that file: it first renames the
+  source to a hidden name beside it, checks that entry is the file it copied, and removes only that, moving anything
+  else back (`sourceLeft` says when it couldn't). Nothing already at the target is ever replaced. Placing runs off the main thread.
+
+**How a panel is answered.** `ArdiaActivation.mm` wraps `NSOpenPanel` and `NSSavePanel`'s three ways of running. A
+panel is answered from an arm only when Chromium opened it (its call stack), its window is a known regular Ardia
+window (`ArdiaWindowController`, with an app window id and a profile that isn't off the record), and an arm of the
+right kind waits for it: a tab arm when its tab is held by that very window and the window still shows that tab's
+profile (a window switched to another profile isn't answered for the first one's tab), an any-tab download arm for
+any regular window (a tab arm wins, then the newest). A save panel must also be a download picker: Chromium's framework
+ships without symbols, so the call stack can't name the picker, and Chromium opens other save panels from the same
+code (password export, certificate export, DevTools, a page's `showSaveFilePicker`). Ardia counts a save panel as a
+download's only when a download of the profile that panel's window shows is waiting for its target (the engine's
+download event, which names the profile but not the tab, arrived with no path yet, in the last two minutes) and the
+panel carries no message and no file-type pop-up (Chromium's download picker passes no title and at most one file
+type, so it gets neither; password export sets a message, and Save Page As offers its save types in a pop-up). Each
+waiting download answers one panel at most, and only for an arm it can belong to: it must have started at or after the
+arm (its own start time, to the millisecond) and announced itself in the last 20 seconds (a real download's picker
+follows its first event within about a tenth of a second); the panel that uses it takes it. When several arms could answer, they're tried in order (a tab arm, then the newest),
+and the waiting download goes to the first arm it can belong to, so a newer arm armed after that download started
+doesn't keep an older one from answering. A download older than
+that, or one that started before the arm, leaves the arm alone and its picker shows as usual. What can't be told
+apart: Save Page As for a page that can't be saved complete builds exactly the download picker's panel (one file type,
+"all files", no message, no pop-up), and the engine's event before the picker carries no file name to compare (measured:
+path and file name are empty; the name the panel shows can come from the server's `Content-Disposition`). So if the
+person opens that Save Page As in the same profile within those 20 seconds, before the new download's own picker, it
+can take the arm: the page is saved at the armed path and the download's picker then shows normally. Closing that gap
+needs the engine to mark its download picker. Any other save panel leaves the arm untouched and runs as it would have. A private window, a window Ardia doesn't know, and a free-standing panel are
+never answered from an arm, and an armed answer is logged without the window's title or the file name. Anything else
+runs as before: shown in a visible Ardia, logged and answered from `file-chooser.txt` in a background one. Chromium
+opens a page's chooser on the window that holds all of that window's tabs, so the panel names the window, not the
+tab: an upload arm answers the next chooser from its tab's window, and a second upload arm for a window that already
+has one waiting is `refused` (naming the waiting arm). The native registry checks this under its lock, so two requests
+racing each other can't both get in. The check uses the window the tab was in when armed; if the tab has since moved to
+another window, the arm ends (`cleared`, `tabMoved`) the next time a chooser could reach it rather than wait in a
+second window. An upload arm that can't be honoured (two files for a one-file chooser, a folder
+chooser) cancels the chooser and ends `failed` with the reason, rather than showing a panel the person didn't expect.
+
+**How a download lands.**
+- *When the profile asks where to save*, the save panel is answered with a file in a fresh `0700` staging folder
+  (`.ardia-arm-<arm>-XXXXXX`) inside the target's folder, never with the target itself (when that path would pass the
+  system's 1,024-byte limit, a shorter `.ardia-XXXXXX` folder there, then a `0700` folder under Ardia's own
+  `download-staging`, and the staged name is shortened to fit, keeping its extension; a folder arm still names the
+  placed file with the name the download wanted), so Chromium can't overwrite a
+  file that appears there meanwhile. When the download finishes, the file is published to the target as above and the
+  staging folder is removed. If the target was taken in between, the file stays in the staging folder and the arm
+  reports `exists` with that path.
+- *When it doesn't ask*, the download saves to the profile's folder as usual and, once finished, is placed at the
+  target and the downloads list follows it.
+- *Where a placed download lives afterwards.* Every placement is recorded with the download mover's own moves
+  (`ArdiaDownloadMover`, kept in the app's defaults), so the engine's later reports of that download (a profile
+  loading its history, a restart, Open, Show in Finder) name the placed file, not the old one.
+- *When placing fails half way*: if publishing fails and moving the file back to where it was fails too, the file is
+  left under its hidden temporary name in the target folder and the arm reports that path, rather than trying again
+  from a source that's gone.
+- *A download that's cancelled or fails*, even when the first event that names its staging file is already the
+  failure, releases its claim on the arm (`releaseArmedDownload`): nothing is placed, a
+  staging folder is removed only if it's empty, and an arm that placed nothing ends `failed` (`cancelled` or
+  `downloadFailed`).
+- *If the source can't be removed after a cross-volume copy*, the reply says `sourceLeft`, and when moving it back
+  from its hidden name failed too, `sourceLeftAt` names where it was left.
+- *One arm, one download.* A download claims an arm natively (`claimArmedDownload`) once its path is known, in the
+  same registry lock the save panel uses, so a once arm goes to exactly one of them: a save panel finds an arm an
+  automatic download already claimed spent, and an automatic download can't claim an arm a save panel already
+  answered. A path inside any arm's staging folder belongs to that arm alone: the registry checks every arm's staging
+  folders before anything else, so another arm asked first refuses it (`stagedForAnother`) rather than taking it as
+  an automatic download. Ardia takes the first download in the
+  tab's profile (or any regular profile) that started at or after the moment it was armed (by the download's own
+  start time, to the millisecond and with no slack, so a profile announcing its past downloads as it loads can't
+  take a waiting arm); another tab of that profile starting one at the
+  same moment can be the one taken, so arm just before the click. Private downloads are never taken, and a taken
+  download skips the `hooks.json` folder rules: the folder hook asks the arms first, on every event, so a fast
+  download whose first event with a path is already `finished` goes to the arm alone. Placing only moves a file a download of that arm claimed.
+
+**Telemetry** (counts only, never a path): `cli_socket_calls_files`, `cli_files_upload_arms`,
+`cli_files_download_arms`, `cli_files_uploads_answered`, `cli_files_downloads_placed`, `cli_files_arm_failures`.
 
 ## Next
 
