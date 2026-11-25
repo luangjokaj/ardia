@@ -12,7 +12,7 @@ import { useTheme } from "./theme";
 import { buttonMotion, usePressMotion, usePressScaleMotion } from "./motion";
 import { capsule, iconButton, opacity, radius as radii, space, font as typeScale, weight as weights, type ColorRole, type IconButtonSize, type Space, type TypeSize, type Weight } from "./tokens";
 
-export type ButtonHit = { width: number; height: number; plateX: number; plateY: number; box?: number; radius?: number };
+export type ButtonHit = { width: number; height: number; plateX: number; plateY: number; box?: number; radius?: number; topLeftRadius?: number };
 
 export type IconPalette = { icon: string; iconDisabled: string; hover: string; pressed: string };
 
@@ -161,7 +161,7 @@ function IconButtonView(props: IconProps) {
         justifyContent: "center",
       }}
     >
-      {lit ? <HoverFill shown={!disabled && (pressed || !!active || hovered)} instant={!!active} color={pressed || active ? pressedFill : hover} radius={plateRadius} /> : null}
+      {lit ? <HoverFill shown={!disabled && (pressed || !!active || hovered)} instant={!!active} color={pressed || active ? pressedFill : hover} radius={plateRadius} topLeftRadius={hit?.topLeftRadius} /> : null}
       {face}
       {badge}
     </View>

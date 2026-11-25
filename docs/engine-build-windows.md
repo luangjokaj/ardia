@@ -1,11 +1,15 @@
 # Building the engine for Windows
 
 The Windows engine is the same tree as the Mac's (`docs/engine-build.md`): **Chromium 158.0.8127.36**, **Helium**
-0.22.2 (helium-chromium) with **helium-windows** 0.22.2.1 in place of helium-macos, then our patch series. It is
-cross-built on a **Linux host**, a Boat VM ([On a Linux host](#on-a-linux-host)): Linux is Chromium's supported host for
-Windows cross builds (`docs/win_cross.md` in the tree). The same scripts still run on a Mac, where the first engines were
-built, but **never build a Windows engine on the owner's Mac** (the owner's rule since 2026-11-15: a cross build pins
-every core of the machine they work on). No Windows machine is needed, not even for the toolchain.
+0.22.2 (helium-chromium) with **helium-windows** 0.22.2.1 in place of helium-macos, then our patch series. **x64**
+engines are cross-built on a **Linux host**, in **`msi`'s WSL 2 Ubuntu** ([On a Linux host](#on-a-linux-host)):
+Linux is Chromium's supported host for Windows cross builds (`docs/win_cross.md` in the tree). **ARM64** engines
+cannot safely be built on x86_64 hosts (including `msi`'s WSL) while V8's `mksnapshot` arm64 simulator produces
+crashing snapshots ([On a Linux host](#on-a-linux-host)); until that is fixed, build ARM64 Windows engines on
+**`mini`** (Mac mini, ARM64) in `~/chromium-build-win` (check free disk first — the tree needs ~52–85 GB — and never
+touch `~/chromium-build`). Keep Windows x64 cross-builds off the MacBooks unless explicitly asked. No Windows build
+machine is required for the engine itself, though **`msi`** runs native Windows 11 for app/WebUI development and
+testing.
 
 The scripts are in `scripts/windows/engine/`, not next to the Mac ones: nothing for Windows may live under `engine/`,
 because `engine/engine-key.sh` hashes what is under `engine/` into the keys the Mac and Linux prebuilt engines are
@@ -81,11 +85,9 @@ took hours. When the Chromium version moves, take the new versions from a full `
 
 ## On a Linux host
 
-Windows engines are built on an `xlarge` Boat VM (16 vCPU, 32 GB, 294 GB, Ubuntu 24.04) created with `--ttl 21600`
-and Boat's built-in auto-stop left enabled (never `--no-auto-stop`), or resumed from a saved builder snapshot and
-stopped as soon as the engine is published. x64 and arm64 each need their own tree (about 85 GB with one out dir), so
-to build both at once take a second `xlarge` VM with `--ttl 21600 --no-snapshots` for the other CPU and delete it
-once the engine is published. Nothing from Microsoft's packages leaves the VM except inside the built engine.
+x64 Windows engines are cross-built in **`msi`'s WSL 2 Ubuntu** (16 vCPU, 24 GB RAM + 16 GB swap, ~890 GB free,
+`/dev/fuse` available, `~/chromium-build-win` and `~/winengine` already provisioned; ~62–85 GB per tree). Nothing
+from Microsoft's packages leaves the build host except inside the built engine.
 
 Once per VM:
 
@@ -141,8 +143,8 @@ to `-13`) crash at start on CI's `windows-11-arm` runner, while the Mac-built `-
 at `chrome.dll+0x2013db0`, with or without the sandbox, `--jitless` or the GPU. x64 from the same VM is fine. The likely
 cause is V8's snapshot: an x64 Linux host builds `mksnapshot` for arm64 under V8's simulator (`clang_x64_v8_arm64`,
 `snapshot_toolchain.gni`), where an arm64 Mac builds it natively; the two `snapshot_blob.bin` differ in 9,898 bytes.
-Until that is fixed, build the arm64 engine where `mksnapshot` runs natively on arm64, and run any new arm64 engine on
-the `windows-11-arm` runner before pinning it.
+Until that is fixed, build the arm64 engine where `mksnapshot` runs natively on arm64 (**`mini`**, the ARM64 Mac mini),
+and run any new arm64 engine on the `windows-11-arm` runner before pinning it.
 
 `06-package.sh` on Linux: Chromium's archive config says `D3DCompiler_47.dll`, the build writes `d3dcompiler_47.dll`,
 and `make_zip.py`'s glob only ignores case on a Mac, so `package_win.py` rewrites each plain name to the built one

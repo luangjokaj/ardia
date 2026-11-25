@@ -452,6 +452,9 @@ fake device, "Ardia Test Sink", and records routes without sending anything anyw
 
 ## Building on Linux
 
+x64 Linux engine builds and development run in **`msi`'s WSL 2 Ubuntu**. ARM64 Linux builds (`AC_TARGET_CPU=arm64`)
+are configured in the scripts but untested and not shipped yet.
+
 Use a dedicated build root, apart from any Mac Chromium tree. `01-sync.sh` is for a fresh tree and refuses to run
 when an output directory exists; after that, builds are incremental.
 

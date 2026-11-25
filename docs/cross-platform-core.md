@@ -41,7 +41,7 @@ engine/ardiacore                          macOS: AppKit only
 
 ## Engine keys are the first constraint
 
-`engine/engine-key.py` hashes everything under `engine/`, minus what it can prove belongs to other platforms. It knows three platforms: series selectors are `all` or platform sets (`linux,win`), and GN conditions on `is_mac`, `is_linux` and `is_win` joined by `!`, `&&` and `||` parse into the platforms they can hold on; any other condition counts toward every key. A Mac key move means a Mac engine build, which runs only on the Mac mini's incremental tree, and a new framework for every agent's next build.
+`engine/engine-key.py` hashes everything under `engine/`, minus what it can prove belongs to other platforms. It knows three platforms: series selectors are `all` or platform sets (`linux,win`), and GN conditions on `is_mac`, `is_linux` and `is_win` joined by `!`, `&&` and `||` parse into the platforms they can hold on; any other condition counts toward every key. A Mac key move means an incremental Mac engine build on whichever plugged-in Mac (`mbp1`, `mbp2`, `mini`; `mini` when both MacBooks are on battery) is free (fresh Mac Chromium rebuilds run on `mbp1` and sync to the others), and a new framework for every agent's next build.
 
 So the first change is tooling. It changes no artifact, and it must not move a published key:
 
@@ -54,8 +54,8 @@ After that, the rule for every later change is:
 
 | Where the change lands | Keys it moves | Build it needs |
 | --- | --- | --- |
-| `engine/ardiacore` | mac | Mac mini, incremental |
-| `engine/ardiacore-desktop` (`linux,win`, after selector sets) | linux, win | Boat builder for Linux; `~/chromium-build-win` for Windows |
+| `engine/ardiacore` | mac | Free Mac (`mbp1`/`mbp2`/`mini`), incremental (`mbp1` for fresh builds) |
+| `engine/ardiacore-desktop` (`linux,win`, after selector sets) | linux, win | `msi` WSL for Linux and Win x64; `mini` for Win arm64 |
 | `engine/ardiacore-linux`, `engine/ardiacore-win` | that one | that one |
 | `engine/chromium` | all | all; batch these |
 | `packages/core-rs` (via `copies.tsv`) | linux, win | as above; macOS links it into the pods instead |
@@ -108,7 +108,7 @@ Today `engine/chromium` holds the services (`ac_*`), and each platform reimpleme
 - **Hooks.** The `g_ardia_linux_*` and `g_ardia_win_*` hook names (autoplay, devtools) become neutral `g_ardia_desktop_*` names in a desktop hooks header, not in `ac_hooks.h`, which would move both keys. Of the two autoplay implementations, the Windows one (Blink commit parameter) is kept.
 - **Patches.** About 30 of the 35 `linux` patches change only Views, browser or content code behind `IS_LINUX`. Widening those guards to `IS_LINUX || IS_WIN` makes them `linux,win` patches. The Ozone, GTK and Wayland ones stay `linux`.
 
-Changes under `engine/chromium` move the Mac key, so they are batched: one Mac engine build per group, on the Mac mini, coordinated for the mini's chromium lock.
+Changes under `engine/chromium` move the Mac key, so they are batched: one incremental Mac engine build per group, on whichever Mac (`mbp1`, `mbp2`, `mini`) has resources free, holding that Mac's chromium lock.
 
 ## Track 3: the host API schema
 

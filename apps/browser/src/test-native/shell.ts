@@ -689,7 +689,7 @@ export const pluginHost = {
   }[],
   pinned: undefined as undefined | null | { name: string; version: string; folderId: string }[],
   officialArtifacts: {} as Record<string, string>,
-  officialFetchResults: {} as Record<string, { ok: false; code: "offline" | "failed" | "verify" | "cancelled" | "unsupported"; reason: string }>,
+  officialFetchResults: {} as Record<string, { ok: false; code: "offline" | "failed" | "verify" | "cancelled" | "unsupported"; reason: string; cause?: string }>,
   officialFetchGate: null as null | Promise<void>,
   officialFetchLog: [] as string[],
   officialCancels: [] as string[],

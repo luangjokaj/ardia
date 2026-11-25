@@ -918,7 +918,7 @@ protocol SystemNative {
   static func launchAtLoginStatus() -> String
   static func setLaunchAtLogin(_ enabled: Bool) throws
   static func fileExists(_ path: String) -> Bool
-  static func openFile(_ path: String) -> Bool
+  static func openFile(_ path: String, _ promise: Promise)
   static func revealFile(_ path: String) -> Bool
   static func moveToTrash(_ path: String) -> Bool
   static func fileIcon(_ path: String, _ size: Double) -> String?
@@ -943,7 +943,7 @@ extension SystemNative {
   }
 
   static var launchAtLoginStatusFunction: AnyDefinition {
-    AsyncFunction("launchAtLoginStatus") { () -> String in Self.launchAtLoginStatus() }.runOnQueue(.main)
+    AsyncFunction("launchAtLoginStatus") { () -> String in Self.launchAtLoginStatus() }.runOnQueue(DispatchQueue.global(qos: .utility))
   }
 
   static var setLaunchAtLoginFunction: AnyDefinition {
@@ -955,7 +955,7 @@ extension SystemNative {
   }
 
   static var openFileFunction: AnyDefinition {
-    AsyncFunction("openFile") { (path: String) -> Bool in Self.openFile(path) }.runOnQueue(.main)
+    AsyncFunction("openFile") { (path: String, promise: Promise) in Self.openFile(path, promise) }.runOnQueue(.main)
   }
 
   static var revealFileFunction: AnyDefinition {

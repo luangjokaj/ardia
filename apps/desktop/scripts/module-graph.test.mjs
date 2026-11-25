@@ -146,6 +146,7 @@ test("production graph uses current Linux adapters and one canonical shared stat
     assert.ok(graph.has(`${browser}${twin}.${suffix}.ts`), `${twin} resolves to its .${suffix} twin`);
     assert.ok(!graph.has(`${browser}${twin}.ts`), `the macOS ${twin} stays out of the Linux bundle`);
   }
+  assert.ok(graph.get(`${browser}state/onboarding/presets.ts`).importedIds.includes(`${browser}lib/platformFeatures.linux.ts`), "onboarding's classic-browser presets read Linux's features, so they leave the tab layout to the sidebar default");
   assert.ok(!graph.has(`${browser}platform/fieldTiming.ts`), "the macOS-only field timing module stays out of the Linux bundle");
   assert.ok(graph.get(`${browser}state/telemetry/journeys.ts`).importedIds.includes(`${desktop}fieldTiming.ts`), "journeys reads the Linux field timing stub");
   for (const shared of ["state/live/sources.ts", "state/live/net.ts"]) assert.ok(!graph.has(`${browser}${shared}`), `${shared} and its renderer fetch stay out of the Linux bundle`);

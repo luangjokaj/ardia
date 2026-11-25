@@ -11,6 +11,10 @@ on:
         description: Dry run, a release candidate that publishes nothing
         type: boolean
         default: true
+      windows:
+        description: Build and ship the Windows installers. Off skips the windows job; the Mac and Linux release publish without them and the Windows feed stays on the build before.
+        type: boolean
+        default: true
       iphone:
         description: Also build the pinned iPhone TestFlight version. Enable only when the owner asks for TestFlight. A real run uploads to Internal after the Mac release publishes.
         type: boolean
@@ -109,6 +113,10 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: timeout and the Metal toolchain, which Blacksmith's macOS image leaves out
+        run: |
+          command -v timeout >/dev/null || brew install coreutils
+          xcrun metal --version >/dev/null 2>&1 || xcodebuild -downloadComponent MetalToolchain
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .turbo/cache
@@ -472,6 +480,7 @@ jobs:
 
   windows:
     needs: preflight
+    if: ${{ inputs.windows }}
     permissions:
       contents: write
       pull-requests: read

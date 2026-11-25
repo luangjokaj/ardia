@@ -561,6 +561,10 @@ pathbuilder, which doesn't read CRLSets.
 ## Rebuilding
 
 Everything lives outside the repo in `~/chromium-build`, which carries `.metadata_never_index`.
+Fresh Mac Chromium builds (clean rebuilds and Chromium version bumps) run on **`mbp1`** (MacBook M5 Pro, 18 cores,
+48 GB RAM, on AC power) and are synced over to **`mbp2`** and **`mini`** (holding the destination's chromium lock while
+syncing). Incremental builds run on whichever Mac (`mbp1`, `mbp2`, `mini`) has free CPU, RAM and disk, prioritizing
+plugged-in machines (`pmset -g batt`; if both MacBooks are on battery, build on **`mini`**).
 The step scripts are copied in `engine/patches/build/`, and each expects `~/chromium-build`. Each refuses to run
 without `--apply` and the chromium lock (`scripts/agent/locked chromium`); `--help` prints its usage. Run them in the
 order 1, 3, 4, 2, 5 on a fresh checkout (`gn gen` once the tree is patched). Run step 3 as one full
