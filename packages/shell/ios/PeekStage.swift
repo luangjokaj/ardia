@@ -6,6 +6,7 @@ final class PeekStage: ExpoView {
   let onPeekState = EventDispatcher()
   let onPeekDone = EventDispatcher()
   let onPeekPinch = EventDispatcher()
+  let onPeekAsked = EventDispatcher()
   var gestures = true
   var meshAllowed = false { didSet { refreshWarp() } }
   var reduceMotion = false { didSet { motion.reduce = reduceMotion || Self.forcedReduce } }
@@ -27,6 +28,7 @@ final class PeekStage: ExpoView {
   private var published: [String: Bool] = [:]
   private var meshFailure: String?
   private var meshShown = false
+  private var askingToLeave = false
   var pressInPage = false
   var pressMapping: PeekAffine?
   private var donorWatch: CFRunLoopObserver?
@@ -138,6 +140,26 @@ final class PeekStage: ExpoView {
 
   func close(_ generation: Int) -> Bool { command(generation, "close") { motion.close(at: $0) } }
 
+  func close(_ generation: Int, answer: @escaping (Bool) -> Void) {
+    guard generation == motion.generation, !motion.terminal, !askingToLeave else { return answer(false) }
+    guard let web = pageWebView, web.asksBeforeLeaving else { return answer(close(generation)) }
+    askToLeave(web) { [weak self] leave in answer(leave && self?.close(generation) == true) }
+  }
+
+  private func askToLeave(_ web: ArdiaWebView, then: @escaping (Bool) -> Void) {
+    guard !askingToLeave else { return then(false) }
+    askingToLeave = true
+    let generation = motion.generation
+    note("asked", [:])
+    web.askBeforeLeaving { [weak self] leave in
+      guard let self else { return then(false) }
+      self.askingToLeave = false
+      self.note("answered", ["leave": leave])
+      self.onPeekAsked(["generation": generation, "leave": leave])
+      then(leave && generation == self.motion.generation)
+    }
+  }
+
   func promote(_ generation: Int) -> Bool { command(generation, "promote") { motion.promote(at: $0) } }
 
   private func command(_ generation: Int, _ name: String, _ run: (Double) -> Bool) -> Bool {
@@ -174,9 +196,20 @@ final class PeekStage: ExpoView {
     case "changed":
       motion.gestureChanged(total, at: now)
     default:
-      let outcome = motion.gestureEnded(total, cancelled: phase == "cancelled", at: now)
+      let asking = askingToLeave ? nil : pageWebView.flatMap { $0.asksBeforeLeaving ? $0 : nil }
+      let outcome = motion.gestureEnded(total, cancelled: phase == "cancelled", closes: asking == nil && !askingToLeave, at: now)
       note("release", ["total": total, "outcome": outcome.rawValue])
-      onPeekPinch(["generation": motion.generation, "outcome": outcome.rawValue])
+      let generation = motion.generation
+      if outcome == .close, let asking {
+        askToLeave(asking) { [weak self] leave in
+          guard let self else { return }
+          self.onPeekPinch(["generation": generation, "outcome": (leave ? PeekMotion.PinchOutcome.close : .stay).rawValue])
+          if leave { _ = self.close(generation) }
+        }
+      } else {
+        let shown: PeekMotion.PinchOutcome = outcome == .close && asking == nil && motion.phase != .closing ? .stay : outcome
+        onPeekPinch(["generation": generation, "outcome": shown.rawValue])
+      }
     }
     render(at: now)
     announce()
@@ -441,7 +474,7 @@ final class PeekStage: ExpoView {
       "generation": motion.generation, "phase": motion.phase.rawValue, "entrance": motion.entrance.rawValue, "windowNumber": window?.windowNumber ?? 0,
       "meshFailure": unavailable as Any, "meshShown": meshShown, "meshAllowed": meshAllowed, "meshInspected": ArdiaPeekMesh.inspected,
       "layerHasMesh": meshAllowed ? card.layer.map { ArdiaPeekMesh.hasMesh($0) } ?? false : false,
-      "topDown": page.topDown, "geometry": ["page": rect(g.page), "rest": rect(g.rest), "card": rect(g.card), "source": rect(g.source)],
+      "topDown": page.topDown, "geometry": ["page": rect(g.page), "tab": rect(g.tab), "rest": rect(g.rest), "card": rect(g.card), "source": rect(g.source)],
       "stageInWindow": rect(topLeft(convert(bounds, to: nil))),
       "pageInWindow": rect(topLeft(page.subviews.first.map { $0.convert($0.bounds, to: nil) } ?? .zero)),
       "trace": trace, "events": events, "freezes": freezes, "layers": devLayers(), "chromeTargets": devChromeTargets(), "published": published,

@@ -109,6 +109,17 @@ test("production graph uses current Linux adapters and one canonical shared stat
   assert.ok(!app.importedIds.includes(`${browser}components/tabstrip/TopTabStrip.tsx`));
   assert.ok(graph.get(`${desktop}TopStripPeekRegion.tsx`).importedIds.includes(`${browser}components/tabstrip/TopTabStrip.tsx`));
 
+  const sidebar = graph.get(`${browser}components/sidebar/Sidebar.tsx`);
+  assert.ok(sidebar.importedIds.includes(`${desktop}SidebarPagerTrack.tsx`), "the sidebar pages through the bounded compositor track");
+  assert.ok(!sidebar.importedIds.includes(`${browser}components/sidebar/SidebarPages.tsx`));
+  const sidebarPage = graph.get(`${browser}components/sidebar/SidebarPage.tsx`);
+  assert.ok(sidebarPage.importedIds.includes(`${desktop}sidebarPageStyle.ts`), "sidebar pages sit still on the track and the track scrolls");
+  assert.ok(!sidebarPage.importedIds.includes(`${browser}state/windows/profilePager.ts`));
+  assert.ok(graph.get(`${browser}components/tabstrip/StripPage.tsx`).importedIds.includes(`${browser}state/windows/profilePager.ts`), "the top strip keeps its own page transforms");
+  assert.ok(app.importedIds.includes(`${desktop}ProfileTintTimeline.tsx`), "the window tint follows the track's ScrollTimeline");
+  assert.ok(!app.importedIds.includes(`${browser}components/window/ProfileSwipe.tsx`));
+  assert.ok(graph.get(`${browser}components/window/SidebarDock.tsx`).importedIds.includes(`${browser}components/window/ProfileSwipe.tsx`), "the sidebar keeps the shared swipe area");
+
   for (const importer of ["components/window/TabPane.tsx", "components/toolbar/WindowToolbar.tsx"]) {
     const toolbarHost = graph.get(`${browser}${importer}`);
     assert.ok(toolbarHost.importedIds.includes(`${desktop}AutoHideToolbarRegion.tsx`), `${importer}: the auto-hide toolbar reserves its input region over the page, so a peek keeps the page shown`);

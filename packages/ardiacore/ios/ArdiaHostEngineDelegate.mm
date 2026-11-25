@@ -34,6 +34,7 @@ static void EndFailedPageDragsAtMouseUp() {
 
 - (void)engineDidStart {
   ArdiaLaunchSequence.shared.engineStartedAt = NSDate.date.timeIntervalSince1970 * 1000;
+  ArdiaLaunchSequence.shared.engineStartUsage = ArdiaLaunchSequence.processUsageNow;
   NSLog(@"[ardiacore] engine started (Chromium %@)", ArdiaCoreEngine.sharedEngine.chromiumVersion);
   ArdiaLaunchSequence.shared.engineRunning = YES;
   WatchReservedShortcuts();

@@ -11,8 +11,9 @@ const appArg = args.find((a) => !a.startsWith("--"));
 if (!appArg) {
   console.error(`usage: node peek-hybrid-test.mjs <Debug Ardia.app> [--only=<check,…>] [--keep-data]
 
-Peek's Genie-in, Seamless-after motion (docs/peek-motion.md › Failure scenarios): the page keeps one viewport from Peek
-to tab, one uniform scale, the same document and Chrome tab after Open as Tab, a pinch during the warp keeps every
+Peek's Genie-in, Seamless-after motion (docs/peek-motion.md › Failure scenarios): a resting Peek lays its page out at
+the card's own size and draws it 1:1, Open as Tab lays it out once at the tab's size, one uniform scale, the same
+document and Chrome tab after Open as Tab, closing asks first when the page has a beforeunload prompt, a pinch during the warp keeps every
 vertex, close and promote race to one outcome, and the fallbacks (no mesh, a throwing mesh, a page that never paints,
 reduced motion) still open, pinch and promote. Writes peek-hybrid.json (geometry, identity and frame traces).`);
   process.exit(2);
@@ -40,8 +41,13 @@ const PAGE = `<!doctype html><title>peek target</title><style>body{margin:0;font
 <script>window.__nonce=Math.random().toString(36).slice(2);window.__resizes=0;window.__sizes=[];addEventListener("resize",()=>{__resizes++;__sizes.push([innerWidth,innerHeight,performance.now()])});window.__vis=[];document.addEventListener("visibilitychange",()=>__vis.push([document.visibilityState,performance.now()]));window.__over=[];addEventListener("mouseover",e=>__over.push(e.target.id),true);window.__wheel=[];addEventListener("wheel",e=>__wheel.push([e.clientX,e.clientY,e.deltaY]),true);
 window.__clicks=[];addEventListener("mousedown",e=>__clicks.push({x:e.clientX,y:e.clientY,target:e.target.id}),true);window.__ups=[];addEventListener("mouseup",e=>__ups.push({x:e.clientX,y:e.clientY}),true);window.__domClicks=0;addEventListener("click",()=>__domClicks++,true);</script>`;
 const SOURCE = `<!doctype html><title>peek source</title><body style="margin:0;font:16px system-ui"><p style="margin:80px">source <a id=l href="/page.html">link</a></p>${rows}<script>window.__wheel=[];addEventListener("wheel",e=>__wheel.push(e.deltaY),true);</script>`;
+const beacons = [];
 const server = createServer((req, res) => {
   const path = (req.url ?? "/").split("?")[0];
+  if (path === "/beacon") {
+    beacons.push(req.url);
+    return res.writeHead(204).end();
+  }
   if (path === "/tone.wav") return res.writeHead(200, { "content-type": "audio/wav" }).end(tone);
   res.writeHead(200, { "content-type": "text/html" }).end(path.startsWith("/page") ? PAGE : SOURCE);
 });
@@ -73,6 +79,7 @@ let app = null;
 const run = (body, timeout = 20000) => app.eval(`${HELPERS}\n${body}`, { timeout });
 const frames = () => run(`return globalThis.expo.modules.ArdiaPeekStage.devPageFrames("w1");`);
 const closeAll = () => run(`if (st().peeks.a) st().closePeek("a"); const extra = st().windows.w1.tabIds.filter((id) => id !== "a"); for (const id of extra) st().closeTab(id); st().activate("a"); return settle(300);`);
+const closeOf = (s) => s.chromeTargets?.find((t) => t.surface === "bar" && t.label.startsWith("Close"));
 const near = (a, b, eps, what) => assert.ok(Math.abs(a - b) <= eps, `${what}: ${a} vs ${b}`);
 
 async function start(test = {}, switchOverrides) {
@@ -136,8 +143,7 @@ try {
     page.close();
     assert.equal(placed.inWindow, true, "promoted tab is in the window");
     assert.equal(placed.peek, false);
-    assert.deepEqual([mid.w, mid.h], [before.w, before.h], "viewport mid-promote");
-    assert.deepEqual([after.w, after.h], [before.w, before.h], "viewport after promote");
+    assert.deepEqual([mid.w, mid.h], [after.w, after.h], "the page is laid out at the tab's size as soon as Open as Tab starts");
     assert.equal(after.nonce, before.nonce, "same document");
     assert.equal(after.history, before.history);
     assert.equal(after.value, before.value);
@@ -145,15 +151,22 @@ try {
     assert.ok(after.time >= before.time, `media time kept: ${before.time} → ${after.time}`);
     assert.equal(targetAfter, target, "same DevTools target");
     assert.equal(tabView.browserId, peekView.browserId, "same Chrome tab");
-    for (const k of ["x", "y", "width", "height"]) near(tabView.frame[k], peekView.frame[k], 0.5, `web view frame ${k}`);
-    const k = restScale(peek.geometry);
-    for (const f of [...peek.trace, ...promoted.trace].filter((f) => f.phase !== "waiting" && f.phase !== "finished")) near(f.page[0], f.card[0] * k, 1e-6, "page scale = card scale × k");
+    const tabRect = promoted.geometry.tab, stageAt = promoted.stageInWindow;
+    for (const k of ["width", "height"]) near(tabView.frame[k], tabRect[k], 0.5, `tab web view ${k}`);
+    near(tabView.frame.x, stageAt.x + tabRect.x, 0.5, "tab web view x");
+    near(tabView.frame.y, stageAt.y + tabRect.y, 0.5, "tab web view y");
+    for (const k of ["width", "height"]) near(peekView.frame[k], peek.geometry.rest[k], 0.5, `resting Peek web view ${k} is its slot`);
+    near(restScale(peek.geometry), 1, 1e-9, "a resting Peek's page is laid out at its slot");
+    near(peek.trace.at(-1).page[0], 1, 1e-9, "a resting Peek draws its page 1:1");
+    near(before.w, peek.geometry.rest.width, 1, "the page's viewport is the card's slot, not the tab's");
+    near(after.w, promoted.geometry.tab.width, 1, "the tab's viewport is the tab's size");
+    near(after.h, promoted.geometry.tab.height, 1, "the tab's viewport is the tab's height");
     const last = promoted.trace.filter((f) => f.phase === "finished").at(0) ?? promoted.trace.at(-1);
     near(last.page[0], 1, 1e-9, "final scale");
     near(last.page[1], 0, 1e-6, "final x");
     near(last.page[2], 0, 1e-6, "final y");
     assert.deepEqual(after.vis.slice(before.vis.length), [], "the page never went hidden during the hand-over (the Peek host kept it until the tab's host had it)");
-    assert.equal(after.resizes, 0, "no resize event");
+    assert.equal(after.resizes - before.resizes >= 1, true, "Open as Tab lays the page out again at the tab's size");
     const final = await stateOf();
     record.donorEvents = final?.events?.map((e) => e.event);
     assert.ok(final?.events?.some((e) => e.event === "donated"), "the Peek host gave the page up in place");
@@ -174,8 +187,8 @@ try {
     page.close();
     await run(`st().updateSettings({ hideToolbarWhileScrolling: false }); return settle(300);`);
     Object.assign(record, { tabId, before, mid, after });
-    assert.deepEqual([mid.w, mid.h, after.w, after.h], [before.w, before.h, before.w, before.h], "viewport kept with auto-hide toolbars");
-    assert.equal(after.resizes, 0);
+    assert.deepEqual([mid.w, mid.h], [after.w, after.h], "laid out at the tab's size from the start of Open as Tab with auto-hide toolbars");
+    assert.ok(after.w > before.w, "the tab is wider than the resting Peek");
     assert.deepEqual(after.vis.slice(before.vis.length), []);
   });
 
@@ -488,6 +501,106 @@ try {
     assert.equal(out.tabs, 1);
   });
 
+  await check("close-asks-before-leaving", async (record) => {
+    await closeAll();
+    const tabId = await run(`return open("bu");`);
+    const rest = await waitFor((s) => s.phase === "open");
+    const page = await app.page("page.html?n=bu");
+    await page.eval(`new Promise((r) => (document.readyState === "complete" ? r(0) : addEventListener("load", () => r(0))))`);
+    await page.send("Page.enable");
+    const dialogs = [];
+    const started = Date.now();
+    record.dialogEvents = [];
+    page.on("Page.javascriptDialogOpening", (d) => (dialogs.push(d.type), record.dialogEvents.push({ open: d.type, ms: Date.now() - started })));
+    page.on("Page.javascriptDialogClosed", (d) => record.dialogEvents.push({ closed: d.result, ms: Date.now() - started }));
+    await page.eval(`addEventListener("beforeunload", (e) => { navigator.sendBeacon("/beacon?bu=" + Date.now()); e.preventDefault(); e.returnValue = ""; }); document.querySelector("#f").value = "draft"; 0`, { userGesture: true });
+    const close = rest.chromeTargets?.find((t) => t.label.startsWith("Close ("));
+    record.closeButton = close ?? null;
+    assert.ok(close?.reaches, "the Close button is on screen");
+    const o = rest.stageInWindow, c = rest.geometry.card;
+    const ways = {
+      button: () => run(`return ac.shell.devClick("w1", { x: ${close?.x}, y: ${close?.y}, queued: true, wait: 30 });`),
+      escape: () => run(`return escape();`),
+      closeTab: () => run(`command("closeTab"); return 0;`),
+      dim: () => run(`return ac.shell.devClick("w1", { x: ${o.x + c.x / 2}, y: ${o.y + c.y + c.height / 2}, queued: true, wait: 30 });`),
+      pinchIn: () => run(`return stage().then((s) => steps(s, [["began", 0], ["changed", -0.3], ["ended", -0.3]]));`),
+    };
+    const answer = async (accept) => {
+      const end = Date.now() + 4000;
+      while (dialogs.length === record.asked && Date.now() < end) await sleep(30);
+      if (dialogs.length === record.asked) return false;
+      record.asked = dialogs.length;
+      try {
+        await page.send("Page.handleJavaScriptDialog", { accept });
+        return true;
+      } catch (error) {
+        if (!/No dialog is showing/.test(String(error.message))) throw error;
+        record.selfDismissed = (record.selfDismissed ?? 0) + 1;
+        return accept ? "dismissed" : true;
+      }
+    };
+    const stillOpen = () => store(`({ peek: st().peeks.a?.tabId === ${JSON.stringify(tabId)}, tab: !!st().tabs[${JSON.stringify(tabId)}] })`);
+    record.asked = 0;
+    record.stays = {};
+    await ways.closeTab();
+    await sleep(1200);
+    await ways.closeTab();
+    await ways.closeTab();
+    await sleep(600);
+    record.repeatWhileAsking = { ...(await stillOpen()), dialogs: dialogs.length, ms: Date.now() - started };
+    assert.ok(await answer(false), "the first close asked");
+    await sleep(500);
+    assert.equal(record.repeatWhileAsking.peek, true, "closing again while the prompt is up never closes the Peek behind it");
+    assert.equal((await stillOpen()).peek, true, "Stay after repeated closes keeps the Peek");
+    for (const [via, act] of Object.entries(ways)) {
+      await act();
+      const asked = await answer(false);
+      await sleep(500);
+      const state = await stillOpen();
+      const shown = await stateOf();
+      const value = await page.eval(`document.querySelector("#f").value`);
+      record.stays[via] = { asked, ...state, phase: shown?.phase, value };
+      assert.ok(asked, `${via}: the page's leave prompt showed`);
+      assert.equal(state.peek, true, `${via}: Stay keeps the Peek open`);
+      assert.equal(shown?.phase, "open", `${via}: the card is back at rest`);
+      assert.equal(value, "draft", `${via}: what was typed is still there`);
+    }
+    let beaconsBeforeLeave = beacons.length;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      beaconsBeforeLeave = beacons.length;
+      await ways.escape();
+      record.leaveAsked = await answer(true);
+      if (record.leaveAsked !== "dismissed") break;
+      await sleep(300);
+    }
+    await sleep(1500);
+    record.left = await stillOpen();
+    record.leaveHandlerRuns = beacons.length - beaconsBeforeLeave;
+    page.close();
+    assert.equal(record.leaveAsked, true, "Leave was asked and answered");
+    assert.deepEqual(record.left, { peek: false, tab: false }, "Leave closes the Peek and its page");
+    assert.equal(record.leaveHandlerRuns, 1, "Leave runs the page's beforeunload handler once");
+    assert.deepEqual(dialogs.every((t) => t === "beforeunload"), true);
+
+    const promoted = await run(`return open("bp");`);
+    await waitFor((s) => s.phase === "open");
+    const second = await app.page("page.html?n=bp");
+    await second.send("Page.enable");
+    let promptedOnPromote = false;
+    second.on("Page.javascriptDialogOpening", () => void (promptedOnPromote = true));
+    await second.eval(`addEventListener("beforeunload", (e) => { e.preventDefault(); e.returnValue = ""; }); document.querySelector("#f").value = "kept"; 0`, { userGesture: true });
+    await run(`command("openFile"); return 0;`);
+    await waitFor((s) => s.phase === "finished", 3000);
+    await sleep(700);
+    const after = await store(`({ inWindow: st().windows.w1.tabIds.includes(${JSON.stringify(promoted)}), peek: !!st().peeks.a })`);
+    const kept = await second.eval(`document.querySelector("#f").value`);
+    second.close();
+    Object.assign(record, { promptedOnPromote, after, kept });
+    assert.equal(promptedOnPromote, false, "Open as Tab never runs beforeunload");
+    assert.deepEqual(after, { inWindow: true, peek: false });
+    assert.equal(kept, "kept");
+  });
+
   await check("focus", async (record) => {
     await closeAll();
     await run(`open("fo"); return 0;`);
@@ -526,11 +639,68 @@ try {
         assert.ok(wait >= 0.15 - 0.002 && wait <= 0.15 + 0.034, `entrance after ${Math.round(wait * 1000)} ms`);
       }
       if (name === "reduced") {
-        const k = restScale(out.done.geometry);
-        for (const f of out.done.trace.filter((f) => f.phase === "entering")) near(f.page[0], k, 1e-9, "no scale while fading in");
+        for (const f of out.done.trace.filter((f) => f.phase === "entering")) near(f.page[0], 1, 1e-9, "no scale while fading in");
       }
       assert.equal(out.peek, false, "the pinch promoted it");
       assert.equal(out.tabs, 2);
+    });
+  }
+  for (const via of ["native", "store", "storeStay"]) {
+    const name = { native: "window-close-during-leave-prompt", store: "window-teardown-during-leave-prompt", storeStay: "window-teardown-stay-during-leave-prompt" }[via];
+    if (!wanted(name)) continue;
+    await start({});
+    await check(name, async (record) => {
+      await run(`open("wc"); return 0;`);
+      await waitFor((s) => s.phase === "open");
+      const page = await app.page("page.html?n=wc");
+      await page.send("Page.enable");
+      const dialogs = [];
+      page.on("Page.javascriptDialogOpening", (d) => dialogs.push(d.type));
+      await page.eval(`addEventListener("beforeunload", (e) => { e.preventDefault(); e.returnValue = ""; }); document.querySelector("#f").value = "draft"; 0`, { userGesture: true });
+      await run(`command("closeTab"); return 0;`);
+      const asked = async (n, ms = 4000) => { const end = Date.now() + ms; while (dialogs.length < n && Date.now() < end) await sleep(30); return dialogs.length >= n; };
+      record.peekAsked = await asked(1);
+      await sleep(1200);
+      await run(via === "native" ? `globalThis.expo.modules.ArdiaAppWindows.closeWindow("w1"); return 0;` : `st().closeWindow("w1"); return 0;`);
+      if (via === "storeStay") {
+        await sleep(1200);
+        record.stays = 0;
+        for (let i = 0; i < 3; i++) {
+          if (!(await asked(record.stays + 1, i ? 3000 : 200))) break;
+          await page.send("Page.handleJavaScriptDialog", { accept: false }).catch((e) => (record.stayError = String(e.message)));
+          record.stays++;
+        }
+        await sleep(3000);
+        record.afterStay = { target: !!(await app.pageTarget("page.html?n=wc")), socketClosed: page.closed };
+        record.draft = record.afterStay.target && !page.closed ? await page.eval(`document.querySelector("#f").value`).catch(() => null) : null;
+        page.close();
+        assert.ok(record.stays >= 1, "the prompt was answered Stay");
+        assert.equal(record.afterStay.target, true, "Stay keeps the page: a close deferred during the prompt never unloads it");
+        assert.equal(record.draft, "draft", "what was typed is still there after Stay");
+        return;
+      }
+      record.timeline = [];
+      for (const ms of [100, 300, 600, 500]) {
+        await sleep(ms);
+        record.timeline.push({ ms, target: !!(await app.pageTarget("page.html?n=wc")), socketClosed: page.closed, dialogs: dialogs.length });
+      }
+      record.alive = !page.closed && !!(await app.pageTarget("page.html?n=wc"));
+      record.dialogsBeforeStay = dialogs.length;
+      if (via === "store") {
+        if (record.alive) await page.send("Page.handleJavaScriptDialog", { accept: true }).catch((e) => (record.leaveError = String(e.message)));
+      } else {
+        if (record.alive) await page.send("Page.handleJavaScriptDialog", { accept: false }).catch((e) => (record.stayError = String(e.message)));
+        record.windowAsked = await asked(2);
+        if (record.windowAsked) await page.send("Page.handleJavaScriptDialog", { accept: true }).catch(() => {});
+      }
+      await sleep(1500);
+      record.goneAfterLeave = !(await app.pageTarget("page.html?n=wc"));
+      page.close();
+      assert.ok(record.peekAsked, "closing the Peek asked");
+      assert.equal(record.alive, true, "closing the window while the Peek's prompt is up never closes the page before it is answered");
+      assert.equal(record.dialogsBeforeStay, 1, "one prompt at a time");
+      if (via === "native") assert.ok(record.windowAsked, "after Stay, the window close asks the page itself");
+      assert.equal(record.goneAfterLeave, true, "Leave closes the page");
     });
   }
   if (wanted("press-during-zoom")) {
@@ -541,6 +711,7 @@ try {
       const at = { x: o.x + tx + k * (g.x + g.width / 2), y: o.y + ty + k * (g.y + g.height / 2) };
       await run(`return ac.shell.devClick("w1", { x: ${at.x}, y: ${at.y}, queued: true, wait: 60 });`);
       const done = await waitFor((x) => x.phase === "open", 3000);
+      const viewport = await (await app.page("page.html?n=pz")).eval(`({ w: innerWidth, h: innerHeight })`);
       await sleep(300);
       const page = await app.page("page.html?n=pz");
       const seen = await page.eval(`({ down: __clicks.at(-1) ?? null, up: __ups.at(-1) ?? null, clicks: __domClicks })`);
@@ -551,11 +722,17 @@ try {
       assert.ok(seen.down && seen.up, "the page saw the press and its release");
       assert.deepEqual([seen.up.x, seen.up.y], [seen.down.x, seen.down.y], "the release lands where the press did");
       assert.equal(seen.clicks, 1, "the page got one click");
+      const settledAt = done.events.find((e) => e.event === "settled")?.t;
+      const shown = done.trace.filter((f) => f.t < settledAt && f.phase === "entering").at(-1);
+      const expected = shown && { x: (at.x - o.x - shown.page[1]) / shown.page[0] - g.x, y: (at.y - o.y - shown.page[2]) / shown.page[0] - g.y };
+      Object.assign(record, { viewport, shownAtPress: shown?.page ?? null, expected });
+      assert.ok(expected, "the frame on screen at the press was traced");
+      near(seen.down.x, expected.x, 3, "the press reached the point under the pointer (x)");
+      near(seen.down.y, expected.y, 3, "the press reached the point under the pointer (y)");
     });
   }
   if (wanted("chrome-press-mid-pinch") || wanted("chrome-hidden-mid-spread") || wanted("chrome-press-held-into-spread") || wanted("chrome-press-held-into-pinch-in") || wanted("side-press-on-invisible-dim")) {
     await start({ peekMesh: "unavailable" });
-    const closeOf = (s) => s.chromeTargets?.find((t) => t.surface === "bar" && t.label.startsWith("Close"));
     const reachableAtRest = (s) => (s.chromeTargets ?? []).filter((t) => t.surface === "bar" && t.reaches);
     const pressAt = (t) => run(`return ac.shell.devClick("w1", { x: ${t.x}, y: ${t.y}, queued: true, wait: 60 });`);
     await check("chrome-press-mid-pinch", async (record) => {

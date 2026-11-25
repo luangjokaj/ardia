@@ -75,6 +75,7 @@ export const SETTING_SPECS = {
   newTabUrl: text("", SYNCED),
   warnBeforeClosingLastTab: flag(true, SYNCED),
   afterClosingTab: oneOf(["previouslyActive", "tabAbove", "tabBelow"], "previouslyActive", SYNCED),
+  tabSwitcherOrder: oneOf(["recent", "inOrder"], "recent", SYNCED), tabSwitcherView: oneOf(["thumbnails", "compactList", "none"], "thumbnails", SYNCED),
   keepTopAppsRunning: flag(false, SYNCED),
   tabReorderHaptics: flag(true, SYNCED),
   swipeBetweenTabs: flag(true, SYNCED),

@@ -14,7 +14,7 @@ import { dismissPeek, finishPeek, openPeekAsTab, openPeekInSplit, promotePeekNow
 import { keyText } from "../../state/commands/keyText";
 import { splitViewAvailable } from "../../state/splits/splits";
 import { notePinch } from "../../state/telemetry/usage";
-import { notePeekDone, notePeekEntrance, notePeekInterrupt } from "../../state/telemetry/peekMotion";
+import { notePeekCloseAsked, notePeekDone, notePeekEntrance, notePeekInterrupt } from "../../state/telemetry/peekMotion";
 import { peekGeometry, type PeekRect } from "./peekGeometry";
 import { shadow, space } from "../ui/tokens";
 import type { PeekButtons } from "../../state/settings/settings";
@@ -123,6 +123,11 @@ function PeekCard({
   const fromX = peek.from && origin ? peek.from.x - origin.x : null;
   const fromY = peek.from && origin ? peek.from.y - origin.y : null;
   const sideRoom = sideRoomFor(buttons);
+  const [toTab, setToTab] = useState(false);
+  const toTabNow = useRef(toTab);
+  toTabNow.current = toTab;
+  const pendingPromote = useRef<((started: boolean) => void) | null>(null);
+  const promoteNow = () => (stage.current?.promote(generation) ?? Promise.resolve(false)).catch(() => false);
   const geometry = useMemo(
     () =>
       peekGeometry({
@@ -135,10 +140,11 @@ function PeekCard({
         paneRadius: card.radius,
         from: fromX === null || fromY === null ? null : { x: fromX, y: fromY },
         fullscreen,
-        pageAtTabSize: PLATFORM_FEATURES.nativePeekMotion,
+        fitToTab: PLATFORM_FEATURES.nativePeekMotion,
+        atTabSize: toTab || donor,
         sideRoom,
       }),
-    [width, height, pageTop, card.inset, card.radius, fromX, fromY, fullscreen, sideRoom.left, sideRoom.right],
+    [width, height, pageTop, card.inset, card.radius, fromX, fromY, fullscreen, sideRoom.left, sideRoom.right, toTab, donor],
   );
 
   useEffect(() => {
@@ -151,10 +157,22 @@ function PeekCard({
   useEffect(
     () => () => {
       begun.current = false;
+      pendingPromote.current?.(false);
+      pendingPromote.current = null;
       endPeekToolbarPreview(windowId, peek.tabId);
     },
     [],
   );
+
+  useEffect(() => {
+    const resolve = pendingPromote.current;
+    if (!toTab || !resolve) return;
+    pendingPromote.current = null;
+    void promoteNow().then((started) => {
+      if (!started) setToTab(false);
+      resolve(started);
+    });
+  }, [toTab]);
 
   const known = reduce !== null;
   const [started, setStarted] = useState(false);
@@ -174,8 +192,15 @@ function PeekCard({
     if (!started || !shown || donor) return;
     return registerPeekMotion(windowId, {
       tabId: peek.tabId,
-      close: () => stage.current?.close(generation) ?? Promise.resolve(false),
-      promote: () => stage.current?.promote(generation) ?? Promise.resolve(false),
+      close: () => (pendingPromote.current ? Promise.resolve(false) : (stage.current?.close(generation) ?? Promise.resolve(false))),
+      promote: () => {
+        if (toTabNow.current) return promoteNow();
+        return new Promise<boolean>((resolve) => {
+          pendingPromote.current?.(false);
+          pendingPromote.current = resolve;
+          setToTab(true);
+        });
+      },
     });
   }, [started, shown]);
 
@@ -207,9 +232,13 @@ function PeekCard({
           onPeekState={onState}
           onPeekPinch={({ generation: g, outcome }) => {
             if (g !== generation || outcome === "stay") return;
-            if (outcome === "open") previewPeekToolbar(windowId, peek.tabId, peek.sourceId);
+            if (outcome === "open") {
+              setToTab(true);
+              previewPeekToolbar(windowId, peek.tabId, peek.sourceId);
+            }
             notePinch("peek", outcome);
           }}
+          onPeekAsked={({ generation: g, leave }) => g === generation && notePeekCloseAsked(leave)}
           onPeekDone={({ generation: g, outcome }) => {
             if (g !== generation || seen.current.done) return;
             seen.current.done = true;
