@@ -16,6 +16,7 @@ export type LaunchConfig = {
   trace: string[];
   test: Record<string, string>;
   feedbackURL?: string | null;
+  webUIShell?: boolean;
 };
 
 export type SystemInfo = {

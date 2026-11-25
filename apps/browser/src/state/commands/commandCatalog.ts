@@ -72,11 +72,16 @@ export const COMMANDS = {
   toggleCompactToolbar: { title: "Compact Toolbar", symbol: "rectangle.compress.vertical", toggles: "compactToolbar", ...offInLittleArdia },
   togglePinnedFold: { title: "Collapse Pinned Tabs", symbol: "rectangle.compress.vertical", ...windowOffInLittleArdia },
   openSplitPane: { title: "Open Split Pane", keys: ["⌃⇧=", "⌃+"], ...windowOffInLittleArdia },
+  openSplitPaneBelow: { title: "Open Split Pane Below", keys: ["⌃⇧-", "⌃_"], ...windowOffInLittleArdia },
   useSelectionForFind: { title: "Use Selection for Find", keys: ["⌘E"], ...pageInLittleArdia },
   findAndReplace: { title: "Find and Replace…", keys: ["⌥⌘F"], ...pageInLittleArdia },
   jumpToSelection: { title: "Jump to Selection", keys: ["⌘J"], ...pageInLittleArdia },
   focusNextPane: { title: "Focus Next Split Pane", keys: ["⌃⇧]", "⌃}"], ...offInLittleArdia },
   focusPreviousPane: { title: "Focus Previous Split Pane", keys: ["⌃⇧[", "⌃{"], ...offInLittleArdia },
+  moveSplitPaneLeft: { title: "Move Split Pane Left", keys: ["⌃⌥←"], ...windowOffInLittleArdia },
+  moveSplitPaneRight: { title: "Move Split Pane Right", keys: ["⌃⌥→"], ...windowOffInLittleArdia },
+  moveSplitPaneUp: { title: "Move Split Pane Up", keys: ["⌃⌥↑"], ...windowOffInLittleArdia },
+  moveSplitPaneDown: { title: "Move Split Pane Down", keys: ["⌃⌥↓"], ...windowOffInLittleArdia },
   toggleFullUrl: { title: "Show Full URL", symbol: "text.alignleft", toggles: "showFullUrl", ...offInLittleArdia },
   toggleJavaScriptFromAppleEvents: { title: "Allow JavaScript from Apple Events", toggles: "allowJavaScriptFromAppleEvents" },
   toggleAddressBar: { title: "Show Address Bar in Sidebar", ...offInLittleArdia },
@@ -229,7 +234,7 @@ export const PAGE_COMMANDS = commandsWhere((c) => c.scope === "page");
 export const PAGE_COMMANDS_OFF_INTERNAL_PAGES = commandsWhere((c) => c.scope === "page" && !c.onInternalPages);
 export const WINDOW_COMMANDS = commandsWhere((c) => c.scope !== undefined);
 export const LITTLE_ARDIA_DISABLED_COMMANDS = commandsWhere((c) => c.littleArdia === "off");
-const SPLIT_VIEW_COMMANDS: readonly BrowserCommand[] = ["openSplitPane", "focusNextPane", "focusPreviousPane"];
+const SPLIT_VIEW_COMMANDS: readonly BrowserCommand[] = ["openSplitPane", "openSplitPaneBelow", "focusNextPane", "focusPreviousPane", "moveSplitPaneLeft", "moveSplitPaneRight", "moveSplitPaneUp", "moveSplitPaneDown"];
 const EXPORT_COMMANDS: readonly BrowserCommand[] = ["exportBookmarks"];
 const WEBKIT_COMMANDS: readonly BrowserCommand[] = ["togglePageEngine"];
 const HIDING_COMMANDS: readonly BrowserCommand[] = ["hideElement", "showHiddenElements"];

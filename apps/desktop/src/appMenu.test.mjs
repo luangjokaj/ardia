@@ -96,7 +96,16 @@ test("the Ardia, File, View and Help menus carry the Mac menu bar's entries in i
     "menu:Show Bookmarks Bar",
     "togglePinnedFold",
   ]);
-  assert.deepEqual(find(items, "menu:Split View").children.map((item) => item.id), ["openSplitPane", "focusNextPane", "focusPreviousPane"]);
+  assert.deepEqual(find(items, "menu:Split View").children.map((item) => item.id), [
+    "openSplitPane",
+    "openSplitPaneBelow",
+    "focusNextPane",
+    "focusPreviousPane",
+    "moveSplitPaneLeft",
+    "moveSplitPaneRight",
+    "moveSplitPaneUp",
+    "moveSplitPaneDown",
+  ]);
   assert.equal(find(items, "setTabLayout:sidebarRight").title, "Sidebar on Right");
   assert.deepEqual(rows(items, "Help"), ["Report a Problem…", "Keyboard Shortcuts", "Tool Tour", "Video Tour", "Release Notes", "-", "Copy Diagnostics"]);
 });
@@ -178,4 +187,40 @@ test("Move to Profile lists the profiles only, and the Tabs and Extensions menus
   assert.deepEqual(find(items, "menu:Move to Profile").children.map((item) => item.title), ["Personal", "Work"]);
   assert.equal(find(items, "menu:Add Bookmark to Folder"), undefined);
   assert.deepEqual(rows(items, "Extensions"), ["uBlock", "-", "Manage Extensions…", "Add Extension…"]);
+});
+
+test("an Open Command Bar picked from the app menu carries the consent epoch it was picked under, so its dismissal counts only with sharing on", async () => {
+  globalThis.fetch ??= async () => ({ status: 503 });
+  const { appMenuCommandEvent } = await import("./appMenu.ts");
+  const client = await import("../../browser/src/state/telemetry/client.ts");
+  const { nativeConsent } = await import("../../browser/src/state/telemetry/nativeConsent.ts");
+  const { takeInlineCompletionCounts } = await import("../../browser/src/state/telemetry/inlineCompletionCounts.ts");
+  const { runCommand } = await import("../../browser/src/state/commands/commands.ts");
+  const { useBrowser } = await import("../../browser/src/state/browser/store.ts");
+  const S = () => useBrowser.getState();
+  const choice = appMenuChoice("focusCommandBar");
+  assert.equal(choice?.kind, "command");
+  const pick = (windowId) => {
+    const event = appMenuCommandEvent(choice, windowId, client.consentEpoch());
+    runCommand(event, { user: { consent: nativeConsent(event) } });
+    return event;
+  };
+  const dismissals = (sharing) => {
+    client.loadChoice();
+    client.setSharing(sharing, sharing ? "onboarding" : "settings");
+    takeInlineCompletionCounts();
+    S().hydrate({});
+    const w = S().createWindow({ url: "https://example.com/" });
+    const opened = pick(w);
+    assert.equal(S().windowUi[w].panel.open, true);
+    pick(w);
+    assert.equal(S().windowUi[w].panel.open, false, "the menu's second pick closes the bar");
+    return { epoch: opened.epoch, counted: takeInlineCompletionCounts().command_bar_key_dismissals };
+  };
+  const on = dismissals(true);
+  assert.ok(on.epoch, "the event carries the epoch");
+  assert.equal(on.counted, 1);
+  const off = dismissals(false);
+  assert.equal(off.epoch, "");
+  assert.equal(off.counted, 0);
 });

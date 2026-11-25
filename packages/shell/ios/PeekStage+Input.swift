@@ -13,14 +13,14 @@ extension PeekStage {
     guard bounds.contains(p) else { return nil }
     if motion.phase == .finished { return nil }
     if lastFrame.warping || motion.warpingEntrance {
-      return shownCard.contains(p) ? self : scrim.hitTest(p)
+      return shownCard.contains(p) ? self : (scrim.hitTest(p) ?? self)
     }
-    if motion.phase == .waiting { return shownCard.contains(p) ? self : scrim.hitTest(p) }
+    if motion.phase == .waiting { return shownCard.contains(p) ? self : (scrim.hitTest(p) ?? self) }
     if PeekInputRoute.matches(self, windowPoint: convert(p, to: nil)) { return page.hitTest(lastFrame.page.apply(p)) ?? self }
     if !mapsInput { return super.hitTest(point) }
     if lastFrame.shownPage.contains(p) { return page.hitTest(p) ?? self }
-    if shownCard.contains(p) { return chrome.hitTest(lastFrame.card.inverse.apply(p)) ?? self }
-    return scrim.hitTest(p)
+    if shownCard.contains(p) { return chrome.hitTest(p) ?? self }
+    return (scrim.hitTest(p) ?? self)
   }
 
   func remap(_ event: NSEvent, at windowPoint: NSPoint) -> NSEvent? {

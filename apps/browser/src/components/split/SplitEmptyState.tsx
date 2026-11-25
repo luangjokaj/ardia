@@ -4,12 +4,12 @@ import { useTheme } from "../ui/theme";
 import { useTab, useWindowId } from "../../state/browser/hooks";
 import { claimFocusTag, heroBarFocus } from "../../state/focus/focusClaims";
 import { navigate } from "../../state/tabs/actions";
-import { replaceSplitPane } from "../../state/splits/actions";
+import { closeEmptySplitPaneOnEscape, replaceSplitPane } from "../../state/splits/actions";
 import { useSplitSuggestions } from "../../state/splits/hooks";
 import { tabLabel } from "../../state/browser/model";
 import { noteSplit } from "../../state/telemetry/usage";
 import { Panel, SearchField, shadow, space, Symbol, Text, useHover } from "../ui";
-import { EMPTY_STATE_WIDTH, emptyStateRadius, SPLIT_ROW_HEIGHT, splitColors, splitRowRadius } from "./tokens";
+import { EMPTY_STATE_WIDTH, emptyPaneFieldSurface, emptyStateRadius, SPLIT_ROW_HEIGHT, splitColors, splitRowRadius } from "./tokens";
 import { Favicon } from "../favicon/Favicon";
 
 export function SplitEmptyState({ tabId, focused }: { tabId: string; focused: boolean }) {
@@ -58,6 +58,7 @@ export function SplitEmptyState({ tabId, focused }: { tabId: string; focused: bo
           <View style={{ height: SPLIT_ROW_HEIGHT, marginHorizontal: space.s, paddingHorizontal: space.ml, borderRadius: splitRowRadius(), justifyContent: "center", backgroundColor: theme.rowHover }}>
             <SearchField
               look="bare"
+              surface={emptyPaneFieldSurface}
               autoFocus
               inputRef={input}
               value={text}
@@ -69,9 +70,10 @@ export function SplitEmptyState({ tabId, focused }: { tabId: string; focused: bo
               onSubmit={go}
               onArrow={move}
               onEscape={() => {
-                setText("");
-                setSelected(null);
-                setTyping(false);
+                if (text || selectedId) {
+                  setText("");
+                  setSelected(null);
+                } else if (!closeEmptySplitPaneOnEscape(tabId)) setTyping(false);
               }}
             />
           </View>

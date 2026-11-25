@@ -6,6 +6,7 @@ import { keyedPaths, pathKey, pathKeys, posixFilePath, toPosixPath } from "./des
 import { linuxWordingPlugins } from "./src/platform/linux/wording/plugins";
 import { CONTROL_KEY_NAME as LINUX_CONTROL_KEY } from "./src/platform/keyNames.linux";
 import { CONTROL_KEY_NAME as WIN_CONTROL_KEY } from "./src/platform/keyNames.win";
+import { CONTROL_KEY_NAME as MAC_CONTROL_KEY } from "./src/platform/keyNames.mac";
 import { desktopShortcutText, hasMacModifiers } from "./shortcutText";
 
 const here = (path: string) => posixFilePath(new URL(path, import.meta.url));
@@ -93,8 +94,8 @@ const importerReplacementsByKey = keyedPaths(importerReplacements);
 const passwordSaveSource = pathKey(importedPasswordSave.source);
 const passwordSaveImporters = pathKeys(importedPasswordSave.importers);
 
-const CONTROL_KEYS: Record<DesktopMode, string> = { linux: LINUX_CONTROL_KEY, win: WIN_CONTROL_KEY };
-const PLATFORM_WORDING: Record<DesktopMode, () => Plugin[]> = { linux: linuxWordingPlugins, win: () => [] };
+const CONTROL_KEYS: Record<DesktopMode, string> = { linux: LINUX_CONTROL_KEY, win: WIN_CONTROL_KEY, mac: MAC_CONTROL_KEY };
+const PLATFORM_WORDING: Record<DesktopMode, () => Plugin[]> = { linux: linuxWordingPlugins, win: () => [], mac: () => [] };
 
 function desktopComponents(mode: DesktopMode): Plugin {
   const shortcutText = desktopShortcutText(CONTROL_KEYS[mode]);
@@ -104,7 +105,7 @@ function desktopComponents(mode: DesktopMode): Plugin {
     transform(code, rawId) {
       const id = toPosixPath(rawId);
       if (!id.includes("/apps/browser/src/components/")) return null;
-      if (id.endsWith("/settings/searchMatch.ts") || !hasMacModifiers(code)) return null;
+      if (mode === "mac" || id.endsWith("/settings/searchMatch.ts") || !hasMacModifiers(code)) return null;
       return { code: shortcutText(code), map: null };
     },
     async resolveId(source, rawImporter, options) {

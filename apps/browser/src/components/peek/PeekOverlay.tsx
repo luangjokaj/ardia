@@ -23,6 +23,7 @@ import { SMALL_BAR_HEIGHT } from "../../state/windows/small";
 import { switchOn } from "../../state/app/switches";
 import { PLATFORM_FEATURES } from "../../lib/platformFeatures";
 import { endPeekToolbarPreview, previewPeekToolbar } from "../../state/peek/toolbarPreview";
+import { forgetPeekStage, notePeekStageState, pressPeekChrome, pressPeekScrim, type PeekButtonSurface } from "../../state/peek/gesturePresses";
 
 const SIDE_GAP = space.m;
 const BEGIN_RETRIES = 30;
@@ -33,11 +34,11 @@ let generations = 0;
 
 const sideRoomFor = (buttons: PeekButtons) => ({ left: buttons === "left" ? SIDE_ROOM : 0, right: buttons === "right" ? SIDE_ROOM : 0 });
 
-function peekButtonList(windowId: string, splitFull: boolean): SmallBarButton[] {
+function peekButtonList(windowId: string, splitFull: boolean, surface: PeekButtonSurface): SmallBarButton[] {
   return [
-    ...(splitViewAvailable ? [{ icon: "rectangle.split.2x1", disabled: splitFull, tooltip: "Open in Split View", onPress: () => openPeekInSplit(windowId) }] : []),
-    { icon: "arrow.up.left.and.arrow.down.right", tooltip: `Open as Tab (${keyText("⌘O")})`, onPress: () => openPeekAsTab(windowId) },
-    { icon: "xmark", tooltip: "Close (Esc)", onPress: () => dismissPeek(windowId) },
+    ...(splitViewAvailable ? [{ icon: "rectangle.split.2x1", disabled: splitFull, tooltip: "Open in Split View", onPress: () => pressPeekChrome(windowId, surface, () => openPeekInSplit(windowId)) }] : []),
+    { icon: "arrow.up.left.and.arrow.down.right", tooltip: `Open as Tab (${keyText("⌘O")})`, onPress: () => pressPeekChrome(windowId, surface, () => openPeekAsTab(windowId)) },
+    { icon: "xmark", tooltip: "Close (Esc)", onPress: () => pressPeekChrome(windowId, surface, () => dismissPeek(windowId)) },
   ];
 }
 
@@ -168,6 +169,7 @@ function PeekCard({
       });
     start(BEGIN_RETRIES);
   }, [known, shown]);
+  useEffect(() => () => forgetPeekStage(peek.tabId), [peek.tabId]);
   useEffect(() => {
     if (!started || !shown || donor) return;
     return registerPeekMotion(windowId, {
@@ -179,6 +181,7 @@ function PeekCard({
 
   const onState = (state: PeekStageState) => {
     if (state.generation !== generation) return;
+    notePeekStageState(peek.tabId, state.phase, state);
     if (state.phase === "entering" && !seen.current.entered) {
       seen.current.entered = true;
       notePeekEntrance(state.entrance, !!state.fallback && state.entrance !== "fade", state.readyTimedOut);
@@ -218,7 +221,7 @@ function PeekCard({
           <View collapsable={false} style={StyleSheet.absoluteFill}>
             <Pressable
               accessibilityLabel="Close Peek"
-              onPress={() => dismissPeek(windowId)}
+              onPress={() => pressPeekScrim(windowId, () => dismissPeek(windowId))}
               style={{ flex: 1, borderRadius: card.radius, backgroundColor: theme.dark ? PEEK_SCRIM.dark : PEEK_SCRIM.light }}
             />
             {!fullscreen && buttons !== "top" && (
@@ -301,7 +304,7 @@ function PeekPageLayer({ rect, background, browserRadius, zoom, children }: { re
 
 function PeekSideButtons({ windowId }: { windowId: string }) {
   const splitFull = usePeekSplitFull(windowId);
-  return peekButtonList(windowId, splitFull)
+  return peekButtonList(windowId, splitFull, "side")
     .reverse()
     .map((b) => (
       <View key={b.tooltip} style={{ width: SMALL_BAR_BUTTON, height: SMALL_BAR_BUTTON }}>
@@ -316,5 +319,5 @@ function PeekBar({ windowId, tabId, withButtons }: { windowId: string; tabId: st
   const splitFull = usePeekSplitFull(windowId);
   if (!tab) return null;
   const host = tab.url ? breadcrumb(tab.url).host : "";
-  return <SmallBar fieldLeft={SMALL_INSET} field={<PageLabel tab={tab} label={host ? `Peek: ${host}` : "Peek"} />} buttons={withButtons ? peekButtonList(windowId, splitFull) : []} />;
+  return <SmallBar fieldLeft={SMALL_INSET} field={<PageLabel tab={tab} label={host ? `Peek: ${host}` : "Peek"} />} buttons={withButtons ? peekButtonList(windowId, splitFull, "bar") : []} />;
 }

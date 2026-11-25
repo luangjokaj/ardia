@@ -2,6 +2,7 @@ import { useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNod
 import { View, type ViewProps, type ViewStyle } from "react-native";
 import { useBrowser } from "../../../../browser/src/state/browser/store";
 import { useScopedTheme } from "../../../../browser/src/components/ui/theme";
+import { popoverMenuMaterial } from "../../../../browser/src/components/ui/tokens";
 import { ardiaHost, hostModuleMethod, hostSupports, reportHostError } from "../../host";
 import { shellOverPages, useInputRegion } from "../../shellAbove";
 import { GlassInside, GlassOptIn, useGlassSurface, useVisualEffectMark } from "../../shellGlass";
@@ -9,9 +10,9 @@ import { watchPageFocus } from "../../pageFocus";
 import { menuShown } from "../../menus";
 import { watchOutsidePresses } from "../../outsidePress";
 import { OutsidePressIgnoreContext } from "../../outsidePressScope";
-import { WINDOW_DRAG_ROUTES, watchWindowDrag, type WindowDragHost } from "../../windowDrag";
+import { markWindowDrag, WINDOW_DRAG_ROUTES, watchWindowDrag, type WindowDragHost } from "../../windowDrag";
 import type { MiddleClickEvent } from "./MouseArea";
-import { edgeGain, fallbackRadius, highlightMask, maskStyle, peakGain, SHADE_OUTSET, shadeMask, shapeMask, type RimCurve, type RimProfile, type ShadeProfile } from "./glassRim";
+import { edgeGain, fallbackRadius, highlightMask, maskStyle, peakGain, shapeMask, type RimCurve, type RimProfile, type ShadeProfile } from "./glassRim";
 
 type Style = ViewStyle & Record<string, unknown>;
 
@@ -110,8 +111,8 @@ export function Surface({ fill, fillColors, fillStops, fade, fadeStops, cornerRa
 type MaterialFill = { light: string; dark: string };
 
 const MATERIAL_FILL: Record<string, MaterialFill> = {
-  popover: { light: "rgba(246,246,246,0.72)", dark: "rgba(40,40,42,0.72)" },
-  menu: { light: "rgba(246,246,246,0.72)", dark: "rgba(40,40,42,0.72)" },
+  popover: popoverMenuMaterial,
+  menu: popoverMenuMaterial,
   hudWindow: { light: "rgba(246,246,246,0.6)", dark: "rgba(30,30,30,0.6)" },
   sidebar: { light: "rgba(240,240,240,0.5)", dark: "rgba(46,46,48,0.5)" },
   underWindowBackground: { light: "rgba(240,240,240,0.4)", dark: "rgba(30,30,30,0.4)" },
@@ -224,10 +225,29 @@ function backdrop(filter: string, extra?: Record<string, string>): React.CSSProp
 
 function inScrollView(node: Element | null) {
   for (let a = node?.parentElement; a; a = a.parentElement) {
+    if (a.hasAttribute("data-ardia-wheel-area")) return true;
     const overflow = getComputedStyle(a).overflowY;
     if (overflow === "auto" || overflow === "scroll") return true;
   }
   return false;
+}
+
+function scrolledGlassSurface(theme: "light" | "dark", clear: boolean, cornerRadius: number): React.CSSProperties {
+  const dark = theme === "dark";
+  return {
+    ...layer,
+    borderRadius: fallbackRadius(cornerRadius),
+    background: dark
+      ? clear
+        ? "linear-gradient(to bottom, rgba(255,255,255,0.09), rgba(255,255,255,0.04))"
+        : "linear-gradient(to bottom, rgba(255,255,255,0.14), rgba(255,255,255,0.07))"
+      : clear
+        ? "linear-gradient(to bottom, rgba(255,255,255,0.44), rgba(255,255,255,0.24))"
+        : "linear-gradient(to bottom, rgba(255,255,255,0.68), rgba(255,255,255,0.42))",
+    boxShadow: dark
+      ? "inset 0 1px 0.5px rgba(255,255,255,0.2), inset 0 0 0 0.5px rgba(255,255,255,0.1), 0 1px 3px rgba(0,0,0,0.26)"
+      : "inset 0 1px 0.5px rgba(255,255,255,0.82), inset 0 0 0 0.5px rgba(255,255,255,0.48), 0 1px 3px rgba(0,0,0,0.07)",
+  };
 }
 
 export function GlassEffect({ cornerRadius = 0, tint, glassStyle = "regular", dark, style, ...props }: GlassEffectProps) {
@@ -239,9 +259,18 @@ export function GlassEffect({ cornerRadius = 0, tint, glassStyle = "regular", da
   const host = useRef<HTMLDivElement | null>(null);
   const [scrolled, setScrolled] = useState(false);
   useLayoutEffect(() => setScrolled(inScrollView(host.current)), []);
+  if (scrolled) {
+    const radiusStyle: React.CSSProperties = { borderRadius: fallbackRadius(cornerRadius) };
+    return (
+      <View pointerEvents="none" {...props} style={style}>
+        <div ref={host} style={scrolledGlassSurface(theme, clear, cornerRadius)}>
+          {tint ? <div style={{ ...layer, ...radiusStyle, background: tint }} /> : null}
+        </div>
+      </View>
+    );
+  }
   const highlight = highlightMask(cornerRadius, g.rim, theme);
   const shape = shapeMask(cornerRadius);
-  const shade = scrolled ? shadeMask(cornerRadius, g.shade, theme) : null;
   const clip: React.CSSProperties = shape ? {} : { borderRadius: fallbackRadius(cornerRadius), overflow: "hidden" };
   const shaped = shape ? maskStyle(shape) : {};
   return (
@@ -251,7 +280,6 @@ export function GlassEffect({ cornerRadius = 0, tint, glassStyle = "regular", da
         {tint ? <div style={{ ...layer, ...shaped, background: tint }} /> : null}
         <div style={backdrop(`brightness(${1 + peakGain(g.rim)})`, highlight ? maskStyle(highlight) : { mask: fallbackBands(g.rim), WebkitMask: fallbackBands(g.rim) })} />
       </div>
-      {shade ? <div style={{ ...layer, inset: -SHADE_OUTSET, background: "#000", ...maskStyle(shade) }} /> : null}
     </View>
   );
 }
@@ -340,6 +368,9 @@ export function WindowDragRegion({
     if (!element) return;
     return watchWindowDrag(element, () => latest.current, windowDragHost(), reportHostError);
   }, []);
+  useEffect(() => {
+    if (node.current) markWindowDrag(node.current, titleBarDoubleClick, clickable);
+  }, [titleBarDoubleClick, clickable]);
   return <View {...props} ref={(view) => void (node.current = view as unknown as HTMLElement | null)} />;
 }
 
