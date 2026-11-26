@@ -95,6 +95,9 @@ void PrepareProfilePrefs(Profile* profile) {
   if (prefs->FindPreference("download_bubble.partial_view_enabled")) {
     prefs->SetBoolean("download_bubble.partial_view_enabled", false);
   }
+  if (prefs->FindPreference("view_source.line_wrapping_enabled")) {
+    prefs->SetDefaultPrefValue("view_source.line_wrapping_enabled", base::Value(true));
+  }
   ApplyAutoPictureInPicture(profile);
 }
 
