@@ -391,8 +391,8 @@ final class WebKitTab: NSView, WKNavigationDelegate, WKUIDelegate {
     runInWorld("window.__ardia && window.__ardia.media(\(Self.jsString(action)), \(seconds.isFinite ? seconds : 0))", frame: nowPlayingSubframe)
   }
 
-  func setPictureInPicture(_ on: Bool, automatic: Bool = false, completion: @escaping (PictureInPictureAnswer) -> Void) {
-    let code = "window.__ardia ? window.__ardia.pictureInPicture(\(on ? "true" : "false"), \(automatic ? "true" : "false")) : false"
+  func setPictureInPicture(_ on: Bool, automatic: Bool = false, overFullScreen: Bool = false, completion: @escaping (PictureInPictureAnswer) -> Void) {
+    let code = "window.__ardia ? window.__ardia.pictureInPicture(\(on ? "true" : "false"), \(automatic ? "true" : "false"), \(overFullScreen ? "true" : "false")) : false"
     if !on {
       for frame in mediaFrames.values where !frame.isMainFrame { runInWorld(code, frame: frame) }
     }
@@ -426,9 +426,7 @@ final class WebKitTab: NSView, WKNavigationDelegate, WKUIDelegate {
       if let dict, !dict.isEmpty { mediaFrames[frame] = frameInfo } else if !main, !playingFrames.contains(frame) { mediaFrames.removeValue(forKey: frame) }
       emit("nowPlaying", ["state": view.nowPlaying.noteFrame(frame, page: data, main: main) ?? NSNull()])
     case "pip":
-      let active = dict?["active"] as? Bool ?? false
-      autoPictureInPictureRule.reported(active: active)
-      emit("pictureInPicture", ["kind": "video", "active": active])
+      notePictureInPicture(dict, frame: frame)
     case "mediaFault":
       if let fault = WebKitMediaFaults.event(dict, from: frameInfo, muted: muted, blockerActive: WebKitContentBlocker.shared.isFiltering && !blocked.exemptLoad) { emit("mediaFault", fault) }
     case "status":
@@ -577,6 +575,7 @@ final class WebKitTab: NSView, WKNavigationDelegate, WKUIDelegate {
     self.webView?.scriptFrames.removeAll()
     if let view = self.webView { ArdiaWebView.resetFieldProviderPage(view) }
     resetNowPlaying()
+    pictureInPicturePageGone()
     processTerminated()
     emitMedia()
     emit("crashed", ["status": 0, "reason": "crashed", "code": 0])
